@@ -14,6 +14,8 @@ version = "0.1.0"
 
 [tool.poetry.dependencies]
 fastapi = {extras = ["standard"], version = "^0.115.6"}
+pydantic = "^2.10.5"
+pydantic-settings = "^2.7.1"
 python = "^3.12"
 
 [tool.poetry.group.dev.dependencies]
