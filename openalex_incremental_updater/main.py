@@ -7,6 +7,7 @@ from starlette.middleware.cors import CORSMiddleware
 from openalex_incremental_updater.api.main import api_router
 from openalex_incremental_updater.core.config import get_settings
 from openalex_incremental_updater.core.logger import setup_logging
+from openalex_incremental_updater.core.version import get_package_version
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
@@ -31,6 +32,7 @@ app = FastAPI(
     title=settings.PROJECT_NAME,
     openapi_url=f"{settings.API_V1_STR}/openapi.json",
     generate_unique_id_function=custom_generate_unique_id,
+    version=get_package_version("openalex_incremental_updater"),
 )
 
 app.add_middleware(

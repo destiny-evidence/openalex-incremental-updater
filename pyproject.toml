@@ -9,9 +9,8 @@ explicit_package_bases = true
 authors = ["Harry Moss <h.moss@ucl.ac.uk>"]
 description = ""
 name = "openalex-incremental-updater"
-python = "^3.10"
 readme = "README.md"
-version = "0.1.0"
+version = "0.1.1"
 
 [tool.poetry.dependencies]
 fastapi = {extras = ["standard"], version = "^0.115.6"}
