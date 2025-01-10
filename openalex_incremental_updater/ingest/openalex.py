@@ -15,6 +15,10 @@ class UpstreamOpenAlexError(Exception):
     """Exception raised for errors in the OpenAlex API."""
 
 
+class UpstreamOpenAlexError(Exception):
+    """Exception raised for errors in the OpenAlex API."""
+
+
 class OpenAlexDataFetcher:
     """Class to control data fetching from the OpenAlex API."""
 

@@ -9,6 +9,7 @@ from openalex_incremental_updater.api.routers.v1 import router as v1_router
 from openalex_incremental_updater.core.config import get_settings
 from openalex_incremental_updater.core.logger import setup_logging
 from openalex_incremental_updater.core.version import get_package_version
+from openalex_incremental_updater.routers.v1 import router as v1_router
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
