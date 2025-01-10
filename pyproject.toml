@@ -9,6 +9,7 @@ explicit_package_bases = true
 authors = ["Harry Moss <h.moss@ucl.ac.uk>"]
 description = ""
 name = "openalex-incremental-updater"
+python = "^3.10"
 readme = "README.md"
 version = "0.1.0"
 
@@ -47,6 +48,7 @@ lint.ignore = [
     "D212", # multi-line-summary-first-line
     "D407", # removed dashes lines under sections
     "D417", # argument description in docstring (unreliable)
+    "FA102", # missing from __future__ import annotations, but we don't support python < 3.10
     "ISC001", # simplify implicit str concatenation (ruff-format recommended)
 ]
 lint.per-file-ignores = {"tests*" = [
@@ -59,6 +61,7 @@ lint.select = [
 lint.mccabe.max-complexity = 18
 lint.pep8-naming.classmethod-decorators = [
     "classmethod",
+    "pydantic.field_validator", # Allow Pydantic's `@field_validator` decorator to trigger class method treatment.
 ]
 
 [tool.tomlsort]
