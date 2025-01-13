@@ -4,10 +4,10 @@ from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from starlette.middleware.cors import CORSMiddleware
 
-from openalex_incremental_updater.api.main import api_router
 from openalex_incremental_updater.core.config import get_settings
 from openalex_incremental_updater.core.logger import setup_logging
 from openalex_incremental_updater.core.version import get_package_version
+from openalex_incremental_updater.routers.v1 import router as v1_router
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:
@@ -43,7 +43,8 @@ app.add_middleware(
     allow_headers=settings.allow_headers,
 )
 
-app.include_router(api_router, prefix=settings.API_V1_STR)
+
+app.include_router(v1_router)
 
 if __name__ == "__main__":
     import uvicorn
