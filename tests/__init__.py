@@ -1,1 +1,1 @@
-"""Tests for the package."""
+"""Tests for the OpenAlex Incremental Updater."""
