@@ -1,4 +1,4 @@
-"""Placeholder tests to ensure pytest runs."""
+"""Tests for the main module of the OpenAlex Incremental Updater."""
 
 
 def test_placeholder() -> None:

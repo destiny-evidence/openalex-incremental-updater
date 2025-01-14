@@ -46,8 +46,11 @@ class Settings(BaseSettings):
                 if not is_listlike:
                     json_format_error = "Must be list-like or comma-separated string"
                     raise TypeError(json_format_error)
+                return [url.strip() for url in origins]
             except json.JSONDecodeError:
-                origins = [url.strip() for url in cors_origins.split(",")]
+                return [HttpUrl(url.strip()) for url in cors_origins.split(",")]
+        if isinstance(cors_origins, list):
+            origins = [HttpUrl(url.strip()) for url in cors_origins]
         elif not isinstance(cors_origins, list):
             invalid_type_error = "CORS_ORIGINS must be a list or a string."
             raise TypeError(invalid_type_error)
