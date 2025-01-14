@@ -1,0 +1,1 @@
+"""OpenAlex data ingestion module."""
