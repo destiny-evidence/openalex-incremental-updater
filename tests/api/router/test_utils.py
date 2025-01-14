@@ -3,7 +3,7 @@
 from fastapi import FastAPI, status
 from fastapi.testclient import TestClient
 
-from openalex_incremental_updater.routers.utils import router as utils_router
+from openalex_incremental_updater.api.routers.utils import router as utils_router
 
 
 def test_health_check(set_test_environment_variables: None) -> None:
