@@ -2,7 +2,7 @@
 
 import json
 
-from pydantic import Field, HttpUrl, field_validator
+from pydantic import Field, HttpUrl, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,6 +11,11 @@ class Settings(BaseSettings):
 
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "OpenAlex Incremental Updater"
+    OPENALEX_API_URL: str = "https://api.openalex.org"
+    OPENALEX_API_KEY: SecretStr = Field(
+        ...,
+        description="API key for OpenAlex API",
+    )
     USER_EMAIL: str = Field(
         ...,
         description="User email address sent to OpenAlex API to join the polite pool",
