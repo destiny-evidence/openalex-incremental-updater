@@ -11,7 +11,10 @@ class Settings(BaseSettings):
 
     API_V1_STR: str = "/api/v1"
     PROJECT_NAME: str = "OpenAlex Incremental Updater"
-
+    USER_EMAIL: str = Field(
+        ...,
+        description="User email address sent to OpenAlex API to join the polite pool",
+    )
     cors_origins: list[HttpUrl] | str = Field(..., description="CORS allowed origins")
     allow_credentials: bool = True
     allow_methods: list[str] = ["*"]
