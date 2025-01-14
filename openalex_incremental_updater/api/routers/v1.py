@@ -2,8 +2,8 @@
 
 from fastapi import APIRouter
 
-from openalex_incremental_updater.api.core.config import get_settings
 from openalex_incremental_updater.api.routers import utils
+from openalex_incremental_updater.core.config import get_settings
 
 settings = get_settings()
 

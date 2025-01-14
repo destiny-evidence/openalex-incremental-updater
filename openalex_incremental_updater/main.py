@@ -4,10 +4,10 @@ from fastapi import FastAPI
 from fastapi.routing import APIRoute
 from starlette.middleware.cors import CORSMiddleware
 
-from openalex_incremental_updater.api.core.config import get_settings
-from openalex_incremental_updater.api.core.logger import setup_logging
-from openalex_incremental_updater.api.core.version import get_package_version
 from openalex_incremental_updater.api.routers.v1 import router as v1_router
+from openalex_incremental_updater.core.config import get_settings
+from openalex_incremental_updater.core.logger import setup_logging
+from openalex_incremental_updater.core.version import get_package_version
 
 
 def custom_generate_unique_id(route: APIRoute) -> str:

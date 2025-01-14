@@ -3,7 +3,7 @@
 import pytest
 from pydantic import HttpUrl, ValidationError
 
-from openalex_incremental_updater.api.core.config import Settings, get_settings
+from openalex_incremental_updater.core.config import Settings, get_settings
 
 
 def test_get_settings(set_test_environment_variables: None) -> None:
