@@ -62,31 +62,35 @@ def fetch_data_from_created_date(created_date: date) -> None:
         params = {
             "cursor": "*",
         }
+        logger.info(f"Requesting all works created from {created_date}")
 
         counter_works_retrieved = 0
         while params["cursor"]:
             filter_string = f"filter=from_created_date:{created_date}"
             filtered_works_url = f"{settings.OPENALEX_API_URL}/works?" + filter_string
-            logger.info(f"Requesting all works created from {created_date}")
             response = session.get(filtered_works_url, params=params)
             created_works = response.json()
 
             results = created_works["results"]
+            creation_dates = [
+                datetime.strptime(x["created_date"], "%Y-%m-%d").date() for x in results
+            ]
+            creation_dates.sort(reverse=True)
             count_works_total = created_works["meta"]["count"]
             counter_works_retrieved += len(results)
             logger.info(
                 f"Processed {counter_works_retrieved} results of {count_works_total}"
             )
-
             params["cursor"] = created_works["meta"]["next_cursor"]
-
-    # Need to output the cursor to a file to resume later in case of failures...
+            logger.info(f"Latest data retrieved: {creation_dates[0]}")
+            logger.info(f"Next cursor: {params['cursor']}")
+    # Need to persist the cursor _somewhere_ to resume later in case of failures...
     logger.info(f"Finished paging. Retrieved {counter_works_retrieved} results.")
 
 
 def fetch_previous_day_data() -> None:
     """Fetch data from the OpenAlex API created yesterday."""
-    date_yesterday = datetime.now(ZoneInfo("Europe/London")).date() - timedelta(days=1)
+    date_yesterday = datetime.now(ZoneInfo("Europe/London")).date() - timedelta(days=2)
     fetch_data_from_created_date(date_yesterday)
 
 
