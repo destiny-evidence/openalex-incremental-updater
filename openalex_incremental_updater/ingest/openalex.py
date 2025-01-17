@@ -84,6 +84,11 @@ def fetch_data_from_created_date(created_date: date) -> None:
     logger.info(f"Finished paging. Retrieved {counter_works_retrieved} results.")
 
 
-if __name__ == "__main__":
+def fetch_previous_day_data() -> None:
+    """Fetch data from the OpenAlex API created yesterday."""
     date_yesterday = datetime.now(ZoneInfo("Europe/London")).date() - timedelta(days=1)
     fetch_data_from_created_date(date_yesterday)
+
+
+if __name__ == "__main__":
+    fetch_previous_day_data()
