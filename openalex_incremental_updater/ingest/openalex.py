@@ -15,6 +15,32 @@ from openalex_incremental_updater.core.utils import simple_timer
 settings = get_settings()
 
 
+class RetrySession(Session):
+    """Define a requests.Session with retry capabilities."""
+
+    def __init__(self, retries: int = 5, backoff_factor: float = 0.1) -> None:
+        """Class constructor."""
+        super().__init__()
+        self.retries = retries
+        self.backoff_factor = backoff_factor
+
+        self.setup()
+
+    def setup(self) -> None:
+        """Define retry behaviour and attach to the session."""
+        retry_settings = Retry(
+            total=self.retries,
+            backoff_factor=self.backoff_factor,
+            status_forcelist=[
+                status.HTTP_500_INTERNAL_SERVER_ERROR,
+                status.HTTP_502_BAD_GATEWAY,
+                status.HTTP_503_SERVICE_UNAVAILABLE,
+                status.HTTP_504_GATEWAY_TIMEOUT,
+            ],
+        )
+        self.mount("https://", HTTPAdapter(max_retries=retry_settings))
+
+
 def fetch_data_free_tier() -> None:
     """
     Fetch data from the OpenAlex API.
@@ -31,20 +57,9 @@ def fetch_data_free_tier() -> None:
     all_results = []
     count_api_queries = 0
 
-    with Session() as session:
+    with RetrySession() as session:
         while cursor:
             params["cursor"] = cursor
-            retries = Retry(
-                total=5,
-                backoff_factor=0.1,
-                status_forcelist=[
-                    status.HTTP_500_INTERNAL_SERVER_ERROR,
-                    status.HTTP_502_BAD_GATEWAY,
-                    status.HTTP_503_SERVICE_UNAVAILABLE,
-                    status.HTTP_504_GATEWAY_TIMEOUT,
-                ],
-            )
-            session.mount("https://", HTTPAdapter(max_retries=retries))
             response = session.get(works_url, params=params)
             if response.status_code != status.HTTP_200_OK:
                 logger.error(f"Failed to fetch data: {response.text}")
@@ -61,15 +76,18 @@ def fetch_data_free_tier() -> None:
 
 
 @simple_timer
-def fetch_data_from_created_date(created_date: date) -> None:
+def fetch_data_from_created_date(
+    created_date: date, works_retrieved_limit: int | None = None
+) -> None:
     """
     Fetch data from the OpenAlex API created **on or after** a specific date.
 
     Args:
         created_date (datetime): The date to fetch data from.
+        works_retrieved_limit (int, optional): The maximum number of works to retrieve. Defaults to None.
 
     """
-    with Session() as session:
+    with RetrySession() as session:
         headers = {
             "api_key": settings.OPENALEX_API_KEY.get_secret_value(),
         }
@@ -83,18 +101,6 @@ def fetch_data_from_created_date(created_date: date) -> None:
 
         counter_works_retrieved = 0
         last_known_cursor = None
-
-        retries = Retry(
-            total=5,
-            backoff_factor=0.1,
-            status_forcelist=[
-                status.HTTP_500_INTERNAL_SERVER_ERROR,
-                status.HTTP_502_BAD_GATEWAY,
-                status.HTTP_503_SERVICE_UNAVAILABLE,
-                status.HTTP_504_GATEWAY_TIMEOUT,
-            ],
-        )
-        session.mount("https://", HTTPAdapter(max_retries=retries))
 
         while params["cursor"]:
             filter_string = f"filter=from_created_date:{created_date}"
@@ -118,6 +124,12 @@ def fetch_data_from_created_date(created_date: date) -> None:
 
             if params["cursor"]:
                 last_known_cursor = params["cursor"]
+            if (
+                works_retrieved_limit
+                and counter_works_retrieved >= works_retrieved_limit
+            ):
+                logger.info(f"Reached the limit of {works_retrieved_limit} works.")
+                break
 
     logger.info(f"Last known cursor: {last_known_cursor}")
     # Persist the cursor _somewhere_ to resume later in case of failures?
@@ -127,7 +139,9 @@ def fetch_data_from_created_date(created_date: date) -> None:
 def fetch_previous_day_data() -> None:
     """Fetch data from the OpenAlex API created yesterday."""
     date_yesterday = datetime.now(ZoneInfo("Europe/London")).date() - timedelta(days=2)
-    fetch_data_from_created_date(created_date=date_yesterday)
+    fetch_data_from_created_date(
+        created_date=date_yesterday, works_retrieved_limit=1000
+    )
 
 
 if __name__ == "__main__":

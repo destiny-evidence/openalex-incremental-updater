@@ -18,9 +18,11 @@ def simple_timer(timed_function: Callable) -> Callable:
 
     @functools.wraps(timed_function)
     def wrapper_simple_timer(*args: list, **kwargs: dict) -> None:
-        start_time = time.time()
+        start_time = time.perf_counter()
         timed_function(*args, **kwargs)
-        end_time = time.time()
-        logger.info(f"Elapsed time: {(end_time - start_time):.2f} seconds")
+        end_time = time.perf_counter()
+        logger.info(
+            f"{timed_function.__name__}: Elapsed time: {(end_time - start_time):.2f} seconds"
+        )
 
     return wrapper_simple_timer
