@@ -15,10 +15,12 @@ def set_test_environment_variables() -> Generator[None, None, None]:
     os.environ["CORS_ORIGINS"] = '["http://test-host"]'
     os.environ["USER_EMAIL"] = "test@test"
     os.environ["PROJECT_NAME"] = "Test project name"
+    os.environ["OPENALEX_API_KEY"] = "a-fake-key"  # pragma: allowlist secret
     yield
     os.environ.pop("CORS_ORIGINS")
     os.environ.pop("PROJECT_NAME")
     os.environ.pop("USER_EMAIL")
+    os.environ.pop("OPENALEX_API_KEY")
 
 
 @pytest.fixture(scope="session")

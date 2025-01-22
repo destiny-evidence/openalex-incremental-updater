@@ -19,7 +19,6 @@ def test_v1_router_health_check(sync_test_client: TestClient) -> None:
 
 
 def test_v1_openalex_works_ingest_created_success(
-    set_test_environment_variables: None,
     sync_test_client: TestClient,
     mocker: MockerFixture,
     single_openalex_work_response: dict,
