@@ -156,11 +156,12 @@ def fetch_data_from_date(
                 and counter_works_retrieved >= works_retrieved_limit
             ):
                 logger.info(f"Reached the limit of {works_retrieved_limit} works.")
+                return aggregate_results
 
     logger.info(f"Last known cursor: {last_known_cursor}")
     # Persist the cursor _somewhere_ to resume later in case of failures?
     logger.info(f"Finished paging. Retrieved {counter_works_retrieved} results.")
-    return results
+    return aggregate_results
 
 
 def fetch_previous_day_data_snippet(snippet_length: int = 1000) -> list[dict]:
