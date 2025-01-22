@@ -1,6 +1,7 @@
 """Retrieve data from OpenAlex API."""
 
 from datetime import date, datetime, timedelta
+from enum import StrEnum
 from zoneinfo import ZoneInfo
 
 from fastapi import status
@@ -13,6 +14,13 @@ from openalex_incremental_updater.core.config import get_settings
 from openalex_incremental_updater.core.utils import simple_timer
 
 settings = get_settings()
+
+
+class CreatedOrUpdated(StrEnum):
+    """Define the types of dates to filter by."""
+
+    CREATED = "created"
+    UPDATED = "updated"
 
 
 class RetrySession(Session):
@@ -45,7 +53,7 @@ def fetch_data_free_tier() -> None:
     """
     Fetch data from the OpenAlex API.
 
-    Bit of a proof of concept since we'll use an API key.
+    This function uses the free tier of the OpenAlex API and should be considered a fallback.
     """
     works_url = f"{settings.OPENALEX_API_URL}/works"
     mailto = settings.USER_EMAIL
@@ -76,17 +84,29 @@ def fetch_data_free_tier() -> None:
 
 
 @simple_timer
-def fetch_data_from_created_date(
-    created_date: date, works_retrieved_limit: int | None = None
-) -> None:
+def fetch_data_from_date(
+    fetch_date: date,
+    created_or_updated: CreatedOrUpdated,
+    works_retrieved_limit: int | None = None,
+) -> list[dict]:
     """
-    Fetch data from the OpenAlex API created **on or after** a specific date.
+    Fetch data from the OpenAlex API updated **on or after** a specific date.
 
     Args:
-        created_date (datetime): The date to fetch data from.
+        fetch_date (date): The date from which to fetch data.
+        created_or_updated (CreatedOrUpdated): The type of date to filter by.
         works_retrieved_limit (int, optional): The maximum number of works to retrieve. Defaults to None.
 
     """
+    update_type = created_or_updated.value
+
+    aggregate_results = []
+
+    # OpenAlex API allows a maximum of 200 results per page
+    per_page: str = str(
+        min(200, works_retrieved_limit) if works_retrieved_limit else 200
+    )
+
     with RetrySession() as session:
         headers = {
             "api_key": settings.OPENALEX_API_KEY.get_secret_value(),
@@ -95,31 +115,38 @@ def fetch_data_from_created_date(
         cursor: str = "*"
         params = {
             "cursor": cursor,
-            "per-page": "200",  # max allowed by OpenAlex
+            "per-page": per_page,
         }
-        logger.info(f"Requesting all works created from {created_date}")
+        logger.info(f"Requesting all works {update_type} from {update_type}")
 
         counter_works_retrieved = 0
         last_known_cursor = None
 
         while params["cursor"]:
-            filter_string = f"filter=from_created_date:{created_date}"
+            filter_string = f"filter=from_{update_type}_date:{fetch_date}"
             filtered_works_url = f"{settings.OPENALEX_API_URL}/works?" + filter_string
             response = session.get(filtered_works_url, params=params)
-            created_works = response.json()
+            retrieved_works = response.json()
 
-            results = created_works["results"]
+            results = retrieved_works["results"]
+            aggregate_results.append(results)
+            # Note that from the API updated_date is a datetime and created_date is a date
+            # Taking the first 10 characters of the datetime string to get the date only
+            # as YYYY-MM-DD == 10 chars
             creation_dates = [
-                datetime.strptime(x["created_date"], "%Y-%m-%d").date() for x in results
+                datetime.strptime(x[f"{update_type}_date"][:10], "%Y-%m-%d").date()
+                for x in results
             ]
             creation_dates.sort(reverse=True)
-            count_works_total = created_works["meta"]["count"]
+            count_works_total = retrieved_works["meta"]["count"]
             counter_works_retrieved += len(results)
             logger.info(
                 f"Processed {counter_works_retrieved} results of {count_works_total}"
             )
-            params["cursor"] = created_works["meta"]["next_cursor"]
-            logger.info(f"Latest `created_from` date retrieved: {creation_dates[0]}")
+            params["cursor"] = retrieved_works["meta"]["next_cursor"]
+            logger.info(
+                f"Latest `{update_type}_from` date retrieved: {creation_dates[0]}"
+            )
             logger.info(f"Next cursor: {params['cursor']}")
 
             if params["cursor"]:
@@ -129,20 +156,22 @@ def fetch_data_from_created_date(
                 and counter_works_retrieved >= works_retrieved_limit
             ):
                 logger.info(f"Reached the limit of {works_retrieved_limit} works.")
-                break
 
     logger.info(f"Last known cursor: {last_known_cursor}")
     # Persist the cursor _somewhere_ to resume later in case of failures?
     logger.info(f"Finished paging. Retrieved {counter_works_retrieved} results.")
+    return results
 
 
-def fetch_previous_day_data() -> None:
+def fetch_previous_day_data_snippet(snippet_length: int = 1000) -> list[dict]:
     """Fetch data from the OpenAlex API created yesterday."""
     date_yesterday = datetime.now(ZoneInfo("Europe/London")).date() - timedelta(days=2)
-    fetch_data_from_created_date(
-        created_date=date_yesterday, works_retrieved_limit=1000
+    return fetch_data_from_date(
+        fetch_date=date_yesterday,
+        created_or_updated=CreatedOrUpdated.CREATED,
+        works_retrieved_limit=snippet_length,
     )
 
 
 if __name__ == "__main__":
-    fetch_previous_day_data()
+    results = fetch_previous_day_data_snippet()

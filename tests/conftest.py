@@ -6,6 +6,8 @@ from collections.abc import Generator
 import pytest
 from fastapi.testclient import TestClient
 
+pytest_plugins = ["tests.fixtures.routers"]
+
 
 @pytest.fixture(scope="session")
 def set_test_environment_variables() -> Generator[None, None, None]:
