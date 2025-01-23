@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 import pytest
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def single_openalex_work_response() -> dict:
     """Return a single OpenAlex work response."""
     test_datetime = datetime(2025, 1, 1, 12, 30, 0, tzinfo=ZoneInfo("UTC"))

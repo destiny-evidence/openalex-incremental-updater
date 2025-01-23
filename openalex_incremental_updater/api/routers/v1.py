@@ -9,7 +9,7 @@ from openalex_incremental_updater.api.routers import utils
 from openalex_incremental_updater.core.config import get_settings
 from openalex_incremental_updater.ingest.openalex import (
     CreatedOrUpdated,
-    fetch_data_from_date,
+    OpenAlexDataFetcher,
 )
 
 settings = get_settings()
@@ -44,7 +44,8 @@ def get_openalex_ingest(
         JSONResponse: Response with status code and message.
 
     """
-    results = fetch_data_from_date(
+    fetcher = OpenAlexDataFetcher()
+    results = fetcher.fetch_data_from_date(
         fetch_date=fetch_date,
         created_or_updated=ingest_type,
         works_retrieved_limit=limit,

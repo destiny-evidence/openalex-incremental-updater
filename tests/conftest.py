@@ -1,35 +1,48 @@
 """Pytest configuration file."""
 
-import os
 from collections.abc import Generator
 
 import pytest
+from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 pytest_plugins = ["tests.fixtures.routers"]
 
 
-@pytest.fixture(scope="session")
-def set_test_environment_variables() -> Generator[None, None, None]:
+@pytest.fixture
+def set_test_environment_variables(
+    monkeypatch: pytest.MonkeyPatch,
+) -> Generator[None, None, None]:
     """Set test environment variables."""
-    os.environ["CORS_ORIGINS"] = '["http://test-host"]'
-    os.environ["USER_EMAIL"] = "test@test"
-    os.environ["PROJECT_NAME"] = "Test project name"
-    os.environ["OPENALEX_API_KEY"] = "a-fake-key"  # pragma: allowlist secret
+    monkeypatch.setenv("CORS_ORIGINS", '["http://test-host"]')
+    monkeypatch.setenv("USER_EMAIL", "test@test")
+    monkeypatch.setenv("PROJECT_NAME", "Test project name")
+    monkeypatch.setenv("OPENALEX_API_KEY", "a-fake-key")  # pragma: allowlist secret
     yield
-    os.environ.pop("CORS_ORIGINS")
-    os.environ.pop("PROJECT_NAME")
-    os.environ.pop("USER_EMAIL")
-    os.environ.pop("OPENALEX_API_KEY")
+    monkeypatch.delenv("CORS_ORIGINS")
+    monkeypatch.delenv("USER_EMAIL")
+    monkeypatch.delenv("PROJECT_NAME")
+    monkeypatch.delenv("OPENALEX_API_KEY")
 
 
-@pytest.fixture(scope="session")
+@pytest.fixture
 def sync_test_client(
-    set_test_environment_variables: None,
+    set_test_environment_variables: Generator[None, None, None],
 ) -> Generator[TestClient, None, None]:
     """Create a test client for synchronous tests."""
-    from openalex_incremental_updater.main import app
 
-    client = TestClient(app)
+    def get_app() -> FastAPI:
+        """
+        Return the FastAPI application.
+
+        Returns:
+            app (FastAPI): The FastAPI application.
+
+        """
+        from openalex_incremental_updater.main import app
+
+        return app
+
+    client = TestClient(get_app())
     yield client
     client.close()
