@@ -30,7 +30,7 @@ def test_get_settings(set_test_environment_variables: None) -> None:
     ), "Check project name environment variable is set correctly from fixture"
 
 
-def test_cors_origins_valid_list() -> None:
+def test_cors_origins_valid_list(set_test_environment_variables: None) -> None:
     """Test setting CORS origins from a valid list of URLs."""
     test_urls_string_list = ["https://example.com", "https://another.com"]
     test_urls_httpurl_list = [HttpUrl(url) for url in test_urls_string_list]
@@ -42,7 +42,7 @@ def test_cors_origins_valid_list() -> None:
     ), "Check CORS origins are valid after setting from test URL list of strings"
 
 
-def test_cors_origins_valid_comma_string() -> None:
+def test_cors_origins_valid_comma_string(set_test_environment_variables: None) -> None:
     """Test setting CORS origins from a comma-separated string of valid URLs."""
     test_urls_comma_separated_string = "https://example.com,https://another.com"
 
@@ -55,7 +55,9 @@ def test_cors_origins_valid_comma_string() -> None:
     ), "Check CORS origins are valid after setting from comma-separated string"
 
 
-def test_cors_origins_entire_invalid_string() -> None:
+def test_cors_origins_entire_invalid_string(
+    set_test_environment_variables: None,
+) -> None:
     """Test setting CORS origins from a string of entirely invalid URLs."""
     test_invalid_string_urls = "not_a_url"
     with pytest.raises(ValidationError) as invalid_url_error:
@@ -65,7 +67,9 @@ def test_cors_origins_entire_invalid_string() -> None:
     ), "Check invalid URL string raises validation error"
 
 
-def test_cors_origins_string_contains_invalid_url() -> None:
+def test_cors_origins_string_contains_invalid_url(
+    set_test_environment_variables: None,
+) -> None:
     """Test setting CORS origins from a string containing a mixture of valid and invalid URLs."""
     test_invalid_string_urls = "http://valid_url,not_a_url"
     with pytest.raises(ValidationError) as invalid_url_error:
@@ -75,7 +79,7 @@ def test_cors_origins_string_contains_invalid_url() -> None:
     ), "Check invalid URL string raises validation error"
 
 
-def test_cors_origins_invalid_json() -> None:
+def test_cors_origins_invalid_json(set_test_environment_variables: None) -> None:
     """Test setting CORS origins from a JSON-like string of invalid URLs."""
     test_json_invalid_url = '["not_a_url"]'
     with pytest.raises(ValidationError) as invalid_json_url_error:
