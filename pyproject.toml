@@ -33,6 +33,7 @@ types-requests = "^2.32.0.20241016"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^8.3.4"
+responses = "^0.25.6"
 
 [tool.pytest.ini_options]
 addopts = [
@@ -61,6 +62,8 @@ lint.per-file-ignores = {"openalex_incremental_updater/ingest/openalex.py" = [
     "DTZ007", # Naive datetime constructed using `datetime.datetime.strptime()` without %z
 ], "tests*" = [
     "ARG001", # Unused function argument
+    "D100", # Missing docstring in public module
+    "D103", # Missing docstring in public function
     "DTZ007", # Naive datetime constructed using `datetime.datetime.strptime()` without %z
     "INP001", # File is part of an implicit namespace package.
     "S101", # Use of `assert` detected
