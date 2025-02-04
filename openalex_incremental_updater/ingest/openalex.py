@@ -10,6 +10,7 @@ from loguru import logger
 from openalex_incremental_updater.core.config import get_settings
 from openalex_incremental_updater.core.utils import simple_timer
 from openalex_incremental_updater.ingest import CreatedOrUpdated, RetrySession
+from openalex_incremental_updater.models.openalex import OpenAlexWork
 
 
 class UpstreamOpenAlexError(Exception):
@@ -23,11 +24,15 @@ class OpenAlexDataFetcher:
         """Class constructor."""
         self.settings = get_settings()
 
-    def fetch_works_free_tier(self) -> None:
+    def fetch_works_free_tier(self) -> list[OpenAlexWork]:
         """
         Fetch data from the OpenAlex API.
 
         This function uses the free tier of the OpenAlex API and should be considered a fallback.
+
+        Returns:
+            list[OpenAlexWork]: The retrieved works.
+
         """
         works_url = f"{self.settings.OPENALEX_API_URL}/works"
         mailto = self.settings.USER_EMAIL
@@ -48,13 +53,14 @@ class OpenAlexDataFetcher:
                     break
                 this_page_results = response.json()["results"]
                 for result in this_page_results:
-                    all_results.append(result)  # noqa: PERF402
+                    all_results.extend(result)
                 count_api_queries += 1
 
                 cursor = response.json()["meta"]["next_cursor"]
         logger.info(
             f"Finished paging. Ran {count_api_queries} queries, retrieved {len(all_results)} results."
         )
+        return all_results
 
     @simple_timer
     def fetch_works_from_date(
@@ -62,7 +68,7 @@ class OpenAlexDataFetcher:
         fetch_date: date,
         created_or_updated: CreatedOrUpdated,
         works_retrieved_limit: int | None = None,
-    ) -> list[dict]:
+    ) -> list[OpenAlexWork]:
         """
         Fetch data from the OpenAlex API updated **on or after** a specific date.
 
@@ -70,6 +76,9 @@ class OpenAlexDataFetcher:
             fetch_date (date): The date from which to fetch data.
             created_or_updated (CreatedOrUpdated): The type of date to filter by.
             works_retrieved_limit (int, optional): The maximum number of works to retrieve. Defaults to None.
+
+        Returns:
+            list[OpenAlexWork]: The retrieved works.
 
         """
         update_type = created_or_updated.value
@@ -140,8 +149,19 @@ class OpenAlexDataFetcher:
         logger.info(f"Finished paging. Retrieved {counter_works_retrieved} results.")
         return aggregate_results
 
-    def fetch_previous_day_data_snippet(self, snippet_length: int = 1000) -> list[dict]:
-        """Fetch data from the OpenAlex API created yesterday."""
+    def fetch_previous_day_data_snippet(
+        self, snippet_length: int = 1000
+    ) -> list[OpenAlexWork]:
+        """
+        Fetch a snippet of data from the OpenAlex API from the previous day.
+
+        Args:
+            snippet_length (int, optional): The maximum number of works to retrieve. Defaults to 1000.
+
+        Returns:
+            list[OpenAlexWork]: The retrieved works.
+
+        """
         date_yesterday = datetime.now(ZoneInfo("Europe/London")).date() - timedelta(
             days=2
         )
@@ -153,7 +173,7 @@ class OpenAlexDataFetcher:
 
     def fetch_works_open_filter(
         self, openalex_filter: str | None, works_retrieved_limit: int | None = None
-    ) -> list[dict]:
+    ) -> list[OpenAlexWork]:
         """
         Fetch data from the OpenAlex API using a custom filter.
 
@@ -162,7 +182,7 @@ class OpenAlexDataFetcher:
             works_retrieved_limit (Optional[int]): The maximum number of works to retrieve. Defaults to None.
 
         Returns:
-            list[dict]: API query result, on success
+            list[OpenAlexWork]: The retrieved works.
 
         """
         aggregate_results = []
@@ -230,8 +250,3 @@ class OpenAlexDataFetcher:
         logger.info(f"Finished paging. Retrieved {counter_works_retrieved} results.")
 
         return aggregate_results
-
-
-if __name__ == "__main__":
-    fetcher = OpenAlexDataFetcher()
-    results = fetcher.fetch_previous_day_data_snippet()

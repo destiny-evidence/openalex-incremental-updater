@@ -12,6 +12,7 @@ from openalex_incremental_updater.ingest.openalex import (
     OpenAlexDataFetcher,
     UpstreamOpenAlexError,
 )
+from openalex_incremental_updater.models.openalex import OpenAlexWork
 
 settings = get_settings()
 
@@ -32,7 +33,7 @@ def get_openalex_works_ingest_from_date(
         ),
     ],
     limit: Annotated[int, Query(description="Maximum number of records to ingest.")],
-) -> dict:
+) -> list[OpenAlexWork]:
     """
     Fetch Works from the OpenAlex API with a date filter and ingest them into the repository.
 
@@ -42,34 +43,30 @@ def get_openalex_works_ingest_from_date(
         limit (int): Maximum number of records to ingest.
 
     Returns:
-        JSONResponse: Response with status code and message.
+        list[OpenAlexWork]: List of OpenAlexWork objects.
 
     """
     fetcher = OpenAlexDataFetcher()
-    results = fetcher.fetch_works_from_date(
+    return fetcher.fetch_works_from_date(
         fetch_date=fetch_date,
         created_or_updated=ingest_type,
         works_retrieved_limit=limit,
     )
-    return {
-        "message": f"Data fetched from {fetch_date} with method: {ingest_type}. Ingested successfully.",
-        "results": results,
-    }
 
 
-@router.get("/openalex_works_open_query")
-def get_openalex_ingest_open_query(
+@router.get("/openalex_works_open_filter")
+def get_openalex_works_ingest_open_filter(
     openalex_query_string: Annotated[
         str,
         Query(description="OpenAlex API-compliant query string."),
     ],
     limit: Annotated[int, Query(description="Maximum number of records to ingest.")],
-) -> dict:
+) -> list[OpenAlexWork]:
     """
     Fetch data from the OpenAlex API and ingest it into the repository.
 
-    Requires a user-defined query string to be passed in the query parameter.
-    It is left to the user to ensure that the query string is correctly formatted.
+    Requires a user-defined filter string to be passed in the query parameter.
+    It is left to the user to ensure that the filter string is correctly formatted.
 
     Args:
         openalex_query_string (str): OpenAlex API-compliant query string.
@@ -90,7 +87,4 @@ def get_openalex_ingest_open_query(
             status_code=status.HTTP_400_BAD_REQUEST, detail=error_message
         ) from error
     else:
-        return {
-            "message": f"Data fetched with query {openalex_query_string}. Ingested successfully.",
-            "results": results,
-        }
+        return results
