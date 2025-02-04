@@ -38,7 +38,7 @@ def test_v1_openalex_works_ingest_created_success(
 
     request_string = f"/api/v1/openalex_works_ingest?fetch_date={test_date}&ingest_type={ingest_type}&limit={limit}"
     mocked_openalex_call = mocker.patch(
-        "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.fetch_data_from_date",
+        "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.fetch_works_from_date",
         return_value=expected_result,
     )
 
@@ -76,7 +76,7 @@ def test_v1_openalex_works_ingest_updated_success(
 
     request_string = f"/api/v1/openalex_works_ingest?fetch_date={test_date}&ingest_type={ingest_type}&limit={limit}"
     mocked_openalex_call = mocker.patch(
-        "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.fetch_data_from_date",
+        "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.fetch_works_from_date",
         return_value=expected_result,
     )
 
