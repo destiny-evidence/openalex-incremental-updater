@@ -7,7 +7,7 @@ import pytest
 
 
 @pytest.fixture
-def single_openalex_work_response() -> dict:
+def single_openalex_work_response(set_test_environment_variable: None) -> dict:
     """Return a single OpenAlex work."""
     test_datetime = datetime(2025, 1, 1, 12, 30, 0, tzinfo=ZoneInfo("UTC"))
     test_date = test_datetime.date()
@@ -80,7 +80,7 @@ def single_openalex_work_response() -> dict:
 
 
 @pytest.fixture
-def double_openalex_work_response() -> list[dict]:
+def double_openalex_work_response(set_test_environment_variables: None) -> list[dict]:
     """Return two OpenAlex works."""
     test_datetime = datetime(2025, 1, 1, 12, 30, 0, tzinfo=ZoneInfo("UTC"))
     test_date = test_datetime.date()
