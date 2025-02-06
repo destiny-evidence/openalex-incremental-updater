@@ -33,6 +33,7 @@ types-requests = "^2.32.0.20241016"
 
 [tool.poetry.group.test.dependencies]
 pytest = "^8.3.4"
+requests-mock = "^1.12.1"
 responses = "^0.25.6"
 
 [tool.pytest.ini_options]

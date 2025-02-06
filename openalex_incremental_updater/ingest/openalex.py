@@ -4,7 +4,6 @@ from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 import requests
-from fastapi import status
 from loguru import logger
 
 from openalex_incremental_updater.core.config import get_settings
@@ -48,12 +47,15 @@ class OpenAlexDataFetcher:
             while cursor:
                 params["cursor"] = cursor
                 response = session.get(works_url, params=params)
-                if response.status_code != status.HTTP_200_OK:
-                    logger.error(f"Failed to fetch data: {response.text}")
-                    break
-                this_page_results = response.json()["results"]
-                for result in this_page_results:
-                    all_results.extend(result)
+                try:
+                    response.raise_for_status()
+                except requests.exceptions.HTTPError as http_error:
+                    error_message = str(http_error)
+                    logger.error(f"OpenAlex API query failed: {error_message}")
+                    raise UpstreamOpenAlexError(error_message) from http_error
+
+                results = response.json()["results"]
+                all_results.extend(results)
                 count_api_queries += 1
 
                 cursor = response.json()["meta"]["next_cursor"]
@@ -112,6 +114,14 @@ class OpenAlexDataFetcher:
                 )
                 logger.info(f"URL was: {filtered_works_url}")
                 response = session.get(filtered_works_url, params=params)
+
+                try:
+                    response.raise_for_status()
+                except requests.exceptions.HTTPError as http_error:
+                    error_message = str(http_error)
+                    logger.error(f"OpenAlex API query failed: {error_message}")
+                    raise UpstreamOpenAlexError(error_message) from http_error
+
                 retrieved_works = response.json()
 
                 results = retrieved_works["results"]
@@ -246,7 +256,7 @@ class OpenAlexDataFetcher:
                     return aggregate_results
 
         logger.info(f"Last known cursor: {last_known_cursor}")
-        # Persist the cursor _somewhere_ to resume later in case of failures?
+        # Persist the cursor _somewhere_ temporary to quickly resume later in case of failures?
         logger.info(f"Finished paging. Retrieved {counter_works_retrieved} results.")
 
         return aggregate_results
