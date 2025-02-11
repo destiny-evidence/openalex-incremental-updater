@@ -16,6 +16,7 @@ version = "0.1.1"
 fastapi = {extras = ["standard"], version = "^0.115.6"}
 loguru = "^0.7.3"
 passlib = "^1.7.4"
+psycopg2 = "^2.9.10"
 pydantic = "^2.10.5"
 pydantic-settings = "^2.7.1"
 pyjwt = "^2.10.1"
