@@ -1,12 +1,27 @@
 """Pytest configuration file."""
 
-from collections.abc import Generator
+from collections.abc import AsyncIterator, Generator
+from typing import Any
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from httpx import ASGITransport, AsyncClient
 
 pytest_plugins = ["tests.fixtures.routers"]
+
+
+def get_app() -> FastAPI:
+    """
+    Return the FastAPI application.
+
+    Returns:
+        app (FastAPI): The FastAPI application.
+
+    """
+    from openalex_incremental_updater.main import app
+
+    return app
 
 
 @pytest.fixture
@@ -30,19 +45,24 @@ def sync_test_client(
     set_test_environment_variables: Generator[None, None, None],
 ) -> Generator[TestClient, None, None]:
     """Create a test client for synchronous tests."""
-
-    def get_app() -> FastAPI:
-        """
-        Return the FastAPI application.
-
-        Returns:
-            app (FastAPI): The FastAPI application.
-
-        """
-        from openalex_incremental_updater.main import app
-
-        return app
-
     client = TestClient(get_app())
     yield client
     client.close()
+
+
+@pytest.fixture(scope="session", autouse=True)
+def anyio_backend() -> tuple[str, dict[str, Any]]:
+    """Specify the anyio backend for async tests."""
+    return "asyncio", {"use_uvloop": True}
+
+
+@pytest.fixture
+async def async_test_client(
+    set_test_environment_variables: Generator[None, None, None],
+) -> AsyncIterator[AsyncClient]:
+    """Create a test client for synchronous tests."""
+    app_instance = get_app()
+    async with AsyncClient(
+        transport=ASGITransport(app=app_instance), base_url="http://test"
+    ) as client:
+        yield client

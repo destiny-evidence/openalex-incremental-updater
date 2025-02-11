@@ -1,12 +1,16 @@
 """Tests for the common utilities used by the OpenAlex Incremental Updater API routers."""
 
+import pytest
 from fastapi import FastAPI, status
-from fastapi.testclient import TestClient
+from httpx import AsyncClient
 
 from openalex_incremental_updater.api.routers.utils import router as utils_router
 
 
-def test_health_check(set_test_environment_variables: None) -> None:
+@pytest.mark.anyio
+async def test_health_check(
+    set_test_environment_variables: None, async_test_client: AsyncClient
+) -> None:
     """
     Test the health check endpoint returns a HTTP_200_OK response.
 
@@ -14,8 +18,6 @@ def test_health_check(set_test_environment_variables: None) -> None:
     """
     app = FastAPI()
     app.include_router(utils_router)
-
-    client = TestClient(app)
-    response = client.get("/health-check")
+    response = await async_test_client.get("/health-check/")
     assert response.status_code == status.HTTP_200_OK
     assert response.json() == {"status": "ok"}

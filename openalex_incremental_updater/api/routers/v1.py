@@ -5,7 +5,6 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 
-from openalex_incremental_updater.api.routers import utils
 from openalex_incremental_updater.core.config import get_settings
 from openalex_incremental_updater.ingest.openalex import (
     CreatedOrUpdated,
@@ -17,11 +16,10 @@ from openalex_incremental_updater.models.openalex import OpenAlexWork
 settings = get_settings()
 
 router = APIRouter(prefix=settings.API_V1_STR, tags=["v1"])
-router.include_router(utils.router)
 
 
 @router.get("/openalex_works_ingest_from_date")
-def get_openalex_works_ingest_from_date(
+async def get_openalex_works_ingest_from_date(
     fetch_date: Annotated[
         date,
         Query(description="Date to fetch data from. Must be in ISO format YYYY-MM-DD."),
@@ -55,7 +53,7 @@ def get_openalex_works_ingest_from_date(
 
 
 @router.get("/openalex_works_open_filter")
-def get_openalex_works_ingest_open_filter(
+async def get_openalex_works_ingest_open_filter(
     openalex_query_string: Annotated[
         str,
         Query(description="OpenAlex API-compliant query string."),
