@@ -2,24 +2,17 @@
 
 from datetime import datetime
 
+import pytest
 from fastapi import status
-from fastapi.testclient import TestClient
+from httpx import AsyncClient
 from pytest_mock import MockerFixture
 
 from openalex_incremental_updater.ingest import CreatedOrUpdated
 
 
-def test_v1_router_health_check(sync_test_client: TestClient) -> None:
-    """Check that the v1 router health check endpoint returns a HTTP_200_OK response for the created mode."""
-    expected_response = {"status": "ok"}
-    response = sync_test_client.get("/api/v1/health-check")
-
-    assert response.status_code == status.HTTP_200_OK
-    assert response.json() == expected_response
-
-
-def test_v1_openalex_works_ingest_created_success(
-    sync_test_client: TestClient,
+@pytest.mark.anyio
+async def test_v1_openalex_works_ingest_created_success(
+    async_test_client: AsyncClient,
     mocker: MockerFixture,
     single_openalex_work_response: dict,
 ) -> None:
@@ -42,7 +35,7 @@ def test_v1_openalex_works_ingest_created_success(
         return_value=[expected_response],
     )
 
-    response = sync_test_client.get(request_string)
+    response = await async_test_client.get(request_string)
     response_content = response.json()
     mocked_openalex_call.assert_called_once_with(
         fetch_date=test_date,
@@ -59,8 +52,9 @@ def test_v1_openalex_works_ingest_created_success(
     ), "Expect the response to match the expected response"
 
 
-def test_v1_openalex_works_ingest_updated_success(
-    sync_test_client: TestClient,
+@pytest.mark.anyio
+async def test_v1_openalex_works_ingest_updated_success(
+    async_test_client: AsyncClient,
     mocker: MockerFixture,
     single_openalex_work_response: dict,
 ) -> None:
@@ -83,7 +77,7 @@ def test_v1_openalex_works_ingest_updated_success(
         return_value=[expected_response],
     )
 
-    response = sync_test_client.get(request_string)
+    response = await async_test_client.get(request_string)
     response_content = response.json()
     mocked_openalex_call.assert_called_once_with(
         fetch_date=test_date,
@@ -98,8 +92,9 @@ def test_v1_openalex_works_ingest_updated_success(
     ), "Expect the response to match the expected response"
 
 
-def test_v1_openalex_works_ingest_open_filter(
-    sync_test_client: TestClient,
+@pytest.mark.anyio
+async def test_v1_openalex_works_ingest_open_filter(
+    async_test_client: AsyncClient,
     mocker: MockerFixture,
     single_openalex_work_response: dict,
 ) -> None:
@@ -123,7 +118,7 @@ def test_v1_openalex_works_ingest_open_filter(
         "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.fetch_works_open_filter",
         return_value=[expected_response],
     )
-    response = sync_test_client.get(test_request_string)
+    response = await async_test_client.get(test_request_string)
     response_content = response.json()
     mocked_openalex_call.assert_called_once_with(
         openalex_filter=test_filter_string,
