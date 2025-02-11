@@ -1,27 +1,22 @@
 """Define the schema for a postgres DB to store our OpenAlex Work data."""
 
+from datetime import datetime
+
 from sqlalchemy import (
     JSON,
     Column,
-    DateTime,
-    Text,
 )
-from sqlalchemy.orm import DeclarativeBase
+from sqlmodel import Field, SQLModel
 
 
-class Base(DeclarativeBase):
-    """Generic base class from sqlalchemy with which to define custom types."""
-
-
-class Work(Base):
+class Work(SQLModel, table=True):
     """Define our unit of data based on OpenAlex Work."""
 
-    __tablename__ = "works"
-    id = Column(Text, primary_key=True, index=True)
-    title = Column(Text, index=True)
-    authors = Column(JSON)
-    abstract = Column(Text)
-    publication_date = Column(DateTime)
-    created_date = Column(Text)
-    updated_date = Column(Text)
-    language = Column(Text)
+    id: str = Field(primary_key=True, index=True)
+    title: str
+    authors: dict = Field(default_factory=dict, sa_column=Column(JSON))
+    abstract: str | None
+    publication_date: datetime
+    created_date: str
+    updated_date: str
+    language: str
