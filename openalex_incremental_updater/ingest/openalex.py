@@ -1,7 +1,6 @@
 """Retrieve data from OpenAlex API."""
 
-from datetime import date, datetime, timedelta
-from zoneinfo import ZoneInfo
+from datetime import date, datetime
 
 import requests
 from loguru import logger
@@ -23,7 +22,7 @@ class OpenAlexDataFetcher:
         """Class constructor."""
         self.settings = get_settings()
 
-    def fetch_works_free_tier(self) -> list[OpenAlexWork]:
+    async def fetch_works_free_tier(self) -> list[OpenAlexWork]:
         """
         Fetch data from the OpenAlex API.
 
@@ -65,7 +64,7 @@ class OpenAlexDataFetcher:
         return all_results
 
     @simple_timer
-    def fetch_works_from_date(
+    async def fetch_works_from_date(
         self,
         fetch_date: date,
         created_or_updated: CreatedOrUpdated,
@@ -159,29 +158,7 @@ class OpenAlexDataFetcher:
         logger.info(f"Finished paging. Retrieved {counter_works_retrieved} results.")
         return aggregate_results
 
-    def fetch_previous_day_data_snippet(
-        self, snippet_length: int = 1000
-    ) -> list[OpenAlexWork]:
-        """
-        Fetch a snippet of data from the OpenAlex API from the previous day.
-
-        Args:
-            snippet_length (int, optional): The maximum number of works to retrieve. Defaults to 1000.
-
-        Returns:
-            list[OpenAlexWork]: The retrieved works.
-
-        """
-        date_yesterday = datetime.now(ZoneInfo("Europe/London")).date() - timedelta(
-            days=2
-        )
-        return self.fetch_works_from_date(
-            fetch_date=date_yesterday,
-            created_or_updated=CreatedOrUpdated.CREATED,
-            works_retrieved_limit=snippet_length,
-        )
-
-    def fetch_works_open_filter(
+    async def fetch_works_open_filter(
         self, openalex_filter: str | None, works_retrieved_limit: int | None = None
     ) -> list[OpenAlexWork]:
         """
