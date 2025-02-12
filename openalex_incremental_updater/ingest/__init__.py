@@ -1,11 +1,11 @@
 """OpenAlex data ingestion module."""
 
+import asyncio
 from enum import StrEnum
+from types import TracebackType
 
-from fastapi import status
-from requests import Session
-from requests.adapters import HTTPAdapter
-from urllib3.util import Retry
+import httpx
+from loguru import logger
 
 
 class CreatedOrUpdated(StrEnum):
@@ -15,7 +15,7 @@ class CreatedOrUpdated(StrEnum):
     UPDATED = "updated"
 
 
-class RetrySession(Session):
+class RetryTransport(httpx.AsyncHTTPTransport):
     """Define a requests.Session with retry capabilities."""
 
     def __init__(self, retries: int = 5, backoff_factor: float = 0.1) -> None:
@@ -24,18 +24,70 @@ class RetrySession(Session):
         self.retries = retries
         self.backoff_factor = backoff_factor
 
-        self.setup()
-
-    def setup(self) -> None:
+    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
         """Define retry behaviour and attach to the session."""
-        retry_settings = Retry(
-            total=self.retries,
-            backoff_factor=self.backoff_factor,
-            status_forcelist=[
-                status.HTTP_500_INTERNAL_SERVER_ERROR,
-                status.HTTP_502_BAD_GATEWAY,
-                status.HTTP_503_SERVICE_UNAVAILABLE,
-                status.HTTP_504_GATEWAY_TIMEOUT,
-            ],
+        attempt = 0
+        while attempt < self.retries:
+            try:
+                response = await super().handle_async_request(request)
+                response.raise_for_status()
+            except (httpx.HTTPStatusError, httpx.RequestError) as error:
+                logger.warning(
+                    f"Attempt {attempt+1}: Failed to fetch data from OpenAlex API: {error}"
+                )
+                if attempt == self.retries - 1:
+                    logger.error(
+                        f"Failed to fetch data from OpenAlex API after {self.retries} attempts."
+                    )
+                    return httpx.Response(status_code=500, content=str(error))
+                await asyncio.sleep(self.backoff_factor * 2**attempt)
+                attempt += 1
+            return response
+
+        return httpx.Response(
+            status_code=500,
+            content=f"Failed to fetch data from OpenAlex API after {self.retries} retries",
         )
-        self.mount("https://", HTTPAdapter(max_retries=retry_settings))
+
+
+class AsyncRetryClient:
+    """Async context manager for an httpx.AsyncClient with retry capabilities."""
+
+    def __init__(self, retries: int = 5, backoff_factor: float = 0.1) -> None:
+        """
+        Class constructor.
+
+        Args:
+            retries (int, optional): Number of retries. Defaults to 5.
+            backoff_factor (float, optional): Backoff factor for retrying. Defaults to 0.1.
+
+        """
+        self.retries = retries
+        self.backoff_factor = backoff_factor
+        self.transport = RetryTransport(
+            retries=self.retries, backoff_factor=self.backoff_factor
+        )
+        self.client = httpx.AsyncClient(transport=self.transport)
+
+    async def __aenter__(self) -> httpx.AsyncClient:
+        """
+        Initalise the client in context manager.
+
+        Returns:
+            httpx.AsyncClient: An httpx.AsyncClient with retry capabilities.
+
+        """
+        return httpx.AsyncClient(
+            transport=RetryTransport(
+                retries=self.retries, backoff_factor=self.backoff_factor
+            )
+        )
+
+    async def __aexit__(
+        self,
+        exception_type: type[BaseException] | None,
+        exception_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        """Close the client in context manager."""
+        await self.client.aclose()
