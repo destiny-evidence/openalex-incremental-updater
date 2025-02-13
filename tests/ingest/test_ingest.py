@@ -1,10 +1,14 @@
 import pytest
-import responses
+import respx
 from fastapi import status
+from httpx import Response
+from pytest_mock import MockerFixture
 
-from openalex_incremental_updater.ingest import RetrySession
+from openalex_incremental_updater.ingest import AsyncRetryClient
 
 
+@pytest.mark.anyio
+@respx.mock
 @pytest.mark.parametrize(
     "error_status",
     [
@@ -14,34 +18,46 @@ from openalex_incremental_updater.ingest import RetrySession
         status.HTTP_504_GATEWAY_TIMEOUT,
     ],
 )
-@responses.activate
-def test_retry_on_server_error(error_status: int) -> None:
-    url = "https://a-test-url"
+async def test_retry_on_server_error(mocker: MockerFixture, error_status: int) -> None:
+    url = "https://a-test-url/"
     number_of_failures = 2
     expected_calls = number_of_failures + 1
 
-    for _ in range(number_of_failures):
-        responses.add(responses.GET, url, status=error_status)
-    responses.add(responses.GET, url, status=status.HTTP_200_OK)
+    async with respx.mock:
+        route = respx.get(url).mock(
+            side_effect=[
+                Response(error_status),
+                Response(error_status),
+                Response(status.HTTP_200_OK),
+            ]
+        )
 
-    session = RetrySession(retries=expected_calls, backoff_factor=0)
-    response = session.get(url)
+        async with AsyncRetryClient(
+            retries=expected_calls, backoff_factor=0
+        ) as session:
+            response = await session.get(url)
 
     assert response.status_code == status.HTTP_200_OK, "Expect a successful response."
     assert (
-        len(responses.calls) == expected_calls
+        route.call_count == expected_calls
     ), "Expect 3 calls to the URL, with the final one succeeding."
 
 
-@responses.activate
-def test_no_retry_on_404_not_found() -> None:
+@pytest.mark.anyio
+@respx.mock
+async def test_no_retry_on_404_not_found() -> None:
     url = "https://a-test-url"
-    # Throw a 404 not found error, and do not retry
-    responses.add(responses.GET, url, status=status.HTTP_404_NOT_FOUND)
-    responses.add(responses.GET, url, status=status.HTTP_200_OK)
 
-    session = RetrySession(retries=3, backoff_factor=0)
-    response = session.get(url)
+    async with respx.mock:
+        route = respx.get(url).mock(
+            side_effect=[
+                Response(status.HTTP_404_NOT_FOUND),
+                Response(status.HTTP_200_OK),
+            ]
+        )
+
+        async with AsyncRetryClient(retries=3, backoff_factor=0) as session:
+            response = await session.get(url)
 
     assert response.status_code == status.HTTP_404_NOT_FOUND, "Expect a 404 response."
-    assert len(responses.calls) == 1, "Expect 1 call to the URL, with no retries."
+    assert route.call_count == 1, "Expect 1 call to the URL, with no retries."

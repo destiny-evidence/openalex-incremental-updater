@@ -45,11 +45,19 @@ async def get_openalex_works_ingest_from_date(
 
     """
     fetcher = OpenAlexDataFetcher()
-    return fetcher.fetch_works_from_date(
-        fetch_date=fetch_date,
-        created_or_updated=ingest_type,
-        works_retrieved_limit=limit,
-    )
+    try:
+        results = await fetcher.fetch_works_from_date(
+            fetch_date=fetch_date,
+            created_or_updated=ingest_type,
+            works_retrieved_limit=limit,
+        )
+    except UpstreamOpenAlexError as error:
+        error_message = str(error)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=error_message
+        ) from error
+    else:
+        return results
 
 
 @router.get("/openalex_works_open_filter")
@@ -76,7 +84,7 @@ async def get_openalex_works_ingest_open_filter(
     """
     fetcher = OpenAlexDataFetcher()
     try:
-        results = fetcher.fetch_works_open_filter(
+        results = await fetcher.fetch_works_open_filter(
             openalex_filter=openalex_query_string, works_retrieved_limit=limit
         )
     except UpstreamOpenAlexError as error:

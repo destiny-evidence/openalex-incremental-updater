@@ -2,12 +2,12 @@
 
 from datetime import date, datetime
 
-import requests
+import httpx
 from loguru import logger
 
 from openalex_incremental_updater.core.config import get_settings
-from openalex_incremental_updater.core.utils import simple_timer
-from openalex_incremental_updater.ingest import CreatedOrUpdated, RetrySession
+from openalex_incremental_updater.core.utils import async_timer
+from openalex_incremental_updater.ingest import AsyncRetryClient, CreatedOrUpdated
 from openalex_incremental_updater.models.openalex import OpenAlexWork
 
 
@@ -18,9 +18,11 @@ class UpstreamOpenAlexError(Exception):
 class OpenAlexDataFetcher:
     """Class to control data fetching from the OpenAlex API."""
 
-    def __init__(self) -> None:
+    def __init__(self, retries: int = 5, backoff_factor: int = 5) -> None:
         """Class constructor."""
         self.settings = get_settings()
+        self.retries = retries
+        self.backoff_factor = backoff_factor
 
     async def fetch_works_free_tier(self) -> list[OpenAlexWork]:
         """
@@ -42,13 +44,15 @@ class OpenAlexDataFetcher:
         all_results = []
         count_api_queries = 0
 
-        with RetrySession() as session:
+        async with AsyncRetryClient(
+            retries=self.retries, backoff_factor=self.backoff_factor
+        ) as session:
             while cursor:
                 params["cursor"] = cursor
-                response = session.get(works_url, params=params)
+                response = await session.get(works_url, params=params)
                 try:
                     response.raise_for_status()
-                except requests.exceptions.HTTPError as http_error:
+                except httpx.HTTPStatusError as http_error:
                     error_message = str(http_error)
                     logger.error(f"OpenAlex API query failed: {error_message}")
                     raise UpstreamOpenAlexError(error_message) from http_error
@@ -63,7 +67,7 @@ class OpenAlexDataFetcher:
         )
         return all_results
 
-    @simple_timer
+    @async_timer
     async def fetch_works_from_date(
         self,
         fetch_date: date,
@@ -91,7 +95,9 @@ class OpenAlexDataFetcher:
             min(200, works_retrieved_limit) if works_retrieved_limit else 200
         )
 
-        with RetrySession() as session:
+        async with AsyncRetryClient(
+            retries=self.retries, backoff_factor=self.backoff_factor
+        ) as session:
             headers = {
                 "api_key": self.settings.OPENALEX_API_KEY.get_secret_value(),
             }
@@ -112,11 +118,11 @@ class OpenAlexDataFetcher:
                     f"{self.settings.OPENALEX_API_URL}/works?" + filter_string
                 )
                 logger.info(f"URL was: {filtered_works_url}")
-                response = session.get(filtered_works_url, params=params)
+                response = await session.get(filtered_works_url, params=params)
 
                 try:
                     response.raise_for_status()
-                except requests.exceptions.HTTPError as http_error:
+                except httpx.HTTPStatusError as http_error:
                     error_message = str(http_error)
                     logger.error(f"OpenAlex API query failed: {error_message}")
                     raise UpstreamOpenAlexError(error_message) from http_error
@@ -178,7 +184,9 @@ class OpenAlexDataFetcher:
             min(200, works_retrieved_limit) if works_retrieved_limit else 200
         )
 
-        with RetrySession() as session:
+        async with AsyncRetryClient(
+            retries=self.retries, backoff_factor=self.backoff_factor
+        ) as session:
             headers = {
                 "api_key": self.settings.OPENALEX_API_KEY.get_secret_value(),
             }
@@ -201,11 +209,11 @@ class OpenAlexDataFetcher:
             last_known_cursor = None
             while params["cursor"]:
                 filtered_works_url = query_string
-                response = session.get(filtered_works_url, params=params)
+                response = await session.get(filtered_works_url, params=params)
 
                 try:
                     response.raise_for_status()
-                except requests.exceptions.HTTPError as http_error:
+                except httpx.HTTPStatusError as http_error:
                     error_message = str(http_error)
                     logger.error(f"OpenAlex API query failed: {error_message}")
                     raise UpstreamOpenAlexError(error_message) from http_error
