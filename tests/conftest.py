@@ -10,21 +10,6 @@ from httpx import ASGITransport, AsyncClient
 
 pytest_plugins = ["tests.fixtures.routers"]
 
-pytest_plugins = ["tests.fixtures.routers"]
-
-
-def get_app() -> FastAPI:
-    """
-    Return the FastAPI application.
-
-    Returns:
-        app (FastAPI): The FastAPI application.
-
-    """
-    from openalex_incremental_updater.main import app
-
-    return app
-
 
 def get_app() -> FastAPI:
     """
