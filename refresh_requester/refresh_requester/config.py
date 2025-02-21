@@ -3,6 +3,28 @@
 from fastapi import status
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+from requests import Session
+from requests.adapters import HTTPAdapter, Retry
+
+
+def get_retry_session() -> Session:
+    """
+    Return a requests session with retry settings enabled.
+
+    Returns:
+        requests.Session: A requests session with retry settings enabled.
+
+    """
+    settings = get_settings()
+    session = Session()
+    retries = Retry(
+        total=settings.retry_total,
+        backoff_factor=settings.retry_backoff_factor,
+        status_forcelist=settings.retry_status_list,
+    )
+
+    session.mount("https://", HTTPAdapter(max_retries=retries))
+    return session
 
 
 class Settings(BaseSettings):
