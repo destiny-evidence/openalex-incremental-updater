@@ -31,7 +31,7 @@ class RetryTransport(httpx.AsyncHTTPTransport):
         attempt = 0
         while attempt <= self.retries:
             try:
-                logger.info(f"request was {request}")
+                logger.debug(f"request was {request}")
                 url = request.url
                 full_url = httpx.URL(url).copy_merge_params(kwargs.get("params", {}))
                 logger.debug(f"Requesting {full_url}")
