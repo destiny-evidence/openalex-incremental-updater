@@ -1,6 +1,7 @@
 """Redirect Uvicorn logs to Loguru to enable simple logging throughout the app."""
 
 import logging
+import sys
 
 from loguru import logger
 
@@ -42,21 +43,18 @@ class InterceptHandler(logging.Handler):
         log.opt(depth=depth, exception=record.exc_info).log(level, record.getMessage())
 
 
-def setup_logging(log_file: str = "logs.log", log_level: str = "DEBUG") -> None:
+def setup_logging(log_level: str = "DEBUG") -> None:
     """
     Set up logging with Loguru after intercepting Uvicorn logs.
 
     Args:
-        log_file (str, optional): File to store logs. Defaults to "logs.log".
         log_level (str, optional): Minimum log level to store. Defaults to "DEBUG".
 
     """
     logger.add(
-        sink=log_file,
+        sys.stderr,
         format="{time} {level} {message}",
         level=log_level,
-        rotation="10 MB",
-        compression="zip",
     )
 
     logging.basicConfig(handlers=[InterceptHandler()], level=0)
