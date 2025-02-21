@@ -46,11 +46,11 @@ async def get_openalex_works_ingest_from_date(
         list[OpenAlexWork]: List of OpenAlexWork objects.
 
     """
+    openalex_query = OpenAlexDataFetcher.build_query(fetch_date, ingest_type)
     fetcher = OpenAlexDataFetcher()
     try:
-        results = await fetcher.fetch_works_from_date(
-            fetch_date=fetch_date,
-            created_or_updated=ingest_type,
+        results = await fetcher.fetch_works_filter(
+            openalex_filter=openalex_query,
             works_retrieved_limit=limit,
         )
     except UpstreamOpenAlexError as error:
@@ -86,7 +86,7 @@ async def get_openalex_works_ingest_open_filter(
     """
     fetcher = OpenAlexDataFetcher()
     try:
-        results = await fetcher.fetch_works_open_filter(
+        results = await fetcher.fetch_works_filter(
             openalex_filter=openalex_query_string, works_retrieved_limit=limit
         )
     except UpstreamOpenAlexError as error:
