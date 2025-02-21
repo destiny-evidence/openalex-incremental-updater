@@ -68,7 +68,7 @@ class OpenAlexDataFetcher:
                 works_url = f"{self.settings.OPENALEX_API_URL}/works"
                 query_string = f"{filter_string}&cursor={cursor}&per-page={per_page}"
                 final_url = f"{works_url}?{query_string}"
-                response = await session.request("GET", final_url)
+                response = await session.get(final_url)
                 logger.info(f"response url was {response.url}")
                 try:
                     response.raise_for_status()
@@ -145,10 +145,6 @@ class OpenAlexDataFetcher:
             }
             session.headers.update(headers)
             cursor: str = "*"
-            params = {
-                "cursor": cursor,
-                "per-page": per_page,
-            }
             logger.info(f"Requesting all works with filter {openalex_filter}")
 
             base_works_url = f"{self.settings.OPENALEX_API_URL}/works"
@@ -160,9 +156,11 @@ class OpenAlexDataFetcher:
 
             counter_works_retrieved = 0
             last_known_cursor = None
-            while params["cursor"]:
-                filtered_works_url = query_string
-                response = await session.get(filtered_works_url, params=params)
+            while cursor:
+                filtered_works_url = (
+                    query_string + f"&cursor={cursor}&per-page={per_page}"
+                )
+                response = await session.get(filtered_works_url)
 
                 try:
                     response.raise_for_status()
@@ -181,11 +179,11 @@ class OpenAlexDataFetcher:
                 logger.info(
                     f"Processed {counter_works_retrieved} results of {count_works_total}"
                 )
-                params["cursor"] = retrieved_works["meta"]["next_cursor"]
-                logger.info(f"Next cursor: {params['cursor']}")
+                cursor = retrieved_works["meta"]["next_cursor"]
+                logger.info(f"Next cursor: {cursor}")
 
-                if params["cursor"]:
-                    last_known_cursor = params["cursor"]
+                if cursor:
+                    last_known_cursor = cursor
                 if (
                     works_retrieved_limit
                     and counter_works_retrieved >= works_retrieved_limit
