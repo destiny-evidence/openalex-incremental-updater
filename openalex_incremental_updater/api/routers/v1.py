@@ -30,7 +30,9 @@ async def get_openalex_works_ingest_from_date(
             description="Method of determining ingest data. Must be one of 'created' or 'updated'."
         ),
     ],
-    limit: Annotated[int, Query(description="Maximum number of records to ingest.")],
+    limit: Annotated[
+        int | None, Query(description="Maximum number of records to ingest.")
+    ] = None,
 ) -> list[OpenAlexWork]:
     """
     Fetch Works from the OpenAlex API with a date filter and ingest them into the repository.

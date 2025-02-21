@@ -24,49 +24,6 @@ class OpenAlexDataFetcher:
         self.retries = retries
         self.backoff_factor = backoff_factor
 
-    async def fetch_works_free_tier(self) -> list[OpenAlexWork]:
-        """
-        Fetch data from the OpenAlex API.
-
-        This function uses the free tier of the OpenAlex API and should be considered a fallback.
-
-        Returns:
-            list[OpenAlexWork]: The retrieved works.
-
-        """
-        works_url = f"{self.settings.OPENALEX_API_URL}/works"
-        mailto = self.settings.USER_EMAIL
-        params = {
-            "mailto": mailto,
-        }
-        cursor = "*"
-
-        all_results = []
-        count_api_queries = 0
-
-        async with AsyncRetryClient(
-            retries=self.retries, backoff_factor=self.backoff_factor
-        ) as session:
-            while cursor:
-                params["cursor"] = cursor
-                response = await session.get(works_url, params=params)
-                try:
-                    response.raise_for_status()
-                except httpx.HTTPStatusError as http_error:
-                    error_message = str(http_error)
-                    logger.error(f"OpenAlex API query failed: {error_message}")
-                    raise UpstreamOpenAlexError(error_message) from http_error
-
-                results = response.json()["results"]
-                all_results.extend(results)
-                count_api_queries += 1
-
-                cursor = response.json()["meta"]["next_cursor"]
-        logger.info(
-            f"Finished paging. Ran {count_api_queries} queries, retrieved {len(all_results)} results."
-        )
-        return all_results
-
     @async_timer
     async def fetch_works_from_date(
         self,
@@ -98,28 +55,21 @@ class OpenAlexDataFetcher:
         async with AsyncRetryClient(
             retries=self.retries, backoff_factor=self.backoff_factor
         ) as session:
+            cursor: str = "*"
+            logger.info(f"Requesting all works {update_type} from {fetch_date}")
+            counter_works_retrieved = 0
+            last_known_cursor = None
             headers = {
                 "api_key": self.settings.OPENALEX_API_KEY.get_secret_value(),
             }
             session.headers.update(headers)
-            cursor: str = "*"
-            params = {
-                "cursor": cursor,
-                "per-page": per_page,
-            }
-            logger.info(f"Requesting all works {update_type} from {update_type}")
-
-            counter_works_retrieved = 0
-            last_known_cursor = None
-
-            while params["cursor"]:
+            while cursor:
                 filter_string = f"filter=from_{update_type}_date:{fetch_date}"
-                filtered_works_url = (
-                    f"{self.settings.OPENALEX_API_URL}/works?" + filter_string
-                )
-                logger.info(f"URL was: {filtered_works_url}")
-                response = await session.get(filtered_works_url, params=params)
-
+                works_url = f"{self.settings.OPENALEX_API_URL}/works"
+                query_string = f"{filter_string}&cursor={cursor}&per-page={per_page}"
+                final_url = f"{works_url}?{query_string}"
+                response = await session.request("GET", final_url)
+                logger.info(f"response url was {response.url}")
                 try:
                     response.raise_for_status()
                 except httpx.HTTPStatusError as http_error:
@@ -144,14 +94,17 @@ class OpenAlexDataFetcher:
                 logger.info(
                     f"Processed {counter_works_retrieved} results of {count_works_total}"
                 )
-                params["cursor"] = retrieved_works["meta"]["next_cursor"]
-                logger.info(
-                    f"Latest `{update_type}_from` date retrieved: {creation_dates[0]}"
-                )
-                logger.info(f"Next cursor: {params['cursor']}")
+                cursor = retrieved_works["meta"]["next_cursor"]
+                if len(creation_dates) > 0:
+                    logger.info(
+                        f"Latest `{update_type}_from` date retrieved: {creation_dates[0]}"
+                    )
+                else:
+                    logger.info("No results retrieved.")
+                logger.info(f"Next cursor: {cursor}")
 
-                if params["cursor"]:
-                    last_known_cursor = params["cursor"]
+                if cursor:
+                    last_known_cursor = cursor
                 if (
                     works_retrieved_limit
                     and counter_works_retrieved >= works_retrieved_limit
