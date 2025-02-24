@@ -1,6 +1,7 @@
 """Define OpenAlex-specific data structures."""
 
 from datetime import date, datetime
+from typing import Any
 
 from pydantic import BaseModel
 
@@ -26,8 +27,8 @@ class OpenAlexWork(BaseModel):
     institutions_distinct_count: int | None = None
     corresponding_author_ids: list[str] | None = None
     corresponding_institution_ids: list[str] | None = None
-    apc_list: dict[str, str | int] | None = None
-    apc_paid: dict[str, str | int] | None = None
+    apc_list: dict[str, Any | None] | None = None
+    apc_paid: dict[str, Any | None] | None = None
     fwci: float | None = None
     has_fulltext: bool | None = None
     cited_by_count: int | None = None

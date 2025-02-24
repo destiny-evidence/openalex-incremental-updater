@@ -16,7 +16,7 @@ class CreatedOrUpdated(StrEnum):
 
 
 class RetryTransport(httpx.AsyncHTTPTransport):
-    """Define a requests.Session with retry capabilities."""
+    """Define a an async client with retry capabilities."""
 
     def __init__(self, retries: int = 5, backoff_factor: float = 0.1) -> None:
         """Class constructor."""
@@ -24,24 +24,29 @@ class RetryTransport(httpx.AsyncHTTPTransport):
         self.retries = retries
         self.backoff_factor = backoff_factor
 
-    async def handle_async_request(self, request: httpx.Request) -> httpx.Response:
+    async def handle_async_request(
+        self, request: httpx.Request, **kwargs: dict
+    ) -> httpx.Response:
         """Define retry behaviour and attach to the session."""
         attempt = 0
         while attempt <= self.retries:
             try:
-                response = await super().handle_async_request(request)
-                try:
-                    if not response.request:
-                        response.request = request
-                except RuntimeError:
-                    response.request = request
+                logger.debug(f"request was {request}")
+                url = request.url
+                full_url = httpx.URL(url).copy_merge_params(kwargs.get("params", {}))
+                logger.debug(f"Requesting {full_url}")
+                response = await super().handle_async_request(request, **kwargs)
+                response.request = request
                 response.raise_for_status()
             except (httpx.HTTPStatusError, httpx.RequestError) as error:
                 logger.warning(
                     f"Attempt {attempt+1}: Failed to fetch data from OpenAlex API: {error}"
                 )
-                if response.status_code == status.HTTP_404_NOT_FOUND:
-                    return response
+                if error.response.status_code == status.HTTP_404_NOT_FOUND:
+                    return httpx.Response(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        content=str(error),
+                    )
                 if attempt == self.retries:
                     logger.error(
                         f"Failed to fetch data from OpenAlex API after {self.retries} attempts."
@@ -49,7 +54,6 @@ class RetryTransport(httpx.AsyncHTTPTransport):
                     return httpx.Response(
                         status_code=response.status_code,
                         content=str(error),
-                        request=request,
                     )
                 await asyncio.sleep(self.backoff_factor * 2**attempt)
                 attempt += 1
@@ -58,7 +62,6 @@ class RetryTransport(httpx.AsyncHTTPTransport):
         return httpx.Response(
             status_code=500,
             content="Failed to fetch data from OpenAlex API.",
-            request=request,
         )
 
 

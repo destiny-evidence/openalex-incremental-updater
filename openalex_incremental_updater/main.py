@@ -25,7 +25,7 @@ def custom_generate_unique_id(route: APIRoute) -> str:
     return f"{route.tags[0]}-{route.name}"
 
 
-setup_logging(log_file="app_logs.log", log_level="DEBUG")
+setup_logging(log_level="DEBUG")
 
 settings = get_settings()
 
