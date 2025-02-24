@@ -38,15 +38,14 @@ async def test_v1_openalex_works_ingest_from_date_success(
         base_api_url + f"fetch_date={test_date}&ingest_type={ingest_type}&limit={limit}"
     )
     mocked_openalex_call = mocker.patch(
-        "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.fetch_works_from_date",
+        "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.fetch_works_filter",
         return_value=[expected_response],
     )
-
+    test_openalex_query = f"from_{ingest_type.value}_date:{test_date}"
     response = await async_test_client.get(request_string)
     response_content = response.json()
     mocked_openalex_call.assert_called_once_with(
-        fetch_date=test_date,
-        created_or_updated=ingest_type,
+        openalex_filter=test_openalex_query,
         works_retrieved_limit=limit,
     )
 
@@ -82,7 +81,7 @@ async def test_v1_openalex_works_ingest_open_filter(
     )
 
     mocked_openalex_call = mocker.patch(
-        "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.fetch_works_open_filter",
+        "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.fetch_works_filter",
         return_value=[expected_response],
     )
     response = await async_test_client.get(test_request_string)
