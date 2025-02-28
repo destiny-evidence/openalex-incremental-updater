@@ -21,3 +21,7 @@ def run_job() -> dict:
         error_message = f"Error requesting refresh: {refresh_error}"
         logger.error(error_message)
         return {"error": error_message}
+
+
+if __name__ == "__main__":
+    run_job()
