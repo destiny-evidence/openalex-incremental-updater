@@ -1,6 +1,7 @@
 """Define configuration settings for the app."""
 
-from fastapi import status
+from http import HTTPStatus
+
 from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from requests import Session
@@ -36,11 +37,12 @@ class Settings(BaseSettings):
     )
     retry_total: int = 3
     retry_backoff_factor: float = 0.3
+    # See https://docs.python.org/3/library/http.html#http-status-codes
     retry_status_list = [
-        status.HTTP_500_INTERNAL_SERVER_ERROR,
-        status.HTTP_502_BAD_GATEWAY,
-        status.HTTP_503_SERVICE_UNAVAILABLE,
-        status.HTTP_504_GATEWAY_TIMEOUT,
+        HTTPStatus.INTERNAL_SERVER_ERROR,
+        HTTPStatus.BAD_GATEWAY,
+        HTTPStatus.SERVICE_UNAVAILABLE,
+        HTTPStatus.GATEWAY_TIMEOUT,
     ]
     request_timeout: int = 5 * 60
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
