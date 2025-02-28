@@ -35,10 +35,22 @@ class Settings(BaseSettings):
         ...,
         description="The endpoint for the OpenAlex Incremental Ingestion API",
     )
+    STORAGE_BLOB_CONNECTION_STRING: str = Field(
+        ...,
+        description="The connection string for the Azure Storage Blob",
+    )
+    STORAGE_BLOB_ACCOUNT: str = Field(
+        ...,
+        description="The account for the Azure Storage Blob",
+    )
+    STORAGE_BLOB_CONTAINER: str = Field(
+        ...,
+        description="The container for the Azure Storage Blob",
+    )
     retry_total: int = 3
     retry_backoff_factor: float = 0.3
     # See https://docs.python.org/3/library/http.html#http-status-codes
-    retry_status_list = [
+    retry_status_list: list[int] = [
         HTTPStatus.INTERNAL_SERVER_ERROR,
         HTTPStatus.BAD_GATEWAY,
         HTTPStatus.SERVICE_UNAVAILABLE,
