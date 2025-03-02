@@ -16,12 +16,10 @@ ENV PATH="/root/.local/bin:$PATH"
 
 WORKDIR /app
 
-COPY pyproject.toml poetry.lock /app/
+COPY pyproject.toml poetry.lock README.md /app/
 
-RUN poetry install --no-root --only main
+COPY refresh_requester /app/refresh_requester
 
-COPY openalex_incremental_updater /app/openalex_incremental_updater
+RUN poetry config virtualenvs.create false && poetry install --no-interaction --no-ansi
 
-EXPOSE 8000
-
-CMD ["poetry", "run", "uvicorn", "openalex_incremental_updater.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["python", "refresh_requester/main.py"]

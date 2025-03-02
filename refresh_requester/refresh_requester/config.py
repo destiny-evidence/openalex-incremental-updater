@@ -35,10 +35,6 @@ class Settings(BaseSettings):
         ...,
         description="The endpoint for the OpenAlex Incremental Ingestion API",
     )
-    STORAGE_BLOB_CONNECTION_STRING: str = Field(
-        ...,
-        description="The connection string for the Azure Storage Blob",
-    )
     STORAGE_BLOB_ACCOUNT: str = Field(
         ...,
         description="The account for the Azure Storage Blob",

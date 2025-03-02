@@ -64,9 +64,7 @@ def test_check_previous_file_dates_success_no_files_found_return_yesterday(
 def test_list_blobs_in_storage(mocker, test_settings):
     """Test list_blobs_in_storage function works as expected."""
     mock_container_client = mocker.Mock()
-    mock_blob_service = mocker.patch(
-        "azure.storage.blob.BlobServiceClient.from_connection_string"
-    )
+    mock_blob_service = mocker.patch("refresh_requester.blob_storage.BlobServiceClient")
 
     mock_blob_service.return_value.get_container_client.return_value = (
         mock_container_client
@@ -87,20 +85,18 @@ def test_list_blobs_in_storage(mocker, test_settings):
 
 def test_blob_upload_success(mocker, test_settings):
     """Test successful blob upload."""
-    test_data = {"key1": "value1", "key2": "value2"}
+    test_data = (
+        '{"key1": "value1", "key2": "value2"},{"key3": "value3", "key4": "value4"}'
+    )
     test_date = date(2025, 3, 1)
     mock_blob_client = mocker.Mock()
-    mock_blob_service = mocker.patch(
-        "azure.storage.blob.BlobServiceClient.from_connection_string"
-    )
+    mock_blob_service = mocker.patch("refresh_requester.blob_storage.BlobServiceClient")
 
     mock_blob_service.return_value.get_blob_client.return_value = mock_blob_client
 
     blob_upload(test_data, test_date)
 
-    mock_blob_client.upload_blob.assert_called_once_with(
-        '{"key1": "value1", "key2": "value2"}', overwrite=True
-    )
+    mock_blob_client.upload_blob.assert_called_once_with(test_data, overwrite=True)
 
 
 @pytest.mark.parametrize(

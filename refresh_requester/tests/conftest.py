@@ -11,14 +11,10 @@ def set_test_environment_variables(
 ) -> Generator[None, None, None]:
     """Set test environment variables."""
     monkeypatch.setenv("API_ENDPOINT", "http://test-host")
-    monkeypatch.setenv(
-        "STORAGE_BLOB_CONNECTION_STRING", "DefaultEndpointsProtocol=https;Test"
-    )
     monkeypatch.setenv("STORAGE_BLOB_ACCOUNT", "Test account name")
     monkeypatch.setenv("STORAGE_BLOB_CONTAINER", "Test container name")
     yield
     monkeypatch.delenv("API_ENDPOINT")
-    monkeypatch.delenv("STORAGE_BLOB_CONNECTION_STRING")
     monkeypatch.delenv("STORAGE_BLOB_ACCOUNT")
     monkeypatch.delenv("STORAGE_BLOB_CONTAINER")
 

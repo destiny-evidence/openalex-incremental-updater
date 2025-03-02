@@ -11,6 +11,7 @@ from azure.core.exceptions import (
     ResourceNotFoundError,
     ServiceRequestError,
 )
+from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobServiceClient
 from loguru import logger
 
@@ -33,12 +34,12 @@ def get_blob_service_client() -> BlobServiceClient:
 
     """
     try:
-        logger.info(
-            f"Storage blob connection string: {get_settings().STORAGE_BLOB_CONNECTION_STRING}"
+        account_url = (
+            f"https://{get_settings().STORAGE_BLOB_ACCOUNT}.blob.core.windows.net"
         )
-        return BlobServiceClient.from_connection_string(
-            get_settings().STORAGE_BLOB_CONNECTION_STRING
-        )
+        credential = DefaultAzureCredential()
+
+        return BlobServiceClient(account_url, credential=credential)
 
     except AzureError as azure_error:
         error_message = f"Error getting blob client: {azure_error}"
