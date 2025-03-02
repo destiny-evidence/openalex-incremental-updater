@@ -56,7 +56,7 @@ def blob_upload(data: dict, refresh_date: date) -> None:
         refresh_date (date): The date at which the data was fetched
 
     """
-    filename = f"openalex_refresh_{refresh_date}.json"
+    filename = f"openalex_refresh_{refresh_date}.jsonl"
     try:
         blob_service_client = get_blob_service_client()
 
