@@ -34,6 +34,9 @@ def get_blob_service_client() -> BlobServiceClient:
 
     """
     try:
+        logger.info(
+            f"Storage blob connection string: {get_settings().STORAGE_BLOB_CONNECTION_STRING}"
+        )
         return BlobServiceClient.from_connection_string(
             get_settings().STORAGE_BLOB_CONNECTION_STRING
         )
@@ -114,8 +117,8 @@ def check_previous_file_dates() -> date:
     dates = []
     for blob in blob_list:
         if "openalex_refresh_" in blob:
-            date_str = blob.removeprefix("openalex_refresh_").removesuffix(".json")
-            date_obj = date.fromisoformat("-".join(date_str))
+            date_str = blob.removeprefix("openalex_refresh_").removesuffix(".jsonl")
+            date_obj = date.fromisoformat(date_str)
             dates.append(date_obj)
 
     if len(dates) > 0:

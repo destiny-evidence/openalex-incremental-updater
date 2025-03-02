@@ -2,7 +2,7 @@
 
 from http import HTTPStatus
 
-from pydantic import Field
+from pydantic import Field, HttpUrl
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from requests import Session
 from requests.adapters import HTTPAdapter, Retry
@@ -31,7 +31,7 @@ def get_retry_session() -> Session:
 class Settings(BaseSettings):
     """Store typed settings for Pydantic."""
 
-    API_ENDPOINT: str = Field(
+    API_ENDPOINT: HttpUrl = Field(
         ...,
         description="The endpoint for the OpenAlex Incremental Ingestion API",
     )
