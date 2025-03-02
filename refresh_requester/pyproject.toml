@@ -12,6 +12,7 @@ version = "0.1.0"
 [tool.poetry.dependencies]
 azure-core = "^1.32.0"
 azure-storage-blob = "^12.24.1"
+jsonlines = "^4.0.0"
 loguru = "^0.7.3"
 pydantic = "^2.10.6"
 pydantic-settings = "^2.8.1"

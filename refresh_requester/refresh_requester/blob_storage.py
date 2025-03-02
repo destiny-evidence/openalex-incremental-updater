@@ -1,6 +1,5 @@
 """Blob storage utilities."""
 
-import json
 from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -47,12 +46,12 @@ def get_blob_service_client() -> BlobServiceClient:
         raise BlobUploadError(error_message) from azure_error
 
 
-def blob_upload(data: dict, refresh_date: date) -> None:
+def blob_upload(data: str, refresh_date: date) -> None:
     """
     Upload the refresh response to blob storage.
 
     Args:
-        data (dict): The response from the API
+        data (str): The response from the API, converted to JSON-lines
         refresh_date (date): The date at which the data was fetched
 
     """
@@ -64,7 +63,7 @@ def blob_upload(data: dict, refresh_date: date) -> None:
             container=get_settings().STORAGE_BLOB_CONTAINER, blob=filename
         )
 
-        blob_client.upload_blob(json.dumps(data), overwrite=True)
+        blob_client.upload_blob(data, overwrite=True)
         logger.info(f"Successfully uploaded refresh response to {filename}")
 
     except (ResourceExistsError, ResourceNotFoundError) as storage_error:
