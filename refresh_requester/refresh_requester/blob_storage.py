@@ -47,7 +47,7 @@ def get_blob_service_client() -> BlobServiceClient:
         raise BlobUploadError(error_message) from azure_error
 
 
-def blob_upload(data: str, refresh_date: date) -> None:
+def blob_upload(data: str, fetch_date: date, refresh_date: date) -> None:
     """
     Upload the refresh response to blob storage.
 
@@ -56,7 +56,9 @@ def blob_upload(data: str, refresh_date: date) -> None:
         refresh_date (date): The date at which the data was fetched
 
     """
-    filename = f"openalex_refresh_{refresh_date}.jsonl"
+    filename = (
+        f"openalex_refresh_from_date_{fetch_date}_refreshed_on_{refresh_date}.jsonl"
+    )
     try:
         blob_service_client = get_blob_service_client()
 
@@ -117,7 +119,7 @@ def check_previous_file_dates() -> date:
     dates = []
     for blob in blob_list:
         if "openalex_refresh_" in blob:
-            date_str = blob.removeprefix("openalex_refresh_").removesuffix(".jsonl")
+            date_str = blob.rsplit("_", 1)[1].removesuffix(".jsonl")
             date_obj = date.fromisoformat(date_str)
             dates.append(date_obj)
 

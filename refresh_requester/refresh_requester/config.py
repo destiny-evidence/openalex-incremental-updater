@@ -1,5 +1,6 @@
 """Define configuration settings for the app."""
 
+from datetime import date
 from http import HTTPStatus
 
 from pydantic import Field, HttpUrl
@@ -44,6 +45,7 @@ class Settings(BaseSettings):
         description="The container for the Azure Storage Blob",
     )
     limit: int | None = None
+    fetch_date: date | None = None
     retry_total: int = 3
     retry_backoff_factor: float = 0.3
     # See https://docs.python.org/3/library/http.html#http-status-codes

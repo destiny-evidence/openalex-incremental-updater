@@ -12,12 +12,13 @@ from refresh_requester.jobs import run_job
 
 def main() -> None:
     """Run the refresh requester job."""
-    fetch_date = check_previous_file_dates()
+    if not get_settings().fetch_date:
+        fetch_date = check_previous_file_dates()
     logger.info(f"RUNNING JOB - Fetching data for date: {fetch_date}")
     data = run_job(fetch_date, limit=get_settings().limit)
 
     date_today = datetime.now(ZoneInfo("UTC")).date()
-    blob_upload(data, date_today)
+    blob_upload(data, fetch_date, date_today)
     logger.info(
         f"JOB COMPLETED - Data fetched for date: {fetch_date}, uploaded {date_today}"
     )
