@@ -20,6 +20,7 @@ psycopg2 = "^2.9.10"
 pydantic = "^2.10.5"
 pydantic-settings = "^2.7.1"
 pyjwt = "^2.10.1"
+pytest = "^8.3.4"
 python = "^3.12"
 requests = "^2.32.3"
 sqlalchemy = "^2.0.37"
@@ -65,6 +66,18 @@ lint.per-file-ignores = {"openalex_incremental_updater/ingest/__init__.py" = [
     "PERF203", # `try`-`except` within a loop incurs performance overhead
 ], "openalex_incremental_updater/ingest/openalex.py" = [
     "DTZ007", # Naive datetime constructed using `datetime.datetime.strptime()` without %z
+], "refresh_requester/tests*" = [
+    "ANN001", # Missing type annotation for function argument
+    "ANN201", # Missing type annotation for function return value
+    "ANN204", # Missing return type annotation for special method `__init__`
+    "ARG001", # Unused function argument
+    "D100", # Missing docstring in public module
+    "D101", # Missing docstring in public class
+    "D103", # Missing docstring in public function
+    "D107", # Missing docstring in __init__
+    "DTZ007", # Naive datetime constructed using `datetime.datetime.strptime()` without %z
+    "INP001", # File is part of an implicit namespace package.
+    "S101", # Use of `assert` detected
 ], "tests*" = [
     "ARG001", # Unused function argument
     "D100", # Missing docstring in public module
