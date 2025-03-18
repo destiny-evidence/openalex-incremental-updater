@@ -15,8 +15,6 @@ concurrency:
 
 jobs:
   tests:
-    permissions:
-      pull-requests: read
     runs-on: ubuntu-latest
     strategy:
       matrix:
@@ -70,17 +68,9 @@ jobs:
           output: both
           thresholds: "80 90"
 
-      - name: Check if the code contains changes
-        uses: dorny/paths-filter@v3
-        id: changes
-        with:
-          filters: |
-            oiu:
-            - 'openalex_incremental_updater/**'
-
       - name: Add Coverage PR Comment
         uses: marocchino/sticky-pull-request-comment@v2
-        if: (github.event_name == 'pull_request') && (steps.changes.outputs.oiu == 'true')
+        if: github.event_name == 'pull_request'
         with:
           recreate: true
           path: code-coverage-results.md
