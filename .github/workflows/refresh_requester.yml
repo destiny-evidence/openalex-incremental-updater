@@ -18,8 +18,11 @@ permissions:
   pull-requests: write
 
 jobs:
-  updater-tests:
+  refresher-tests:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: refresh_requester
     strategy:
       matrix:
         python-version:
@@ -57,7 +60,7 @@ jobs:
         run: poetry install --no-interaction
 
       - name: Run test with pytest via poetry
-        run: poetry run pytest --cov=openalex_incremental_updater --cov-report=xml
+        run: poetry run pytest --cov=refresh_requester --cov-report=xml
 
       - name: Code coverage reporting
         uses: irongut/CodeCoverageSummary@v1.3.0
