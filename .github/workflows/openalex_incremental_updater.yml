@@ -1,4 +1,4 @@
-name: Tests
+name: Openalex Incremental Updater Tests
 
 on:
   push:
