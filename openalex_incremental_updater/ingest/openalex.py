@@ -8,8 +8,11 @@ from loguru import logger
 from openalex_incremental_updater.core.config import get_settings
 from openalex_incremental_updater.core.utils import async_timer
 from openalex_incremental_updater.ingest import AsyncRetryClient, CreatedOrUpdated
+from openalex_incremental_updater.models.destiny import (
+    DestinyOpenAlexWork,
+    convert_openalex_to_destiny,
+)
 from openalex_incremental_updater.models.openalex import OpenAlexWork
-from openalex_incremental_updater.models.destiny import DestinyWork
 
 
 class UpstreamOpenAlexError(Exception):
@@ -44,7 +47,7 @@ class OpenAlexDataFetcher:
     @async_timer
     async def fetch_works_filter(
         self, openalex_filter: str | None, works_retrieved_limit: int | None = None
-    ) -> list[OpenAlexWork]:
+    ) -> list[DestinyOpenAlexWork]:
         """
         Fetch data from the OpenAlex API using a custom filter.
 
@@ -122,15 +125,17 @@ class OpenAlexDataFetcher:
 
         return self.process_aggregate_results(aggregate_results)
 
-    def process_aggregate_results(self, aggregate_results: list[dict]) -> list[DestinyWork]:
+    def process_aggregate_results(
+        self, aggregate_results: list[OpenAlexWork]
+    ) -> list[DestinyOpenAlexWork]:
         """
         Process the aggregate results from the OpenAlex API to match the Destiny data model.
 
         Args:
-            aggregate_results (list[dict]): The aggregate results from the OpenAlex API.
+            aggregate_results (list[OpenAlexWork]): The aggregate results from the OpenAlex API.
 
         Returns:
             list[DestinyWork]: The processed results in the Destiny data model format.
 
         """
-        return aggregate_results
+        return [convert_openalex_to_destiny(result) for result in aggregate_results]
