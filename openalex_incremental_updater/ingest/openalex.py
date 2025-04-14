@@ -9,6 +9,7 @@ from openalex_incremental_updater.core.config import get_settings
 from openalex_incremental_updater.core.utils import async_timer
 from openalex_incremental_updater.ingest import AsyncRetryClient, CreatedOrUpdated
 from openalex_incremental_updater.models.openalex import OpenAlexWork
+from openalex_incremental_updater.models.destiny import DestinyWork
 
 
 class UpstreamOpenAlexError(Exception):
@@ -114,11 +115,22 @@ class OpenAlexDataFetcher:
                     and counter_works_retrieved >= works_retrieved_limit
                 ):
                     logger.info(f"Reached the limit of {works_retrieved_limit} works.")
-                    return aggregate_results
+                    return self.process_aggregate_results(aggregate_results)
 
         logger.info(f"Last known cursor: {last_known_cursor}")
-        # Persist the cursor _somewhere_ temporary to quickly resume later in case of failures?
-        # redis?
         logger.info(f"Finished paging. Retrieved {counter_works_retrieved} results.")
 
+        return self.process_aggregate_results(aggregate_results)
+
+    def process_aggregate_results(self, aggregate_results: list[dict]) -> list[DestinyWork]:
+        """
+        Process the aggregate results from the OpenAlex API to match the Destiny data model.
+
+        Args:
+            aggregate_results (list[dict]): The aggregate results from the OpenAlex API.
+
+        Returns:
+            list[DestinyWork]: The processed results in the Destiny data model format.
+
+        """
         return aggregate_results
