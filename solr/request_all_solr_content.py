@@ -8,6 +8,8 @@ from pathlib import Path
 from loguru import logger
 from tqdm import tqdm
 
+SOLR_URL = "http://localhost:8983/solr/openalex_replica/select"
+ROWS = 100000
 
 def get_last_completed_chunk(metadata_directory: Path) -> int:
     meta_files = list(metadata_directory.glob("*meta.json"))
@@ -39,7 +41,7 @@ def get_total_number_of_documents(solr_url: str):
     params = {
         "q": "*:*",
         "rows": 0,
-        "wt": json
+        "wt": "json"
     }
     response = requests.get(solr_url, params=params)
     response.raise_for_status()
@@ -63,20 +65,22 @@ def run_solr_query(url: str, params: dict, output_directory: Path):
         cursor = params["cursorMark"]
         chunk_number = 1
 
+    documents_already_fetched = last_chunk_completed * ROWS
+    total_documents_to_fetch = get_total_number_of_documents(url) - documents_already_fetched
 
-    total_documents_to_fetch = get_total_number_of_documents(url)
     
+    max_retries = 15
+    backoff_factor = 0.1
+    session = requests.Session()
+    retries = Retry(total=max_retries, backoff_factor=backoff_factor, status_forcelist=[500, 502, 503, 504])
+    session.mount("http://", HTTPAdapter(max_retries=retries))
+
+
     with tqdm(total=total_documents_to_fetch, unit="docs") as pbar:
         while True:
 
-            max_retries = 5
-            backoff_factor = 0.1
             params["cursorMark"] = cursor
-            session = requests.Session()
-            retries = Retry(total=max_retries, backoff_factor=backoff_factor, status_forcelist=[500, 502, 503, 504])
-            session.mount("http://", HTTPAdapter(max_retries=retries))
-
-            response = session.get(url, params=params)
+            response = session.get(url, params=params, timeout=120)
             response.raise_for_status()
             data = response.json()
                 
@@ -117,8 +121,6 @@ def run_solr_query(url: str, params: dict, output_directory: Path):
     
 
 def solr_to_files():
-    SOLR_URL = "http://localhost:8983/solr/openalex_replica/select"
-    ROWS = 20000
 
     params = {
         "q": "{!cache=false}*:*",
