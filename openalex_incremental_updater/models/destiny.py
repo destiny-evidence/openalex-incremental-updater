@@ -8,8 +8,6 @@ from pydantic import (
     Field,
 )
 
-from openalex_incremental_updater.models.openalex import OpenAlexWork
-
 
 class Visibility(StrEnum):
     """
@@ -110,17 +108,17 @@ class DestinyOpenAlexWork(BaseModel):
     """Schema representing a work in the Destiny system."""
 
     identifiers: list[dict] = Field(
-        default_factory=list,
+        default_factory=list[dict],
         description="A list of `ExternalIdentifiers` for the Reference",
     )
     enhancements: list[dict] = Field(
-        default_factory=list,
+        default_factory=list[dict],
         description="A list of enhancements for the reference",
     )
 
 
 def convert_openalex_to_destiny(
-    openalex_work: OpenAlexWork,
+    openalex_work: dict,
 ) -> DestinyOpenAlexWork:
     """
     Convert OpenAlex works to a Destiny OpenAlex work.
@@ -132,30 +130,50 @@ def convert_openalex_to_destiny(
         DestinyOpenAlexWork: The converted Destiny OpenAlex work.
 
     """
-    return DestinyOpenAlexWork(
+    ids_dict = openalex_work.get("ids") if openalex_work.get("ids") else None
+    authorships_dict = openalex_work.get("authorships")
+    primary_location = openalex_work.get("primary_location")
+    source = primary_location.get("source") if primary_location else None
+    host_organisation_name = source.get("host_organization_name") if source else None
+
+    locations = openalex_work.get("locations")
+    topics = openalex_work.get("topics")
+
+    if ids_dict:
+        doi = ids_dict.get("doi")
+        openalex_id = ids_dict.get("openalex")
+        microsoft_academic_graph = ids_dict.get("mag")
+        pubmed_id = ids_dict.get("pmid")
+        pubmed_central_id = ids_dict.get("pmcid")
+    else:
+        doi = None
+        openalex_id = None
+        microsoft_academic_graph = None
+        pubmed_id = None
+        pubmed_central_id = None
+
+    destiny_work = DestinyOpenAlexWork(
         identifiers=[
             {
-                "identifier_type": ExternalIdentifierType.DOI,
-                "identifier": openalex_work.doi,
+                "identifier_type": ExternalIdentifierType.DOI.value,
+                "identifier": doi,
             },
             {
-                "identifier_type": ExternalIdentifierType.OPEN_ALEX,
-                "identifier": openalex_work.id,
+                "identifier_type": ExternalIdentifierType.OPEN_ALEX.value,
+                "identifier": openalex_id,
             },
             {
-                "identifier_type": ExternalIdentifierType.PM_ID,
-                "identifier": openalex_work.ids.get("pmid")
-                if openalex_work.ids
-                else None,
+                "identifier_type": ExternalIdentifierType.PM_ID.value,
+                "identifier": pubmed_id,
             },
         ],
         enhancements=[
             {
                 "source": "openalex",
                 "processor_version": "1.0.0",
-                "enhancement_type": EnhancementType.BIBLIOGRAPHIC,
+                "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
                 "content": {
-                    "enhancement_type": EnhancementType.BIBLIOGRAPHIC,
+                    "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
                     "authorship": [
                         {
                             "display_name": author["author"].get("display_name")
@@ -168,39 +186,33 @@ def convert_openalex_to_destiny(
                             if author
                             else None,
                         }
-                        for author in openalex_work.authorships
+                        for author in authorships_dict or {}
                     ],
-                    "cited_by_count": openalex_work.cited_by_count,
-                    "created_date": openalex_work.created_date,
-                    "publication_date": openalex_work.publication_date,
-                    "publication_year": openalex_work.publication_year,
-                    "publisher": openalex_work.primary_location.get("source", {}).get(
-                        "host_organization_name"
-                    )
-                    if openalex_work.primary_location
-                    else None,
+                    "cited_by_count": openalex_work.get("cited_by_count"),
+                    "created_date": openalex_work.get("created_date"),
+                    "publication_date": openalex_work.get("publication_date"),
+                    "publication_year": openalex_work.get("publication_year"),
+                    "publisher": host_organisation_name,
                 },
             },
             {
                 "source": "openalex",
                 "processor_version": "1.0.0",
-                "enhancement_type": EnhancementType.ABSTRACT,
+                "enhancement_type": EnhancementType.ABSTRACT.value,
                 "content": {
-                    "enhancement_type": EnhancementType.ABSTRACT,
-                    "abstract": AbstractContentEnhancement(
-                        abstract=convert_inverted_abstract(
-                            openalex_work.abstract_inverted_index
-                        ),
-                        process=AbstractProcessType.UNINVERTED,
+                    "enhancement_type": EnhancementType.ABSTRACT.value,
+                    "process": AbstractProcessType.UNINVERTED.value,
+                    "abstract": convert_inverted_abstract(
+                        openalex_work.get("abstract_inverted_index")
                     ),
                 },
             },
             {
                 "source": "openalex",
                 "processor_version": "1.0.0",
-                "enhancement_type": EnhancementType.LOCATION,
+                "enhancement_type": EnhancementType.LOCATION.value,
                 "content": {
-                    "enhancement_type": EnhancementType.LOCATION,
+                    "enhancement_type": EnhancementType.LOCATION.value,
                     "locations": [
                         {
                             "is_oa": location.get("is_oa"),
@@ -209,28 +221,43 @@ def convert_openalex_to_destiny(
                             "pdf_url": location.get("pdf_url"),
                             "license": location.get("license"),
                         }
-                        for location in openalex_work.locations
+                        for location in locations or {}
                     ],
                 },
             },
             {
                 "source": "openalex",
                 "processor_version": "1.0.0",
-                "enhancement_type": EnhancementType.ANNOTATION,
+                "enhancement_type": EnhancementType.ANNOTATION.value,
                 "content": {
-                    "enhancement_type": EnhancementType.ANNOTATION,
+                    "enhancement_type": EnhancementType.ANNOTATION.value,
                     "annotations": [
                         {
-                            "annotation_type": annotation["annotation_type"],
-                            "label": annotation["label"],
-                            "data": annotation["data"],
+                            "annotation_type": "openalex:topic",
+                            "label": annotation["display_name"],
+                            "data": annotation,
                         }
-                        for annotation in openalex_work.topics
+                        for annotation in topics or {}
                     ],
                 },
             },
         ],
     )
+    if microsoft_academic_graph:
+        destiny_work.identifiers.append(
+            {
+                "identifier_type": ExternalIdentifierType.OTHER.value,
+                "identifier": microsoft_academic_graph,
+            }
+        )
+    if pubmed_central_id:
+        destiny_work.identifiers.append(
+            {
+                "identifier_type": ExternalIdentifierType.OTHER.value,
+                "identifier": pubmed_central_id,
+            }
+        )
+    return destiny_work
 
 
 def convert_inverted_abstract(

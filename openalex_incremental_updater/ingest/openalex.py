@@ -12,7 +12,6 @@ from openalex_incremental_updater.models.destiny import (
     DestinyOpenAlexWork,
     convert_openalex_to_destiny,
 )
-from openalex_incremental_updater.models.openalex import OpenAlexWork
 
 
 class UpstreamOpenAlexError(Exception):
@@ -126,13 +125,13 @@ class OpenAlexDataFetcher:
         return self.process_aggregate_results(aggregate_results)
 
     def process_aggregate_results(
-        self, aggregate_results: list[OpenAlexWork]
+        self, aggregate_results: list[dict]
     ) -> list[DestinyOpenAlexWork]:
         """
         Process the aggregate results from the OpenAlex API to match the Destiny data model.
 
         Args:
-            aggregate_results (list[OpenAlexWork]): The aggregate results from the OpenAlex API.
+            aggregate_results (list[dict]): The aggregate results from the OpenAlex API.
 
         Returns:
             list[DestinyWork]: The processed results in the Destiny data model format.
