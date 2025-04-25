@@ -10,49 +10,49 @@ class OpenAlexWork(BaseModel):
     """Define the structure of an OpenAlex work."""
 
     id: str
-    doi: str
-    title: str
-    display_name: str
-    publication_year: int
-    publication_date: date
-    ids: dict
-    language: str
-    primary_location: dict
-    type: str
-    type_crossref: str
-    indexed_in: list[str]
-    open_access: dict
-    authorships: list[dict]
-    countries_distinct_count: int
-    institutions_distinct_count: int
-    corresponding_author_ids: list[str]
-    corresponding_institution_ids: list[str]
-    apc_list: dict[str, Any | None]
-    apc_paid: dict[str, Any | None]
-    fwci: float
-    has_fulltext: bool
-    cited_by_count: int
-    citation_normalized_percentile: dict[str, float | bool]
-    biblio: dict
-    is_retracted: bool
-    is_paratext: bool
-    primary_topic: dict
-    topics: list[dict]
-    keywords: list[dict]
-    concepts: list[dict]
-    mesh: list[dict]
-    locations_count: int
-    locations: list[dict]
-    best_oa_location: dict
-    sustainable_development_goals: list[dict]
-    grants: list[dict]
-    datasets: list
-    versions: list
-    referenced_works_count: int
-    referenced_works: list[str]
-    related_works: list[str]
-    abstract_inverted_index: dict[str, list[int]]
-    cited_by_api_url: str
-    counts_by_year: list[dict[str, int]]
-    updated_date: datetime
+    doi: str | None = None
+    title: str | None = None
+    display_name: str | None = None
+    publication_year: int | None = None
+    publication_date: date | None = None
+    ids: dict | None = None
+    language: str | None = None
+    primary_location: dict | None = None
+    type: str | None = None
+    type_crossref: str | None = None
+    indexed_in: list[str] | None = None
+    open_access: dict | None = None
+    authorships: list[dict] | None = None
+    countries_distinct_count: int | None = None
+    institutions_distinct_count: int | None = None
+    corresponding_author_ids: list[str] | None = None
+    corresponding_institution_ids: list[str] | None = None
+    apc_list: dict[str, Any | None] | None = None
+    apc_paid: dict[str, Any | None] | None = None
+    fwci: float | None = None
+    has_fulltext: bool | None = None
+    cited_by_count: int | None = None
+    citation_normalized_percentile: dict[str, float | bool] | None = None
+    biblio: dict | None = None
+    is_retracted: bool | None = None
+    is_paratext: bool | None = None
+    primary_topic: dict | None = None
+    topics: list[dict] | None = None
+    keywords: list[dict] | None = None
+    concepts: list[dict] | None = None
+    mesh: list[dict] | None = None
+    locations_count: int | None = None
+    locations: list[dict] | None = None
+    best_oa_location: dict | None = None
+    sustainable_development_goals: list[dict] | None = None
+    grants: list[dict] | None = None
+    datasets: list | None = None
+    versions: list | None = None
+    referenced_works_count: int | None = None
+    referenced_works: list[str] | None = None
+    related_works: list[str] | None = None
+    abstract_inverted_index: dict[str, list[int]] | None = None
+    cited_by_api_url: str | None = None
+    counts_by_year: list[dict[str, int]] | None = None
+    updated_date: datetime | None = None
     created_date: date

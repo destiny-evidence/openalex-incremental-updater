@@ -4,7 +4,7 @@ from openalex_incremental_updater.models.destiny import DestinyOpenAlexWork
 
 
 @pytest.fixture
-def destiny_work_dict() -> dict:
+def destiny_work_dict(set_test_environment_variables: None) -> dict:
     return {
         "visibility": "public",
         "identifiers": [{"identifier_type": "doi", "identifier": "10.1234/sampledoi"}],

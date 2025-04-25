@@ -105,10 +105,6 @@ class AbstractContentEnhancement(BaseModel):
     abstract: str = Field(description="The abstract of the reference.")
 
 
-class DestinyOpenAlexWorkError(Exception):
-    """Custom exception for Destiny OpenAlex Work validation errors."""
-
-
 class DestinyOpenAlexWork(BaseModel):
     """Schema representing a work in the Destiny system."""
 
@@ -134,7 +130,7 @@ class DestinyOpenAlexWork(BaseModel):
         contains at least one identifier of type DOI, PM_ID, or OPEN_ALEX.
 
         Raises:
-            DestinyOpenAlexWorkError: If the identifiers list is empty or does not contain a
+            ValueError: If the identifiers list is empty or does not contain a
                 valid identifier type.
 
         Returns:
@@ -143,7 +139,7 @@ class DestinyOpenAlexWork(BaseModel):
         """
         if not self.identifiers:
             error_message = "Identifiers list cannot be empty."
-            raise DestinyOpenAlexWorkError(error_message)
+            raise ValueError(error_message)
         if not any(
             identifier.get("identifier")
             if identifier["identifier_type"]
@@ -158,7 +154,7 @@ class DestinyOpenAlexWork(BaseModel):
             error_message = (
                 "At least one identifier must be of type DOI, PM_ID, or OPEN_ALEX."
             )
-            raise DestinyOpenAlexWorkError(error_message)
+            raise ValueError(error_message)
         return self
 
     @model_validator(mode="after")
@@ -179,7 +175,7 @@ class DestinyOpenAlexWork(BaseModel):
         """
         if not self.enhancements:
             error_message = "Enhancements list cannot be empty."
-            raise DestinyOpenAlexWorkError(error_message)
+            raise ValueError(error_message)
         if not any(
             enhancement.get("content")
             and enhancement["enhancement_type"] == EnhancementType.BIBLIOGRAPHIC.value
@@ -190,7 +186,7 @@ class DestinyOpenAlexWork(BaseModel):
             for enhancement in self.enhancements
         ):
             error_message = "At least one enhancement must be of type BIBLIOGRAPHIC with authorship or created_date."
-            raise DestinyOpenAlexWorkError(error_message)
+            raise ValueError(error_message)
         return self
 
 
