@@ -43,7 +43,7 @@ async def get_openalex_works_ingest_from_date(
         limit (int): Maximum number of records to ingest.
 
     Returns:
-        list[OpenAlexWork]: List of OpenAlexWork objects.
+        list[DestinyOpenAlexWork]: List of DestinyOpenAlexWork objects.
 
     """
     openalex_query = OpenAlexDataFetcher.build_query(fetch_date, ingest_type)

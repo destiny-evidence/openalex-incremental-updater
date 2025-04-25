@@ -1,11 +1,12 @@
 """Models associated with references."""
 
 from enum import StrEnum
-from typing import Literal
+from typing import Literal, Self
 
 from pydantic import (
     BaseModel,
     Field,
+    model_validator,
 )
 
 
@@ -104,9 +105,17 @@ class AbstractContentEnhancement(BaseModel):
     abstract: str = Field(description="The abstract of the reference.")
 
 
+class DestinyOpenAlexWorkError(Exception):
+    """Custom exception for Destiny OpenAlex Work validation errors."""
+
+
 class DestinyOpenAlexWork(BaseModel):
     """Schema representing a work in the Destiny system."""
 
+    visibility: Visibility = Field(
+        default=Visibility.PUBLIC,
+        description="The visibility of the work in the Destiny system.",
+    )
     identifiers: list[dict] = Field(
         default_factory=list[dict],
         description="A list of `ExternalIdentifiers` for the Reference",
@@ -115,6 +124,74 @@ class DestinyOpenAlexWork(BaseModel):
         default_factory=list[dict],
         description="A list of enhancements for the reference",
     )
+
+    @model_validator(mode="after")
+    def validate_identifiers(self) -> Self:
+        """
+        Validate the identifiers of the work.
+
+        This method checks that the identifiers list is not empty and that it
+        contains at least one identifier of type DOI, PM_ID, or OPEN_ALEX.
+
+        Raises:
+            DestinyOpenAlexWorkError: If the identifiers list is empty or does not contain a
+                valid identifier type.
+
+        Returns:
+            self: The validated instance of DestinyOpenAlexWork.
+
+        """
+        if not self.identifiers:
+            error_message = "Identifiers list cannot be empty."
+            raise DestinyOpenAlexWorkError(error_message)
+        if not any(
+            identifier.get("identifier")
+            if identifier["identifier_type"]
+            in [
+                ExternalIdentifierType.DOI.value,
+                ExternalIdentifierType.PM_ID.value,
+                ExternalIdentifierType.OPEN_ALEX.value,
+            ]
+            else False
+            for identifier in self.identifiers
+        ):
+            error_message = (
+                "At least one identifier must be of type DOI, PM_ID, or OPEN_ALEX."
+            )
+            raise DestinyOpenAlexWorkError(error_message)
+        return self
+
+    @model_validator(mode="after")
+    def validate_enhancements(self) -> Self:
+        """
+        Validate the enhancements of the work.
+
+        This method checks that the bibiliographic enhancements list is not empty and that it
+        contains at least the authorship and created_date fields.
+
+        Raises:
+            ValueError: If the identifiers list is empty or does not contain a
+                valid identifier type.
+
+        Returns:
+            self: The validated instance of DestinyOpenAlexWork.
+
+        """
+        if not self.enhancements:
+            error_message = "Enhancements list cannot be empty."
+            raise DestinyOpenAlexWorkError(error_message)
+        if not any(
+            enhancement.get("content")
+            and enhancement["enhancement_type"] == EnhancementType.BIBLIOGRAPHIC.value
+            and (
+                enhancement["content"].get("authorship")
+                and enhancement["content"].get("created_date")
+            )
+            for enhancement in self.enhancements
+        ):
+            error_message = "At least one enhancement must be of type BIBLIOGRAPHIC with authorship or created_date."
+            raise DestinyOpenAlexWorkError(error_message)
+        return self
 
 
 def convert_openalex_to_destiny(
@@ -170,7 +247,7 @@ def convert_openalex_to_destiny(
         enhancements=[
             {
                 "source": "openalex",
-                "processor_version": "1.0.0",
+                "processor_version": None,
                 "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
                 "content": {
                     "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
@@ -197,7 +274,7 @@ def convert_openalex_to_destiny(
             },
             {
                 "source": "openalex",
-                "processor_version": "1.0.0",
+                "processor_version": None,
                 "enhancement_type": EnhancementType.ABSTRACT.value,
                 "content": {
                     "enhancement_type": EnhancementType.ABSTRACT.value,
@@ -209,7 +286,7 @@ def convert_openalex_to_destiny(
             },
             {
                 "source": "openalex",
-                "processor_version": "1.0.0",
+                "processor_version": None,
                 "enhancement_type": EnhancementType.LOCATION.value,
                 "content": {
                     "enhancement_type": EnhancementType.LOCATION.value,
@@ -227,7 +304,7 @@ def convert_openalex_to_destiny(
             },
             {
                 "source": "openalex",
-                "processor_version": "1.0.0",
+                "processor_version": None,
                 "enhancement_type": EnhancementType.ANNOTATION.value,
                 "content": {
                     "enhancement_type": EnhancementType.ANNOTATION.value,

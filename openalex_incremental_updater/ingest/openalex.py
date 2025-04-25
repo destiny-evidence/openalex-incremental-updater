@@ -55,7 +55,7 @@ class OpenAlexDataFetcher:
             works_retrieved_limit (Optional[int]): The maximum number of works to retrieve. Defaults to None.
 
         Returns:
-            list[OpenAlexWork]: The retrieved works.
+            list[DestinyOpenAlexWork]: The retrieved works.
 
         """
         aggregate_results = []
