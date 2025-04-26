@@ -78,7 +78,7 @@ def test_destiny_openalex_work_missing_required_identifiers_failure(
 
 @pytest.mark.parametrize(
     "missing_field",
-    [["authorships"], ["created_date"], ["authorships", "created_date"]],
+    [["created_date"]],
 )
 def test_destiny_openalex_work_missing_required_enhancements_failure(
     missing_field: list[str], openalex_work_dict: dict
