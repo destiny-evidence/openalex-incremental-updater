@@ -1,4 +1,4 @@
-name: Tests
+name: Refresh requester tests
 
 on:
   push:
@@ -8,13 +8,26 @@ on:
     paths-ignore:
       - "**.md"
 
+concurrency:
+  # Skips intermediate builds and cancels intermediate builds
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
 jobs:
-  tests:
+  refresher-tests:
     runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: refresh_requester
     strategy:
       matrix:
         python-version:
           - "3.12"
+    if: github.event.pull_request.draft == false
 
     steps:
       - name: Checkout source
@@ -47,4 +60,24 @@ jobs:
         run: poetry install --no-interaction
 
       - name: Run test with pytest via poetry
-        run: poetry run pytest
+        run: poetry run pytest --cov=refresh_requester --cov-report=xml
+
+      - name: Code coverage reporting
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          filename: refresh_requester/coverage.xml
+          badge: true
+          fail_below_min: true
+          format: markdown
+          hide_branch_rate: false
+          hide_complexity: true
+          indicators: true
+          output: both
+          thresholds: "80 90"
+
+      - name: Add Coverage PR Comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        if: github.event_name == 'pull_request'
+        with:
+          recreate: true
+          path: code-coverage-results.md
