@@ -138,6 +138,7 @@ def convert_solr_to_destiny(solr_document: dict) -> DestinyOpenAlexWork:
         DestinyOpenAlexWork: The converted Destiny OpenAlex work.
 
     """
+    processor_version = "initial_solr_import"
     doi = solr_document.get("doi")
     openalex_id = solr_document.get("id")
     microsoft_academic_graph = solr_document.get("mag")
@@ -174,7 +175,16 @@ def convert_solr_to_destiny(solr_document: dict) -> DestinyOpenAlexWork:
         enhancements=[
             {
                 "source": "pik_solr",
-                "processor_version": "1.0.0",
+                "processor_version": processor_version,
+                "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
+                "content": {
+                    "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
+                    "title": solr_document.get("title"),
+                },
+            },
+            {
+                "source": "pik_solr",
+                "processor_version": processor_version,
                 "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
                 "content": {
                     "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
@@ -201,7 +211,7 @@ def convert_solr_to_destiny(solr_document: dict) -> DestinyOpenAlexWork:
             },
             {
                 "source": "pik_solr",
-                "processor_version": "1.0.0",
+                "processor_version": processor_version,
                 "enhancement_type": EnhancementType.ABSTRACT.value,
                 "content": {
                     "enhancement_type": EnhancementType.ABSTRACT.value,
@@ -211,7 +221,7 @@ def convert_solr_to_destiny(solr_document: dict) -> DestinyOpenAlexWork:
             },
             {
                 "source": "pik_solr",
-                "processor_version": "1.0.0",
+                "processor_version": processor_version,
                 "enhancement_type": EnhancementType.LOCATION.value,
                 "content": {
                     "enhancement_type": EnhancementType.LOCATION.value,
@@ -229,7 +239,7 @@ def convert_solr_to_destiny(solr_document: dict) -> DestinyOpenAlexWork:
             },
             {
                 "source": "pik_solr",
-                "processor_version": "1.0.0",
+                "processor_version": processor_version,
                 "enhancement_type": EnhancementType.ANNOTATION.value,
                 "content": {
                     "enhancement_type": EnhancementType.ANNOTATION.value,

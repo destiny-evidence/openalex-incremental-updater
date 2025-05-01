@@ -109,7 +109,7 @@ def main():
 
 
     
-    input_dir = Path.cwd() / "compressed_destiny_jsonl"
+    input_dir = Path.cwd() / "compressed_destiny_tim_query_subset_jsonl"
     files = sorted(input_dir.glob("*.jsonl.gz"))
 
     if not files:
