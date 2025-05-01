@@ -1,1 +1,3 @@
-solr_data_json/*
+solr_data_json/
+.env
+.env**
