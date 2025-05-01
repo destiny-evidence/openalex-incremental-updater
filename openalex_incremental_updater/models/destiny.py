@@ -208,7 +208,7 @@ def convert_openalex_to_destiny(
 
     locations = openalex_work.get("locations")
     topics = openalex_work.get("topics")
-
+    processor_version = "initial_openalex_import"
     if ids_dict:
         doi = ids_dict.get("doi")
         openalex_id = ids_dict.get("openalex")
@@ -240,7 +240,16 @@ def convert_openalex_to_destiny(
         enhancements=[
             {
                 "source": "openalex",
-                "processor_version": None,
+                "processor_version": processor_version,
+                "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
+                "content": {
+                    "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
+                    "title": openalex_work.get("title"),
+                },
+            },
+            {
+                "source": "openalex",
+                "processor_version": processor_version,
                 "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
                 "content": {
                     "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
@@ -267,7 +276,7 @@ def convert_openalex_to_destiny(
             },
             {
                 "source": "openalex",
-                "processor_version": None,
+                "processor_version": processor_version,
                 "enhancement_type": EnhancementType.ABSTRACT.value,
                 "content": {
                     "enhancement_type": EnhancementType.ABSTRACT.value,
@@ -279,7 +288,7 @@ def convert_openalex_to_destiny(
             },
             {
                 "source": "openalex",
-                "processor_version": None,
+                "processor_version": processor_version,
                 "enhancement_type": EnhancementType.LOCATION.value,
                 "content": {
                     "enhancement_type": EnhancementType.LOCATION.value,
@@ -297,7 +306,7 @@ def convert_openalex_to_destiny(
             },
             {
                 "source": "openalex",
-                "processor_version": None,
+                "processor_version": processor_version,
                 "enhancement_type": EnhancementType.ANNOTATION.value,
                 "content": {
                     "enhancement_type": EnhancementType.ANNOTATION.value,
