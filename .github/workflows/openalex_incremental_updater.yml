@@ -35,7 +35,7 @@ jobs:
         with:
           python-version: ${{matrix.python-version}}
           cache: pip
-          cache-dependency-path: pyproject.toml
+          cache-dependency-path: openalex_incremental_updater/pyproject.toml
 
       - name: Install and configure Poetry
         uses: snok/install-poetry@v1
