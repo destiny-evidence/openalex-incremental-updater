@@ -7,8 +7,6 @@ on:
   pull_request:
     paths:
       - "openalex_incremental_updater/**"
-    paths-ignore:
-      - "**.md"
 
 concurrency:
   # Skips intermediate builds and cancels intermediate builds

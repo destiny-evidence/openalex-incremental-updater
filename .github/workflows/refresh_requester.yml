@@ -7,8 +7,6 @@ on:
   pull_request:
     paths:
       - "refresh_requester/**"
-    paths-ignore:
-      - "**.md"
 
 concurrency:
   # Skips intermediate builds and cancels intermediate builds
