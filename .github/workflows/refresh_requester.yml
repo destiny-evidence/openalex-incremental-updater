@@ -87,5 +87,6 @@ jobs:
         if: github.event_name == 'pull_request'
         with:
           header: "refresh-requester"
+          message: "refresh-requester"
           recreate: true
           path: refresh-requester-coverage-results.md
