@@ -77,9 +77,12 @@ jobs:
           output: both
           thresholds: "80 90"
 
+      - name: Rename coverage markdown file
+        run: mv code-coverage-results.md refresh-requester-coverage-results.md
       - name: Add Coverage PR Comment
         uses: marocchino/sticky-pull-request-comment@v2
         if: github.event_name == 'pull_request'
         with:
+          header: "refresh-requester"
           recreate: true
           path: refresh-requester-coverage-results.md
