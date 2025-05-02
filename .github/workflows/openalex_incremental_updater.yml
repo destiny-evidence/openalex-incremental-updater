@@ -50,7 +50,7 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/openalex_incremental_updater/.venv
-          key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('**/poetry.lock') }}
+          key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('openalex_incremental_updater/poetry.lock') }}
 
       - name: Install dependencies if cache was not found
         working-directory: openalex_incremental_updater
