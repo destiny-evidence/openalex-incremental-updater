@@ -20,9 +20,6 @@ permissions:
 jobs:
   refresher-tests:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: refresh_requester
     strategy:
       matrix:
         python-version:
@@ -64,13 +61,10 @@ jobs:
         working-directory: refresh_requester
         run: poetry run pytest --cov=refresh_requester --cov-report=xml
 
-      - name: Show coverage report exists
-        run: ls -la /home/runner/work/openalex-incremental-updater/openalex-incremental-updater/refresh_requester
-
       - name: Code coverage reporting
         uses: irongut/CodeCoverageSummary@v1.3.0
         with:
-          filename: /home/runner/work/openalex-incremental-updater/openalex-incremental-updater/refresh_requester/coverage.xml
+          filename: refresh_requester/coverage.xml
           badge: true
           fail_below_min: true
           format: markdown
@@ -80,8 +74,6 @@ jobs:
           output: file
           thresholds: "80 90"
 
-      - name: Check any produced files...
-        run: ls -la
       - name: Rename coverage markdown file
         run: mv code-coverage-results.md refresh-requester-coverage-results.md
 
