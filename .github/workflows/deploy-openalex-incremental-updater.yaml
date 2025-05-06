@@ -12,11 +12,7 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      ACR_NAME: dataingestacr
-      REGISTRY_LOGIN_SERVER: dataingestacr.azurecr.io
       IMAGE_NAME: openalex-incremental-updater
-      RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
-      CONTAINER_APP_NAME: ${{ secrets.CONTAINER_APP_NAME }}
 
     steps:
       - name: Checkout code
@@ -27,23 +23,21 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Log in to Azure Container Registry
-        run: az acr login --name ${ACR_NAME}
-
-      - name: Build Docker image
-        run: |
+      - name: Build and push Docker image
+        uses: azure/docker-login@v1
+        with:
+          login-server: ${{ secrets.REGISTRY_LOGIN_SERVER }}
+          username: ${{ secrets.REGISTRY_USERNAME }}
+          password: ${{ secrets.REGISTRY_PASSWORD }}
+      - run: |
           export TAG=${{ github.event.inputs.imageTag || github.sha }}
-          docker build -t ${REGISTRY_LOGIN_SERVER}/${IMAGE_NAME}:${TAG} openalex_incremental_updater/
-
-      - name: Push Docker image
-        run: |
-          export TAG=${{ github.event.inputs.imageTag || github.sha }}
-          docker push ${REGISTRY_LOGIN_SERVER}/$IMAGE_NAME:$TAG
+          docker build -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${TAG} openalex_incremental_updater/
+          docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${TAG}
 
       - name: Deploy to Azure Container App
         run: |
           export TAG=${{ github.event.inputs.imageTag || github.sha }}
           az containerapp update \
-            --name $CONTAINER_APP_NAME \
-            --resource-group $RESOURCE_GROUP \
-            --image ${REGISTRY_LOGIN_SERVER}/$IMAGE_NAME:$TAG
+            --name ${{ secrets.CONTAINER_APP_NAME }} \
+            --resource-group ${{ secrets.RESOURCE_GROUP }} \
+            --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:$TAG
