@@ -64,8 +64,8 @@ jobs:
         working-directory: refresh_requester
         run: poetry run pytest --cov=refresh_requester --cov-report=xml
 
-      - name: Show contents of home directory
-        run: ls -la ~/
+      - name: Show coverage report exists
+        run: ls -la /home/runner/work/openalex-incremental-updater/openalex-incremental-updater/refresh_requester
 
       - name: Code coverage reporting
         uses: irongut/CodeCoverageSummary@v1.3.0
