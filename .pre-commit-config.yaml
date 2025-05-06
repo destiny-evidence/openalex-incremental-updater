@@ -4,10 +4,10 @@ repos:
     hooks:
       - id: ruff
         args:
-          - --config=pyproject.toml
+          - --config=openalex_incremental_updater/pyproject.toml
       - id: ruff-format
         args:
-          - --config=pyproject.toml
+          - --config=openalex_incremental_updater/pyproject.toml
   - repo: https://github.com/igorshubovych/markdownlint-cli
     rev: v0.43.0
     hooks:
@@ -26,7 +26,11 @@ repos:
     rev: v1.14.1
     hooks:
       - id: mypy
-        args: [--config-file=pyproject.toml, --ignore-missing-imports]
+        args:
+          [
+            --config-file=openalex_incremental_updater/pyproject.toml,
+            --ignore-missing-imports,
+          ]
         additional_dependencies:
           [pytest, pydantic, fastapi, types-requests, sqlmodel]
   - repo: https://github.com/pre-commit/mirrors-prettier
