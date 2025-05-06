@@ -27,10 +27,7 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Log in to Azure Container Registry
-        uses: azure/cli@v2
-        with:
-          inlineScript: |
-            az acr login --name ${{ secrets.ACR_NAME }}
+        run: az acr login --name ${{ secrets.ACR_NAME }}
 
       - name: Build Docker image
         run: |
