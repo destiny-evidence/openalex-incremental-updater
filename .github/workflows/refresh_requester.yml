@@ -64,10 +64,13 @@ jobs:
         working-directory: refresh_requester
         run: poetry run pytest --cov=refresh_requester --cov-report=xml
 
+      - name: Show contents of home directory
+        run: ls -la ~/
+
       - name: Code coverage reporting
         uses: irongut/CodeCoverageSummary@v1.3.0
         with:
-          filename: refresh_requester/coverage.xml
+          filename: ~/refresh_requester/coverage.xml
           badge: true
           fail_below_min: true
           format: markdown
