@@ -12,8 +12,8 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      ACR_NAME: ${{ secrets.ACR_NAME }}
-      REGISTRY_LOGIN_SERVER: ${{ secrets.ACR_NAME }}.azurecr.io
+      ACR_NAME: dataingestacr
+      REGISTRY_LOGIN_SERVER: dataingestacr.azurecr.io
       IMAGE_NAME: openalex-incremental-updater
       RESOURCE_GROUP: ${{ secrets.RESOURCE_GROUP }}
       CONTAINER_APP_NAME: ${{ secrets.CONTAINER_APP_NAME }}
