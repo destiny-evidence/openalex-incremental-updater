@@ -32,7 +32,7 @@ jobs:
       - name: Build Docker image
         run: |
           export TAG=${{ github.event.inputs.imageTag || github.sha }}
-          docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:$TAG .
+          docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:$TAG openalex_incremental_updater/
 
       - name: Push Docker image
         run: |
