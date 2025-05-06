@@ -27,17 +27,20 @@ jobs:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
       - name: Log in to Azure Container Registry
-        run: az acr login --name $ACR_NAME
+        uses: azure/cli@v2
+        with:
+          inlineScript: |
+            az acr login --name ${{ secrets.ACR_NAME }}
 
       - name: Build Docker image
         run: |
           export TAG=${{ github.event.inputs.imageTag || github.sha }}
-          docker build -t $ACR_NAME.azurecr.io/$IMAGE_NAME:$TAG openalex_incremental_updater/
+          docker build -t ${REGISTRY_LOGIN_SERVER}/${IMAGE_NAME}:${TAG} openalex_incremental_updater/
 
       - name: Push Docker image
         run: |
           export TAG=${{ github.event.inputs.imageTag || github.sha }}
-          docker push $ACR_NAME.azurecr.io/$IMAGE_NAME:$TAG
+          docker push ${REGISTRY_LOGIN_SERVER}/$IMAGE_NAME:$TAG
 
       - name: Deploy to Azure Container App
         run: |
