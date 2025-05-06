@@ -245,14 +245,6 @@ def convert_openalex_to_destiny(
                 "content": {
                     "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
                     "title": openalex_work.get("title"),
-                },
-            },
-            {
-                "source": "openalex",
-                "processor_version": processor_version,
-                "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
-                "content": {
-                    "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
                     "authorship": [
                         {
                             "display_name": author["author"].get("display_name")
