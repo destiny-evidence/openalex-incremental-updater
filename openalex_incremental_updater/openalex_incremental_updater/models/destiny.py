@@ -73,7 +73,7 @@ class EnhancementType(StrEnum):
 
 class AbstractProcessType(StrEnum):
     """
-    The process used to acquyire the abstract.
+    The process used to acquire the abstract.
 
     **Allowed values**:
     - `uninverted`
