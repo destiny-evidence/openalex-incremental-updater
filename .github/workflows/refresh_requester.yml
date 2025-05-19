@@ -1,0 +1,89 @@
+name: Refresh requester tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - "refresh_requester/**"
+
+concurrency:
+  # Skips intermediate builds and cancels intermediate builds
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  refresher-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version:
+          - "3.12"
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{matrix.python-version}}
+          cache: pip
+          cache-dependency-path: refresh_requester/pyproject.toml
+
+      - name: Install and configure Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          virtualenvs-path: refresh_requester/.venv
+          installer-parallel: true
+
+      - name: Load cached virtual environment
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/refresh_requester/.venv
+          key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('refresh_requester/poetry.lock') }}
+
+      - name: Install dependencies if cache was not found
+        working-directory: refresh_requester
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction
+
+      - name: Run test with pytest via poetry
+        working-directory: refresh_requester
+        run: poetry run pytest --cov=refresh_requester --cov-report=xml
+
+      - name: Code coverage reporting
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          filename: refresh_requester/coverage.xml
+          badge: true
+          fail_below_min: true
+          format: markdown
+          hide_branch_rate: false
+          hide_complexity: true
+          indicators: true
+          output: file
+          thresholds: "80 90"
+
+      - name: Add title to coverage markdown file
+        run: |
+          echo '## Refresh Requester Coverage' > refresh-requester-coverage-results.md
+          echo '---' >> refresh-requester-coverage-results.md
+          cat code-coverage-results.md >> refresh-requester-coverage-results.md
+
+      - name: Add Coverage PR Comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        if: github.event_name == 'pull_request'
+        with:
+          header: "refresh-requester"
+          recreate: true
+          path: refresh-requester-coverage-results.md

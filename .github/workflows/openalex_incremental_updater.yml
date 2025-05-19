@@ -1,0 +1,89 @@
+name: Openalex Incremental Updater Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    paths:
+      - "openalex_incremental_updater/**"
+
+concurrency:
+  # Skips intermediate builds and cancels intermediate builds
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  updater-tests:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version:
+          - "3.12"
+    if: github.event.pull_request.draft == false
+
+    steps:
+      - name: Checkout source
+        uses: actions/checkout@v4
+
+      - name: Set up python
+        uses: actions/setup-python@v5
+        with:
+          python-version: ${{matrix.python-version}}
+          cache: pip
+          cache-dependency-path: openalex_incremental_updater/pyproject.toml
+
+      - name: Install and configure Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-create: true
+          virtualenvs-in-project: true
+          virtualenvs-path: openalex_incremental_updater/.venv
+          installer-parallel: true
+
+      - name: Load cached virtual environment
+        id: cached-poetry-dependencies
+        uses: actions/cache@v4
+        with:
+          path: ~/openalex_incremental_updater/.venv
+          key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('openalex_incremental_updater/poetry.lock') }}
+
+      - name: Install dependencies if cache was not found
+        working-directory: openalex_incremental_updater
+        if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        run: poetry install --no-interaction
+
+      - name: Run test with pytest via poetry
+        working-directory: openalex_incremental_updater
+        run: poetry run pytest --cov=openalex_incremental_updater --cov-report=xml
+
+      - name: Code coverage reporting
+        uses: irongut/CodeCoverageSummary@v1.3.0
+        with:
+          filename: openalex_incremental_updater/coverage.xml
+          badge: true
+          fail_below_min: true
+          format: markdown
+          hide_branch_rate: false
+          hide_complexity: true
+          indicators: true
+          output: both
+          thresholds: "80 90"
+
+      - name: Add title to coverage markdown file
+        run: |
+          echo '## OpenAlex Incremental Updater Coverage' > openalex-incremental-updater-coverage-results.md
+          echo '---' >> openalex-incremental-updater-coverage-results.md
+          cat code-coverage-results.md >> openalex-incremental-updater-coverage-results.md
+
+      - name: Add Coverage PR Comment
+        uses: marocchino/sticky-pull-request-comment@v2
+        if: github.event_name == 'pull_request'
+        with:
+          header: openalex-incremental-updater-coverage
+          recreate: true
+          path: openalex-incremental-updater-coverage-results.md
