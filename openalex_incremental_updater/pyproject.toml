@@ -86,6 +86,8 @@ lint.per-file-ignores = {"openalex_incremental_updater/openalex_incremental_upda
   "DTZ007", # Naive datetime constructed using `datetime.datetime.strptime()` without %z
   "INP001", # File is part of an implicit namespace package.
   "S101" # Use of `assert` detected
+], "destiny_solr_setup/*" = [
+  "BLE001" # Do not catch blind exception: Exception
 ]}
 lint.select = [
   "ALL"

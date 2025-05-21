@@ -1,0 +1,54 @@
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.mypy]
+explicit_package_bases = true
+
+[tool.poetry]
+name = "destiny-solr-setup"
+version = "0.1.0"
+description = "A small package to set up and manage a cloud-based Solr instance."
+authors = ["Harry Moss <h.moss@ucl.ac.uk>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+azure-core = "^1.34.0"
+azure-identity = "^1.23.0"
+azure-storage-blob = "^12.25.1"
+python-dotenv = "^1.1.0"
+requests = "^2.32.3"
+loguru = "^0.7.3"
+tqdm = "^4.67.1"
+pydantic = "^2.11.4"
+python = "^3.12"
+
+[tool.ruff]
+fix = true
+force-exclude = true
+lint.ignore = [
+  "BLE001", # Do not catch blind exception: Exception
+  "COM812", # trailing commas (ruff-format recommended)
+  "D203", # no-blank-line-before-class
+  "D212", # multi-line-summary-first-line
+  "D407", # removed dashes lines under sections
+  "D417", # argument description in docstring (unreliable)
+  "FA102", # missing from __future__ import annotations, but we don't support python < 3.10
+  "ISC001" # simplify implicit str concatenation (ruff-format recommended)
+]
+lint.select = [
+  "ALL"
+]
+lint.mccabe.max-complexity = 18
+lint.pep8-naming.classmethod-decorators = [
+  "classmethod",
+  "pydantic.field_validator" # Allow Pydantic's `@field_validator` decorator to trigger class method treatment.
+]
+lint.pycodestyle.max-line-length = 120
+
+[tool.tomlsort]
+all = true
+spaces_indent_inline_array = 4
+trailing_comma_inline_array = true
+overrides."project.classifiers".inline_arrays = false
+overrides."tool.coverage.paths.source".inline_arrays = false
