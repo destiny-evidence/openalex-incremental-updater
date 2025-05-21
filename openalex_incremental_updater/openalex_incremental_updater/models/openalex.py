@@ -55,4 +55,4 @@ class OpenAlexWork(BaseModel):
     cited_by_api_url: str | None = None
     counts_by_year: list[dict[str, int]] | None = None
     updated_date: datetime | None = None
-    created_date: date | None = None
+    created_date: date

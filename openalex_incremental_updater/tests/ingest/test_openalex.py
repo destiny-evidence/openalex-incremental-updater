@@ -8,6 +8,7 @@ from openalex_incremental_updater.ingest.openalex import (
     OpenAlexDataFetcher,
     UpstreamOpenAlexError,
 )
+from openalex_incremental_updater.models.destiny import convert_openalex_to_destiny
 
 
 @pytest.mark.anyio
@@ -23,6 +24,7 @@ async def test_open_filter_call_success(
         "results": double_openalex_work_response,
     }
     test_date = double_openalex_work_response[0]["publication_date"]
+
     test_filter = f"from_created_date:{test_date}"
 
     mock_url = "https://api.openalex.org/works"
@@ -35,7 +37,9 @@ async def test_open_filter_call_success(
         )
 
         assert mock_route.call_count == 1
-        assert response == double_openalex_work_response
+        assert response == [
+            convert_openalex_to_destiny(work) for work in double_openalex_work_response
+        ]
 
 
 @pytest.mark.anyio
@@ -112,7 +116,9 @@ async def test_fetch_works_filter_from_date_call_success(
         )
 
         assert mocked_call.call_count == 1
-        assert response == double_openalex_work_response
+        assert response == [
+            convert_openalex_to_destiny(work) for work in double_openalex_work_response
+        ]
 
 
 @pytest.mark.anyio
