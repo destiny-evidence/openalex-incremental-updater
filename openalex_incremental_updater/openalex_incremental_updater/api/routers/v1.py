@@ -11,7 +11,7 @@ from openalex_incremental_updater.ingest.openalex import (
     OpenAlexDataFetcher,
     UpstreamOpenAlexError,
 )
-from openalex_incremental_updater.models.openalex import OpenAlexWork
+from openalex_incremental_updater.models.destiny import DestinyOpenAlexWork
 
 settings = get_settings()
 
@@ -33,7 +33,7 @@ async def get_openalex_works_ingest_from_date(
     limit: Annotated[
         int | None, Query(description="Maximum number of records to ingest.")
     ] = None,
-) -> list[OpenAlexWork]:
+) -> list[DestinyOpenAlexWork]:
     """
     Fetch Works from the OpenAlex API with a date filter and ingest them into the repository.
 
@@ -43,7 +43,7 @@ async def get_openalex_works_ingest_from_date(
         limit (int): Maximum number of records to ingest.
 
     Returns:
-        list[OpenAlexWork]: List of OpenAlexWork objects.
+        list[DestinyOpenAlexWork]: List of DestinyOpenAlexWork objects.
 
     """
     openalex_query = OpenAlexDataFetcher.build_query(fetch_date, ingest_type)
@@ -69,7 +69,7 @@ async def get_openalex_works_ingest_open_filter(
         Query(description="OpenAlex API-compliant query string."),
     ],
     limit: Annotated[int, Query(description="Maximum number of records to ingest.")],
-) -> list[OpenAlexWork]:
+) -> list[DestinyOpenAlexWork]:
     """
     Fetch data from the OpenAlex API and ingest it into the repository.
 

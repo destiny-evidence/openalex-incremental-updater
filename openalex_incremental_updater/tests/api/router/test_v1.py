@@ -1,7 +1,5 @@
 """Tests for the v1 API router of the OpenAlex Incremental Updater."""
 
-from datetime import datetime
-
 import pytest
 from fastapi import status
 from httpx import AsyncClient
@@ -21,16 +19,18 @@ from openalex_incremental_updater.ingest import CreatedOrUpdated
 async def test_v1_openalex_works_ingest_from_date_success(
     async_test_client: AsyncClient,
     mocker: MockerFixture,
-    single_openalex_work_response: dict,
+    single_destinyopenalex_work_response: dict,
     ingest_type: CreatedOrUpdated,
 ) -> None:
     """Check that the v1 router openalex_works_ingest endpoint returns a HTTP_200_OK response."""
     limit = 1
 
-    expected_response = single_openalex_work_response
-    test_date = datetime.strptime(
-        single_openalex_work_response["updated_date"][:10], "%Y-%m-%d"
-    ).date()
+    expected_response = single_destinyopenalex_work_response
+    test_date = next(
+        item["content"]["created_date"]
+        for item in expected_response.get("enhancements", [])
+        if item["enhancement_type"] == "bibliographic"
+    )
 
     base_api_url = "/api/v1/openalex_works_ingest_from_date?"
 
@@ -62,16 +62,18 @@ async def test_v1_openalex_works_ingest_from_date_success(
 async def test_v1_openalex_works_ingest_open_filter(
     async_test_client: AsyncClient,
     mocker: MockerFixture,
-    single_openalex_work_response: dict,
+    single_destinyopenalex_work_response: dict,
 ) -> None:
     """Check that the v1 router openalex_works_ingest endpoint returns a HTTP_200_OK response for the updated mode."""
-    limit = 1
+    limit = 5
 
-    expected_response = single_openalex_work_response
+    expected_response = single_destinyopenalex_work_response
 
-    test_date = datetime.strptime(
-        single_openalex_work_response["updated_date"][:10], "%Y-%m-%d"
-    ).date()
+    test_date = next(
+        item["content"]["created_date"]
+        for item in expected_response.get("enhancements", [])
+        if item["enhancement_type"] == "bibliographic"
+    )
 
     test_filter_string = f"from_created_date:{test_date}"
 
@@ -88,7 +90,7 @@ async def test_v1_openalex_works_ingest_open_filter(
     response_content = response.json()
     mocked_openalex_call.assert_called_once_with(
         openalex_filter=test_filter_string,
-        works_retrieved_limit=1,
+        works_retrieved_limit=limit,
     )
 
     assert response.status_code == status.HTTP_200_OK, "Expect a HTTP_200 response."

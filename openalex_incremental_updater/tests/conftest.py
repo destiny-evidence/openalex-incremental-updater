@@ -8,7 +8,12 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
 
-pytest_plugins = ["tests.fixtures.routers"]
+pytest_plugins = [
+    "tests.fixtures.routers",
+    "tests.fixtures.destiny_schema",
+    "tests.fixtures.openalex_schema",
+    "tests.fixtures.solr_schema",
+]
 
 
 def get_app() -> FastAPI:
