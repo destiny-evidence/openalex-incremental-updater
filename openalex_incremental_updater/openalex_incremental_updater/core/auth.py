@@ -66,7 +66,7 @@ def request_token(app: msal.ConfidentialClientApplication, settings: Settings) -
         logger.debug("Access token generated successfully.")
         return result
     logger.error("Failed to generate access token.")
-    error_message = f"Token Error: {result.get("error")}. Unknown token type returned."
+    error_message = f"Token Error: {result.get('error')}. Unknown token type returned."
     raise AuthenticationError(error_message)
 
 
