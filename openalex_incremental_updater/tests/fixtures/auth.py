@@ -12,7 +12,7 @@ from openalex_incremental_updater.core.config import get_settings
 def mocked_msal_app(
     mocker: MockerFixture, set_test_environment_variables: None
 ) -> ConfidentialClientApplication:
-    """Return an instance of the mocked the msal.ConfidentialClientApplication class."""
+    """Return an instance of the mocked msal.ConfidentialClientApplication class."""
     mock_app_class = mocker.patch(
         "openalex_incremental_updater.core.auth.msal.ConfidentialClientApplication"
     )
