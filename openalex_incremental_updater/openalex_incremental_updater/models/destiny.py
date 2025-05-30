@@ -222,21 +222,29 @@ def convert_openalex_to_destiny(
         pubmed_id = None
         pubmed_central_id = None
 
-    destiny_work = DestinyOpenAlexWork(
-        identifiers=[
+    destiny_work_identifiers = [
+        {
+            "identifier_type": ExternalIdentifierType.OPEN_ALEX.value,
+            "identifier": openalex_id,
+        }
+    ]
+
+    if is_valid_string(doi):
+        destiny_work_identifiers.append(
             {
                 "identifier_type": ExternalIdentifierType.DOI.value,
                 "identifier": doi,
-            },
-            {
-                "identifier_type": ExternalIdentifierType.OPEN_ALEX.value,
-                "identifier": openalex_id,
-            },
+            }
+        )
+    if is_valid_string(pubmed_id):
+        destiny_work_identifiers.append(
             {
                 "identifier_type": ExternalIdentifierType.PM_ID.value,
                 "identifier": pubmed_id,
-            },
-        ],
+            }
+        )
+    destiny_work = DestinyOpenAlexWork(
+        identifiers=destiny_work_identifiers,
         enhancements=[
             {
                 "source": "openalex",
@@ -314,14 +322,14 @@ def convert_openalex_to_destiny(
             },
         ],
     )
-    if microsoft_academic_graph:
+    if is_valid_string(microsoft_academic_graph):
         destiny_work.identifiers.append(
             {
                 "identifier_type": ExternalIdentifierType.OTHER.value,
                 "identifier": microsoft_academic_graph,
             }
         )
-    if pubmed_central_id:
+    if is_valid_string(pubmed_central_id):
         destiny_work.identifiers.append(
             {
                 "identifier_type": ExternalIdentifierType.OTHER.value,
@@ -329,6 +337,31 @@ def convert_openalex_to_destiny(
             }
         )
     return destiny_work
+
+
+def is_valid_string(value: str | None) -> bool:
+    """
+    Check if a string is valid (not None and not empty).
+
+    Args:
+        value (str | None): The string to check.
+
+    Returns:
+        bool: True if the string is valid, False otherwise.
+
+    """
+    if value is None:
+        return value is not None
+
+    value_not_null = value.strip().lower() != "null"
+    value_not_empty_string = value.strip() != ""
+    value_not_strnone = value.lower() != "none"
+    return (
+        value is not None
+        and value_not_null
+        and value_not_empty_string
+        and value_not_strnone
+    )
 
 
 def convert_inverted_abstract(
