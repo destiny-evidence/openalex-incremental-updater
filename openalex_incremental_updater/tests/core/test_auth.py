@@ -77,9 +77,11 @@ def test_request_token_success(
     """
     settings = get_settings()
     settings.AZURE_AUTH_ENVIRONMENT_ID = "a-test-valid-scope"
-    token = request_token(mocked_msal_app, settings)
+    token_dict = request_token(mocked_msal_app, settings)
     expected_content = "mocked_content"
-    assert token["access_token"] == expected_content, "Expected a valid access token"
+    assert (
+        token_dict["access_token"] == expected_content
+    ), "Expected a valid access token"
 
 
 def test_request_token_fails_invalid_scope(
@@ -130,8 +132,8 @@ def test_generate_token_success(
         "openalex_incremental_updater.core.auth.get_settings", return_value=settings
     )
     token = generate_token()
-    assert token["token_type"] == expected_type, "Expected a Bearer token type"
+    assert token.token_type == expected_type, "Expected a Bearer token type"
     assert (
-        token["expires_in"] == expected_token_expiry_seconds
+        token.expires_in == expected_token_expiry_seconds
     ), "Expected a valid expiration time"
-    assert token["access_token"] == expected_content, "Expected a valid access token"
+    assert token.access_token == expected_content, "Expected a valid access token"

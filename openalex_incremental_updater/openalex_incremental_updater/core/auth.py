@@ -4,6 +4,7 @@ import msal
 from loguru import logger
 
 from openalex_incremental_updater.core.config import Settings, get_settings
+from openalex_incremental_updater.models.auth import DestinyRepoToken
 
 
 class AuthenticationError(Exception):
@@ -70,7 +71,7 @@ def request_token(app: msal.ConfidentialClientApplication, settings: Settings) -
     raise AuthenticationError(error_message)
 
 
-def generate_token() -> dict:
+def generate_token() -> DestinyRepoToken:
     """
     Generate an access token for the OpenAlex API using Azure AD authentication.
 
@@ -80,4 +81,11 @@ def generate_token() -> dict:
     """
     settings = get_settings()
     app = get_confidential_client_application(settings)
-    return request_token(app, settings)
+    token_dict = request_token(app, settings)
+    return DestinyRepoToken(
+        token_type=token_dict["token_type"],
+        expires_in=token_dict["expires_in"],
+        ext_expires_in=token_dict["ext_expires_in"],
+        access_token=token_dict["access_token"],
+        token_source=token_dict["token_source"],
+    )
