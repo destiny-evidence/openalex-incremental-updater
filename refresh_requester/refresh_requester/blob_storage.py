@@ -12,7 +12,7 @@ from azure.core.exceptions import (
     ServiceRequestError,
 )
 from azure.identity import DefaultAzureCredential
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import BlobSasPermissions, BlobServiceClient, generate_blob_sas
 from loguru import logger
 
 from refresh_requester.config import get_settings
@@ -20,6 +20,82 @@ from refresh_requester.config import get_settings
 
 class BlobUploadError(Exception):
     """Blob Upload Error."""
+
+
+class BlobStorageClient:
+    """A client for interacting with Blobs within the internal Azure Blob Storage Containers."""
+
+    def __init__(self) -> None:
+        """Class constructor."""
+        self.blob_service_client = get_blob_service_client()
+        self.settings = get_settings()
+
+    def list_all_blobs(self) -> list[str]:
+        """
+        List all blobs in the storage container.
+
+        Returns:
+            list[str]: A list of blob names.
+
+        """
+        logger.info("Listing all blobs in the storage container.")
+        container_client = self.blob_service_client.get_container_client(
+            self.settings.STORAGE_BLOB_CONTAINER
+        )
+        return [blob.name for blob in container_client.list_blobs()]
+
+    def get_single_blob_sas_token(self, blob_name: str) -> str:
+        """
+        Generate a SAS token for a single blob.
+
+        Args:
+            blob_name (str): The name of the blob to generate a SAS token for.
+
+        Returns:
+            str: The generated SAS token for the specified blob.
+
+        """
+        logger.info(f"Generating SAS token for blob: {blob_name}")
+        return generate_blob_sas(
+            account_name=self.settings.STORAGE_BLOB_ACCOUNT,
+            container_name=self.settings.STORAGE_BLOB_CONTAINER,
+            blob_name=blob_name,
+            account_key=self.settings.STORAGE_BLOB_ACCOUNT_KEY.get_secret_value,
+            permission=BlobSasPermissions(read=True),
+            expiry=datetime.now(tz=ZoneInfo("UTC")) + timedelta(hours=1),
+        )
+
+    def get_blob_sas_pair(self, blob_name: str) -> dict:
+        """
+        Get the SAS URL for a blob.
+
+        Args:
+            blob_name (str): The name of the blob to get the SAS URL for.
+
+        Returns:
+            dict: A dictionary containing the blob name and its corresponding SAS URL.
+
+        """
+        logger.info(f"Generating SAS token for blob: {blob_name}")
+        sas_token = self.get_single_blob_sas_token(blob_name)
+        sas_url = f"https://{self.settings.STORAGE_BLOB_ACCOUNT}.blob.core.windows.net/{self.settings.STORAGE_BLOB_CONTAINER}/{blob_name}?{sas_token}"
+
+        return {"blob_name": blob_name, "sas_url": sas_url}
+
+    def get_all_blob_url_pairs(self) -> list[dict]:
+        """
+        Get all blob names and their corresponding SAS URLs.
+
+        Returns:
+            list[dict]: A list of dictionaries, each containing a blob name and its corresponding SAS URL.
+
+        """
+        all_blob_sas_pairs = []
+        blobs_list = self.list_all_blobs()
+        for blob in blobs_list:
+            blob_sas_pair = self.get_blob_sas_pair(blob)
+            all_blob_sas_pairs.append(blob_sas_pair)
+        return all_blob_sas_pairs
 
 
 def get_blob_service_client() -> BlobServiceClient:
