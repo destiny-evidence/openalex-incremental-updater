@@ -13,6 +13,7 @@ pytest_plugins = [
     "tests.fixtures.destiny_schema",
     "tests.fixtures.openalex_schema",
     "tests.fixtures.solr_schema",
+    "tests.fixtures.auth",
 ]
 
 
@@ -38,11 +39,21 @@ def set_test_environment_variables(
     monkeypatch.setenv("USER_EMAIL", "test@test")
     monkeypatch.setenv("PROJECT_NAME", "Test project name")
     monkeypatch.setenv("OPENALEX_API_KEY", "a-fake-key")  # pragma: allowlist secret
+    monkeypatch.setenv("AZURE_AUTH_ENVIRONMENT_ID", "a-fake-id")
+    monkeypatch.setenv("APP_REGISTRATION_APP_ID", "a-fake-id")
+    monkeypatch.setenv(
+        "APP_REGISTRATION_SECRET", "a-fake-secret"
+    )  # pragma: allowlist secret
+    monkeypatch.setenv("TENANT_ID", "a-fake-id")
     yield
     monkeypatch.delenv("CORS_ORIGINS")
     monkeypatch.delenv("USER_EMAIL")
     monkeypatch.delenv("PROJECT_NAME")
     monkeypatch.delenv("OPENALEX_API_KEY")
+    monkeypatch.delenv("AZURE_AUTH_ENVIRONMENT_ID")
+    monkeypatch.delenv("APP_REGISTRATION_APP_ID")
+    monkeypatch.delenv("APP_REGISTRATION_SECRET")
+    monkeypatch.delenv("TENANT_ID")
 
 
 @pytest.fixture
