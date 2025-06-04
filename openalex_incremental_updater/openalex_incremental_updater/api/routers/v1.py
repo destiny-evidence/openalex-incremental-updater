@@ -5,12 +5,14 @@ from typing import Annotated
 
 from fastapi import APIRouter, HTTPException, Query, status
 
+from openalex_incremental_updater.core.auth import generate_token
 from openalex_incremental_updater.core.config import get_settings
 from openalex_incremental_updater.ingest.openalex import (
     CreatedOrUpdated,
     OpenAlexDataFetcher,
     UpstreamOpenAlexError,
 )
+from openalex_incremental_updater.models.auth import DestinyRepoToken
 from openalex_incremental_updater.models.destiny import DestinyOpenAlexWork
 
 settings = get_settings()
@@ -96,3 +98,15 @@ async def get_openalex_works_ingest_open_filter(
         ) from error
     else:
         return results
+
+
+@router.get("/auth_token")
+async def get_auth_token() -> DestinyRepoToken:
+    """
+    Generate an access token for the OpenAlex API using Azure AD authentication.
+
+    Returns:
+        DestinyRepoToken: A model containing the access token and its metadata.
+
+    """
+    return generate_token()

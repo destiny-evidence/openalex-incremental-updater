@@ -16,6 +16,22 @@ class Settings(BaseSettings):
         ...,
         description="API key for OpenAlex API",
     )
+    AZURE_AUTH_ENVIRONMENT_ID: str = Field(
+        ...,
+        description="Azure application ID for authentication",
+    )
+    APP_REGISTRATION_APP_ID: str = Field(
+        ...,
+        description="Azure application registration app ID",
+    )
+    APP_REGISTRATION_SECRET: SecretStr = Field(
+        ...,
+        description="Azure application registration secret",
+    )
+    TENANT_ID: str = Field(
+        ...,
+        description="Azure tenant ID for authentication",
+    )
     USER_EMAIL: str = Field(
         ...,
         description="User email address sent to OpenAlex API to join the polite pool",

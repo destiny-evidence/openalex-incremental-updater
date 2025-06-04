@@ -6,6 +6,7 @@ from httpx import AsyncClient
 from pytest_mock import MockerFixture
 
 from openalex_incremental_updater.ingest import CreatedOrUpdated
+from openalex_incremental_updater.models.auth import DestinyRepoToken
 
 
 @pytest.mark.anyio
@@ -97,4 +98,28 @@ async def test_v1_openalex_works_ingest_open_filter(
     assert len(response_content) == 1, "Expect a single result in the response"
     assert (
         response_content[0] == expected_response
+    ), "Expect the response to match the expected response"
+
+
+@pytest.mark.anyio
+async def test_v1_get_auth_token_success(
+    mocker: MockerFixture,
+    async_test_client: AsyncClient,
+    mock_destiny_repo_token: DestinyRepoToken,
+) -> None:
+    """Check that the v1 router get_auth_token endpoint returns a HTTP_200_OK response."""
+    expected_response = mock_destiny_repo_token.model_dump(mode="json")
+
+    mocker.patch(
+        "openalex_incremental_updater.api.routers.v1.generate_token",
+        return_value=mock_destiny_repo_token,
+    )
+    test_request_url = "/api/v1/auth_token"
+
+    response = await async_test_client.get(test_request_url)
+    response_content = response.json()
+
+    assert response.status_code == status.HTTP_200_OK, "Expect a HTTP_200 response."
+    assert (
+        response_content == expected_response
     ), "Expect the response to match the expected response"
