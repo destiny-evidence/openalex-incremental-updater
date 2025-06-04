@@ -15,12 +15,14 @@ def set_test_environment_variables(
     monkeypatch.setenv("STORAGE_BLOB_ACCOUNT_KEY", "This-is-a-test-key")
     monkeypatch.setenv("STORAGE_BLOB_CONTAINER", "Test container name")
     monkeypatch.setenv("TOKEN_ENDPOINT", "http://test-host/auth_token")
+    monkeypatch.setenv("REPOSITORY_ENDPOINT", "http://test-host/repository-api")
     yield
     monkeypatch.delenv("API_ENDPOINT")
     monkeypatch.delenv("STORAGE_BLOB_ACCOUNT")
     monkeypatch.delenv("STORAGE_BLOB_ACCOUNT_KEY")
     monkeypatch.delenv("STORAGE_BLOB_CONTAINER")
     monkeypatch.delenv("TOKEN_ENDPOINT")
+    monkeypatch.delenv("REPOSITORY_ENDPOINT")
 
 
 @pytest.fixture

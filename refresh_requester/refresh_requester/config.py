@@ -52,6 +52,10 @@ class Settings(BaseSettings):
         ...,
         description="The endpoint for Destiny Repository API token requests",
     )
+    REPOSITORY_ENDPOINT: HttpUrl = Field(
+        ...,
+        description="The endpoint for the Destiny Repository API",
+    )
     limit: int | None = None
     fetch_date: date | None = None
     retry_total: int = 3
