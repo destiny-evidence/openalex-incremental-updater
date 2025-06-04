@@ -22,7 +22,7 @@ class BlobUploadError(Exception):
     """Blob Upload Error."""
 
 
-class BlobStorageClient:
+class DestinyBlobStorageClient:
     """A client for interacting with Blobs within the internal Azure Blob Storage Containers."""
 
     def __init__(self) -> None:

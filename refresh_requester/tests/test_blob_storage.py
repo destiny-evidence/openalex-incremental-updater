@@ -11,8 +11,8 @@ from azure.core.exceptions import (
 )
 
 from refresh_requester.blob_storage import (
-    BlobStorageClient,
     BlobUploadError,
+    DestinyBlobStorageClient,
     blob_upload,
     check_previous_file_dates,
     list_blobs_in_storage,
@@ -133,15 +133,17 @@ def test_blob_upload_failure(mocker, test_settings, exception):
     assert "Test uploading error" in str(error.value)
 
 
-def test_blobstorageclient_init(mocker, test_settings) -> None:
-    """Test BlobStorageClient initialization."""
+def test_destinyblobstorageclient_init(mocker, test_settings) -> None:
+    """Test DestinyBlobStorageClient initialization."""
     mocker.patch("refresh_requester.blob_storage.BlobServiceClient")
-    client = BlobStorageClient()
-    assert client is not None, "Check that BlobStorageClient initializes correctly"
+    client = DestinyBlobStorageClient()
+    assert (
+        client is not None
+    ), "Check that DestinyBlobStorageClient initializes correctly"
 
 
-def test_blobstorageclient_list_all_blobs(mocker, test_settings) -> None:
-    """Test BlobStorageClient list_all_blobs method."""
+def test_destinyblobstorageclient_list_all_blobs(mocker, test_settings) -> None:
+    """Test DestinyBlobStorageClient list_all_blobs method."""
     mock_blob_service = mocker.patch("refresh_requester.blob_storage.BlobServiceClient")
     mock_container_client = mocker.Mock()
     mock_blob_service.return_value.get_container_client.return_value = (
@@ -156,7 +158,7 @@ def test_blobstorageclient_list_all_blobs(mocker, test_settings) -> None:
 
     mock_container_client.list_blobs.return_value = mock_blob_names
 
-    client = BlobStorageClient()
+    client = DestinyBlobStorageClient()
     blobs = client.list_all_blobs()
 
     assert blobs == [
@@ -164,8 +166,10 @@ def test_blobstorageclient_list_all_blobs(mocker, test_settings) -> None:
     ], "Check that all blobs are listed correctly"
 
 
-def test_blobstorageclient_get_single_blob_sas_token(mocker, test_settings) -> None:
-    """Test BlobStorageClient get_single_blob_sas_token method."""
+def test_destinyblobstorageclient_get_single_blob_sas_token(
+    mocker, test_settings
+) -> None:
+    """Test DestinyBlobStorageClient get_single_blob_sas_token method."""
     expected_sas_token = "test_sas_token"  # noqa: S105
 
     mock_blob_sas_generation = mocker.patch(
@@ -173,7 +177,7 @@ def test_blobstorageclient_get_single_blob_sas_token(mocker, test_settings) -> N
     )
     mock_blob_sas_generation.return_value = expected_sas_token
 
-    client = BlobStorageClient()
+    client = DestinyBlobStorageClient()
     sas_token = client.get_single_blob_sas_token("test_blob.jsonl")
 
     assert (
@@ -181,8 +185,8 @@ def test_blobstorageclient_get_single_blob_sas_token(mocker, test_settings) -> N
     ), "Check that the SAS token is generated correctly"
 
 
-def test_blobstorageclient_get_blob_sas_pair(mocker, test_settings) -> None:
-    """Test BlobStorageClient get_blob_sas_pair method."""
+def test_destinyblobstorageclient_get_blob_sas_pair(mocker, test_settings) -> None:
+    """Test DestinyBlobStorageClient get_blob_sas_pair method."""
     test_blob_name = "test_blob.jsonl"
     test_account_name = test_settings.STORAGE_BLOB_ACCOUNT
     test_container_name = test_settings.STORAGE_BLOB_CONTAINER
@@ -194,7 +198,7 @@ def test_blobstorageclient_get_blob_sas_pair(mocker, test_settings) -> None:
     )
     mock_blob_sas_generation.return_value = expected_sas_token
 
-    client = BlobStorageClient()
+    client = DestinyBlobStorageClient()
     sas_pair = client.get_blob_sas_pair(test_blob_name)
 
     assert (
@@ -205,8 +209,8 @@ def test_blobstorageclient_get_blob_sas_pair(mocker, test_settings) -> None:
     ), "Check that the SAS URL is generated correctly"
 
 
-def test_blobstorageclient_get_all_blob_url_pairs(mocker, test_settings) -> None:
-    """Test BlobStorageClient get_all_blob_url_pairs method."""
+def test_destinyblobstorageclient_get_all_blob_url_pairs(mocker, test_settings) -> None:
+    """Test DestinyBlobStorageClient get_all_blob_url_pairs method."""
     mock_blob_sas_generation = mocker.patch(
         "refresh_requester.blob_storage.generate_blob_sas"
     )
@@ -221,11 +225,11 @@ def test_blobstorageclient_get_all_blob_url_pairs(mocker, test_settings) -> None
         "blob2.jsonl",
     ]
     mock_list_blobs = mocker.patch(
-        "refresh_requester.blob_storage.BlobStorageClient.list_all_blobs"
+        "refresh_requester.blob_storage.DestinyBlobStorageClient.list_all_blobs"
     )
     mock_list_blobs.return_value = test_blobs
 
-    client = BlobStorageClient()
+    client = DestinyBlobStorageClient()
     blob_pairs = client.get_all_blob_url_pairs()
 
     assert len(blob_pairs) == len(
