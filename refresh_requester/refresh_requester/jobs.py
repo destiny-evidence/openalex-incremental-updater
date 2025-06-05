@@ -8,7 +8,7 @@ from refresh_requester.config import get_settings
 from refresh_requester.openalex_refresh import OpenAlexRefreshError, request_refresh
 
 
-def run_job(fetch_date: date, limit: int | None) -> str:
+def run_refresh_job(fetch_date: date, limit: int | None) -> str:
     """
     Run the refresh requester job.
 
