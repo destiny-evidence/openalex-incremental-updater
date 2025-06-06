@@ -3,6 +3,7 @@
 from enum import StrEnum
 from typing import Literal, Self
 
+from loguru import logger
 from pydantic import (
     BaseModel,
     Field,
@@ -259,6 +260,7 @@ class DestinyOpenAlexWork(BaseModel):
             )
             for enhancement in self.enhancements
         ):
+            logger.warning(f"Enhancements: {self.enhancements}")
             error_message = "At least one enhancement must be of type BIBLIOGRAPHIC with authorship or created_date."
             raise ValueError(error_message)
         return self
