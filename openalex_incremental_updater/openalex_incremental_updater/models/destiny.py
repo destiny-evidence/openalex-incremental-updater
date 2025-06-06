@@ -391,7 +391,11 @@ def get_destiny_openalex_work(
                 "enhancement_type": EnhancementType.ABSTRACT.value,
                 "content": {
                     "enhancement_type": EnhancementType.ABSTRACT.value,
-                    "process": AbstractProcessType.UNINVERTED.value,
+                    "process": (
+                        AbstractProcessType.UNINVERTED.value
+                        if source == "openalex"
+                        else AbstractProcessType.OTHER.value,
+                    ),
                     "abstract": convert_inverted_abstract(
                         source_document.get("abstract_inverted_index")
                     )
