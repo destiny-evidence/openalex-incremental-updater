@@ -5,132 +5,23 @@ import json
 import math
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
-from enum import Enum
 from pathlib import Path
-from typing import Literal, TextIO, cast
+from typing import TextIO, cast
 
 from loguru import logger
-from pydantic import (
-    BaseModel,
-    Field,
-)
 from tqdm import tqdm
+
+from openalex_incremental_updater.models import (
+    AbstractProcessType,
+    DestinyOpenAlexWork,
+    EnhancementType,
+    ExternalIdentifierType,
+    Visibility,
+)
 
 logger.add(
     "schema_conversion_processing.log", rotation="10 MB", level="INFO", enqueue=True
 )
-
-
-class Visibility(str, Enum):
-    """
-    The visibility of a data element in the repository.
-
-    This is used to manage whether information should be publicly available or
-    restricted (generally due to copyright constraints from publishers).
-
-    TODO: Implement data governance layer to manage this.
-
-    **Allowed values**:
-
-    - `public`: Visible to the general public without authentication.
-    - `restricted`: Requires authentication to be visible.
-    - `hidden`: Is not visible, but may be passed to data mining processes.
-    """
-
-    PUBLIC = "public"
-    RESTRICTED = "restricted"
-    HIDDEN = "hidden"
-
-
-class ExternalIdentifierType(str, Enum):
-    """
-    The type of identifier used to identify a reference.
-
-    This is used to identify the type of identifier used in the `ExternalIdentifier`
-    class.
-    **Allowed values**:
-    - `doi`: A DOI (Digital Object Identifier) which is a unique identifier for a
-        document.
-    - `pmid`: A PubMed ID which is a unique identifier for a document in PubMed.
-    - `openalex`: An OpenAlex ID which is a unique identifier for a document in
-        OpenAlex.
-    - `other`: Any other identifier not defined. This should be used sparingly.
-    """
-
-    DOI = "doi"
-    PM_ID = "pm_id"
-    OPEN_ALEX = "open_alex"
-    OTHER = "other"
-
-
-class EnhancementType(str, Enum):
-    """
-    The type of enhancement.
-
-    This is used to identify the type of enhancement in the `Enhancement` class.
-
-    **Allowed values**:
-    - `bibliographic`: Bibliographic metadata.
-    - `abstract`: The abstract of a reference.
-    - `annotation`: A free-form enhancement for tagging with labels.
-    - `locations`: Locations where the reference can be found.
-    """
-
-    BIBLIOGRAPHIC = "bibliographic"
-    ABSTRACT = "abstract"
-    ANNOTATION = "annotation"
-    LOCATION = "location"
-
-
-class AbstractProcessType(str, Enum):
-    """
-    The process used to acquyire the abstract.
-
-    **Allowed values**:
-    - `uninverted`
-    - `closed_api`
-    - `other`
-    """
-
-    UNINVERTED = "uninverted"
-    CLOSED_API = "closed_api"
-    OTHER = "other"
-
-
-class AbstractContentEnhancement(BaseModel):
-    """
-    An enhancement which is specific to the abstract of a reference.
-
-    This is separate from the `BibliographicMetadata` for two reasons:
-
-    1. Abstracts are increasingly missing from sources like OpenAlex, and may be
-    backfilled from other sources, without the bibliographic metadata.
-    2. They are also subject to copyright limitations in ways which metadata are
-    not, and thus need separate visibility controls.
-    """
-
-    enhancement_type: Literal[EnhancementType.ABSTRACT] = EnhancementType.ABSTRACT
-    process: AbstractProcessType = Field(
-        description="The process used to acquire the abstract."
-    )
-    abstract: str = Field(description="The abstract of the reference.")
-
-
-class DestinyOpenAlexWork(BaseModel):
-    """Schema representing a work in the Destiny system."""
-
-    visibility: Visibility = Field(
-        default=Visibility.PUBLIC,
-        description="The visibility of the work in the Destiny system.",
-    )
-    identifiers: list[dict] = Field(
-        default_factory=list[dict],
-        description="A list of `ExternalIdentifiers` for the Reference",
-    )
-    enhancements: list[dict] = Field(
-        default_factory=list[dict],
-        description="A list of enhancements for the reference",
-    )
 
 
 def convert_solr_to_destiny(solr_document: dict) -> DestinyOpenAlexWork:
