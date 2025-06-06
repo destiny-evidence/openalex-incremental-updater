@@ -112,6 +112,10 @@ class DestinyOpenAlexWorkMetadata(BaseModel):
     This class is used to validate and structure the metadata for a work.
     """
 
+    is_retracted: bool | None = Field(
+        default=False,
+        description="Indicates if the work has been retracted.",
+    )
     openalex_id: str | None = Field(
         default=None,
         description="The OpenAlex ID of the work.",
@@ -347,6 +351,7 @@ def get_destiny_openalex_work(
         )
 
     destiny_work = DestinyOpenAlexWork(
+        visibility=Visibility.HIDDEN if metadata.is_retracted else Visibility.PUBLIC,
         identifiers=destiny_work_identifiers,
         enhancements=[
             {
