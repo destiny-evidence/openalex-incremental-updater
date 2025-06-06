@@ -11,7 +11,7 @@ from typing import TextIO, cast
 from loguru import logger
 from tqdm import tqdm
 
-from openalex_incremental_updater.models import (
+from openalex_incremental_updater.models.destiny import (
     DestinyOpenAlexWork,
     DestinyOpenAlexWorkMetadata,
     get_destiny_openalex_work,
