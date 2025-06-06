@@ -23,6 +23,7 @@ tqdm = "^4.67.1"
 pydantic = "^2.11.4"
 python = "^3.12"
 openalex-incremental-updater = {path = "../openalex_incremental_updater"}
+pre-commit = "^4.2.0"
 
 [tool.ruff]
 fix = true
