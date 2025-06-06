@@ -253,8 +253,10 @@ class DestinyOpenAlexWork(BaseModel):
             raise ValueError(error_message)
         if not any(
             enhancement.get("content")
-            and enhancement["enhancement_type"] == EnhancementType.BIBLIOGRAPHIC.value
-            and (enhancement["content"].get("created_date"))
+            and (
+                enhancement["enhancement_type"] == EnhancementType.BIBLIOGRAPHIC.value
+                or (enhancement["content"].get("created_date"))
+            )
             for enhancement in self.enhancements
         ):
             error_message = "At least one enhancement must be of type BIBLIOGRAPHIC with authorship or created_date."
