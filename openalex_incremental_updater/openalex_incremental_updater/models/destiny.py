@@ -105,6 +105,77 @@ class AbstractContentEnhancement(BaseModel):
     abstract: str = Field(description="The abstract of the reference.")
 
 
+class DestinyOpenAlexWorkMetadata(BaseModel):
+    """
+    Metadata for a Destiny OpenAlex work.
+
+    This class is used to validate and structure the metadata for a work.
+    """
+
+    openalex_id: str | None = Field(
+        default=None,
+        description="The OpenAlex ID of the work.",
+    )
+    doi: str | None = Field(
+        default=None,
+        description="The DOI of the work.",
+    )
+    microsoft_academic_graph: str | None = Field(
+        default=None,
+        description="The Microsoft Academic Graph ID of the work.",
+    )
+    pubmed_id: str | None = Field(
+        default=None,
+        description="The PubMed ID of the work.",
+    )
+    pubmed_central_id: str | None = Field(
+        default=None,
+        description="The PubMed Central ID of the work.",
+    )
+    authorships_dict: list[dict] | None = Field(
+        default=None,
+        description="A list of authorships for the work.",
+    )
+    host_organisation_name: str | None = Field(
+        default=None,
+        description="The name of the host organization for the work.",
+    )
+    locations: list[dict] | None = Field(
+        default=None,
+        description="A list of locations for the work.",
+    )
+    topics: list[dict] | None = Field(
+        default=None,
+        description="A list of topics for the work.",
+    )
+    processor_version: str = Field(
+        default="initial_openalex_import",
+        description="The version of the processor that created this metadata.",
+    )
+
+    @model_validator(mode="after")
+    def validate_identifiers(self) -> Self:
+        """
+        Validate the identifiers of the work.
+
+        This method checks that the metadata contains at least one identifier of type DOI, PM_ID, or OPEN_ALEX.
+
+        Raises:
+            ValueError: If the identifiers list is empty or does not contain a
+                valid identifier type.
+
+        Returns:
+            self: The validated instance of DestinyOpenAlexWork.
+
+        """
+        if not self.openalex_id and not self.doi and not self.pubmed_id:
+            error_message = (
+                "At least one identifier must be of type DOI, PM_ID, or OPEN_ALEX."
+            )
+            raise ValueError(error_message)
+        return self
+
+
 class DestinyOpenAlexWork(BaseModel):
     """Schema representing a work in the Destiny system."""
 
@@ -222,29 +293,69 @@ def convert_openalex_to_destiny(
         pubmed_id = None
         pubmed_central_id = None
 
-    destiny_work = DestinyOpenAlexWork(
-        identifiers=[
+    work_metadata = DestinyOpenAlexWorkMetadata(
+        doi=doi,
+        openalex_id=openalex_id,
+        microsoft_academic_graph=microsoft_academic_graph,
+        pubmed_id=pubmed_id,
+        pubmed_central_id=pubmed_central_id,
+        authorships_dict=authorships_dict,
+        host_organisation_name=host_organisation_name,
+        locations=locations,
+        topics=topics,
+        processor_version=processor_version,
+    )
+
+    return get_destiny_openalex_work(work_metadata, openalex_work)
+
+
+def get_destiny_openalex_work(
+    metadata: DestinyOpenAlexWorkMetadata, source_document: dict
+) -> DestinyOpenAlexWork:
+    """
+    Get a DestinyOpenAlexWork object from provided metadata.
+
+    Args:
+        metadata (dict): A dictionary containing metadata for the OpenAlex work.
+        source_document (dict): The source document containing the data of interest.
+            This could be dervied from an OpenAlex work, Solr or similar.
+
+    Returns:
+        DestinyOpenAlexWork: An instance of DestinyOpenAlexWork populated with the metadata.
+
+    """
+    destiny_work_identifiers = [
+        {
+            "identifier_type": ExternalIdentifierType.OPEN_ALEX.value,
+            "identifier": metadata.openalex_id,
+        }
+    ]
+
+    if is_valid_string(metadata.doi):
+        destiny_work_identifiers.append(
             {
                 "identifier_type": ExternalIdentifierType.DOI.value,
-                "identifier": doi,
-            },
-            {
-                "identifier_type": ExternalIdentifierType.OPEN_ALEX.value,
-                "identifier": openalex_id,
-            },
+                "identifier": metadata.doi,
+            }
+        )
+    if is_valid_string(metadata.pubmed_id):
+        destiny_work_identifiers.append(
             {
                 "identifier_type": ExternalIdentifierType.PM_ID.value,
-                "identifier": pubmed_id,
-            },
-        ],
+                "identifier": metadata.pubmed_id,
+            }
+        )
+
+    destiny_work = DestinyOpenAlexWork(
+        identifiers=destiny_work_identifiers,
         enhancements=[
             {
                 "source": "openalex",
-                "processor_version": processor_version,
+                "processor_version": metadata.processor_version,
                 "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
                 "content": {
                     "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
-                    "title": openalex_work.get("title"),
+                    "title": source_document.get("title"),
                     "authorship": [
                         {
                             "display_name": author["author"].get("display_name")
@@ -257,30 +368,30 @@ def convert_openalex_to_destiny(
                             if author
                             else None,
                         }
-                        for author in authorships_dict or {}
+                        for author in metadata.authorships_dict or {}
                     ],
-                    "cited_by_count": openalex_work.get("cited_by_count"),
-                    "created_date": openalex_work.get("created_date"),
-                    "publication_date": openalex_work.get("publication_date"),
-                    "publication_year": openalex_work.get("publication_year"),
-                    "publisher": host_organisation_name,
+                    "cited_by_count": source_document.get("cited_by_count"),
+                    "created_date": source_document.get("created_date"),
+                    "publication_date": source_document.get("publication_date"),
+                    "publication_year": source_document.get("publication_year"),
+                    "publisher": metadata.host_organisation_name,
                 },
             },
             {
                 "source": "openalex",
-                "processor_version": processor_version,
+                "processor_version": metadata.processor_version,
                 "enhancement_type": EnhancementType.ABSTRACT.value,
                 "content": {
                     "enhancement_type": EnhancementType.ABSTRACT.value,
                     "process": AbstractProcessType.UNINVERTED.value,
                     "abstract": convert_inverted_abstract(
-                        openalex_work.get("abstract_inverted_index")
+                        source_document.get("abstract_inverted_index")
                     ),
                 },
             },
             {
                 "source": "openalex",
-                "processor_version": processor_version,
+                "processor_version": metadata.processor_version,
                 "enhancement_type": EnhancementType.LOCATION.value,
                 "content": {
                     "enhancement_type": EnhancementType.LOCATION.value,
@@ -292,13 +403,13 @@ def convert_openalex_to_destiny(
                             "pdf_url": location.get("pdf_url"),
                             "license": location.get("license"),
                         }
-                        for location in locations or {}
+                        for location in metadata.locations or {}
                     ],
                 },
             },
             {
                 "source": "openalex",
-                "processor_version": processor_version,
+                "processor_version": metadata.processor_version,
                 "enhancement_type": EnhancementType.ANNOTATION.value,
                 "content": {
                     "enhancement_type": EnhancementType.ANNOTATION.value,
@@ -308,27 +419,52 @@ def convert_openalex_to_destiny(
                             "label": annotation["display_name"],
                             "data": annotation,
                         }
-                        for annotation in topics or {}
+                        for annotation in metadata.topics or {}
                     ],
                 },
             },
         ],
     )
-    if microsoft_academic_graph:
+    if is_valid_string(metadata.microsoft_academic_graph):
         destiny_work.identifiers.append(
             {
                 "identifier_type": ExternalIdentifierType.OTHER.value,
-                "identifier": microsoft_academic_graph,
+                "identifier": metadata.microsoft_academic_graph,
             }
         )
-    if pubmed_central_id:
+    if is_valid_string(metadata.pubmed_central_id):
         destiny_work.identifiers.append(
             {
                 "identifier_type": ExternalIdentifierType.OTHER.value,
-                "identifier": pubmed_central_id,
+                "identifier": metadata.pubmed_central_id,
             }
         )
     return destiny_work
+
+
+def is_valid_string(value: str | None) -> bool:
+    """
+    Check if a string is valid (not None and not empty).
+
+    Args:
+        value (str | None): The string to check.
+
+    Returns:
+        bool: True if the string is valid, False otherwise.
+
+    """
+    if value is None:
+        return value is not None
+
+    value_not_null = value.strip().lower() != "null"
+    value_not_empty_string = value.strip() != ""
+    value_not_strnone = value.lower() != "none"
+    return (
+        value is not None
+        and value_not_null
+        and value_not_empty_string
+        and value_not_strnone
+    )
 
 
 def convert_inverted_abstract(

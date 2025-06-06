@@ -127,3 +127,32 @@ def test_destiny_openalex_work_unexpected_fields_ignored_success(
     assert not hasattr(
         work, "an_unexpected_field"
     ), "Expect that the unexpected field is not set on the object"
+
+
+@pytest.mark.parametrize("missing_field", ["doi", "pm_id", "other"])
+@pytest.mark.parametrize("missing_field_value", [None, "", " ", "None", "null"])
+def test_destiny_openalex_work_missing_identifier_fields_ignored(
+    openalex_work_dict: dict, missing_field: str, missing_field_value: None | str
+) -> None:
+    """Test that empty identifier fields are ignored when creating an DestinyOpenAlexWork object."""
+    expected_openalex_id = openalex_work_dict["ids"]["openalex"]
+    invalid_openalex_work_dict = openalex_work_dict.copy()
+    invalid_openalex_work_dict["ids"][missing_field] = missing_field_value
+
+    work = convert_openalex_to_destiny(invalid_openalex_work_dict)
+
+    openalex_id_dict = next(
+        (item for item in work.identifiers if item["identifier_type"] == "open_alex"),
+        None,
+    )
+    openalex_id = openalex_id_dict.get("identifier", None) if openalex_id_dict else None
+
+    assert (
+        openalex_id == expected_openalex_id
+    ), "Expect that the test ID is set correctly"
+    assert not hasattr(
+        work, "an_unexpected_field"
+    ), "Expect that the unexpected field is not set on the object"
+    assert missing_field not in [
+        identifier["identifier_type"] for identifier in work.identifiers
+    ], "Expect that the missing identifier field is not set on the object"
