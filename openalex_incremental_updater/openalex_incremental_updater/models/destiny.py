@@ -310,12 +310,13 @@ def convert_openalex_to_destiny(
         processor_version=processor_version,
     )
 
-    return get_destiny_openalex_work(work_metadata, openalex_work)
+    return get_destiny_openalex_work(work_metadata, openalex_work, source="openalex")
 
 
 def get_destiny_openalex_work(
     metadata: DestinyOpenAlexWorkMetadata,
     source_document: dict,
+    source: str = "openalex",
 ) -> DestinyOpenAlexWork:
     """
     Get a DestinyOpenAlexWork object from provided metadata.
@@ -357,7 +358,7 @@ def get_destiny_openalex_work(
         identifiers=destiny_work_identifiers,
         enhancements=[
             {
-                "source": "openalex",
+                "source": source,
                 "processor_version": metadata.processor_version,
                 "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
                 "content": {
@@ -385,19 +386,23 @@ def get_destiny_openalex_work(
                 },
             },
             {
-                "source": "openalex",
+                "source": source,
                 "processor_version": metadata.processor_version,
                 "enhancement_type": EnhancementType.ABSTRACT.value,
                 "content": {
                     "enhancement_type": EnhancementType.ABSTRACT.value,
-                    "process": AbstractProcessType.UNINVERTED.value,
+                    "process": AbstractProcessType.UNINVERTED.value
+                    if source == "openalex"
+                    else AbstractProcessType.OTHER.value,
                     "abstract": convert_inverted_abstract(
                         source_document.get("abstract_inverted_index")
-                    ),
+                    )
+                    if source == "openalex"
+                    else source_document.get("abstract"),
                 },
             },
             {
-                "source": "openalex",
+                "source": source,
                 "processor_version": metadata.processor_version,
                 "enhancement_type": EnhancementType.LOCATION.value,
                 "content": {
@@ -415,7 +420,7 @@ def get_destiny_openalex_work(
                 },
             },
             {
-                "source": "openalex",
+                "source": source,
                 "processor_version": metadata.processor_version,
                 "enhancement_type": EnhancementType.ANNOTATION.value,
                 "content": {

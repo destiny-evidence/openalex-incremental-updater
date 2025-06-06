@@ -5,8 +5,11 @@ import pytest
 from pydantic import ValidationError
 
 from openalex_incremental_updater.models.destiny import (
+    DestinyOpenAlexWork,
+    DestinyOpenAlexWorkMetadata,
     convert_inverted_abstract,
     convert_openalex_to_destiny,
+    get_destiny_openalex_work,
 )
 
 
@@ -156,3 +159,139 @@ def test_destiny_openalex_work_missing_identifier_fields_ignored(
     assert missing_field not in [
         identifier["identifier_type"] for identifier in work.identifiers
     ], "Expect that the missing identifier field is not set on the object"
+
+
+def test_get_destiny_openalex_work_success(
+    openalex_work_dict: dict,
+) -> None:
+    """Test that the get_destiny_openalex_work function returns a DestinyOpenAlexWorkMetadata object."""
+    correct_source_for_openalex_input = "openalex"
+    expected_openalex_id = openalex_work_dict["ids"]["openalex"]
+    expected_abstract = "This is an example abstract"
+    expected_abstract_process = "uninverted"
+
+    ids_dict = openalex_work_dict.get("ids") if openalex_work_dict.get("ids") else None
+    authorships_dict = openalex_work_dict.get("authorships")
+    primary_location = openalex_work_dict.get("primary_location")
+    source = primary_location.get("source") if primary_location else None
+    host_organisation_name = source.get("host_organization_name") if source else None
+
+    locations = openalex_work_dict.get("locations")
+    topics = openalex_work_dict.get("topics")
+    processor_version = "initial_openalex_import"
+    if ids_dict:
+        doi = ids_dict.get("doi")
+        openalex_id = ids_dict.get("openalex")
+        microsoft_academic_graph = ids_dict.get("mag")
+        pubmed_id = ids_dict.get("pmid")
+        pubmed_central_id = ids_dict.get("pmcid")
+    else:
+        doi = None
+        openalex_id = None
+        microsoft_academic_graph = None
+        pubmed_id = None
+        pubmed_central_id = None
+
+    work_metadata = DestinyOpenAlexWorkMetadata(
+        doi=doi,
+        openalex_id=openalex_id,
+        microsoft_academic_graph=microsoft_academic_graph,
+        pubmed_id=pubmed_id,
+        pubmed_central_id=pubmed_central_id,
+        authorships_dict=authorships_dict,
+        host_organisation_name=host_organisation_name,
+        locations=locations,
+        topics=topics,
+        processor_version=processor_version,
+    )
+    work = get_destiny_openalex_work(
+        work_metadata, openalex_work_dict, source=correct_source_for_openalex_input
+    )
+
+    assert isinstance(
+        work, DestinyOpenAlexWork
+    ), "Expect that the returned object is of type DestinyOpenAlexWork"
+
+    abstract_dict = next(
+        enhancement_dict
+        for enhancement_dict in work.enhancements
+        if "abstract" in enhancement_dict["enhancement_type"]
+    )
+
+    assert (
+        work.identifiers[0]["identifier"] == expected_openalex_id
+    ), "Expect that the OpenAlex ID is set correctly in the identifiers"
+    assert (
+        abstract_dict["content"]["abstract"] == expected_abstract
+    ), "Expect that the abstract is set correctly"
+    assert (
+        abstract_dict["content"]["process"] == expected_abstract_process
+    ), "Expect that the abstract process is set correctly"
+
+
+def test_get_destiny_openalex_work_blank_abstract_openalex_input_incorrect_source(
+    openalex_work_dict: dict,
+) -> None:
+    """Test that the get_destiny_openalex_work function returns a DestinyOpenAlexWorkMetadata object."""
+    bad_source_for_openalex_input = "pik_solr"
+    expected_openalex_id = openalex_work_dict["ids"]["openalex"]
+    expected_abstract = None
+    expected_abstract_process = "other"
+
+    ids_dict = openalex_work_dict.get("ids") if openalex_work_dict.get("ids") else None
+    authorships_dict = openalex_work_dict.get("authorships")
+    primary_location = openalex_work_dict.get("primary_location")
+    source = primary_location.get("source") if primary_location else None
+    host_organisation_name = source.get("host_organization_name") if source else None
+
+    locations = openalex_work_dict.get("locations")
+    topics = openalex_work_dict.get("topics")
+    processor_version = "initial_openalex_import"
+    if ids_dict:
+        doi = ids_dict.get("doi")
+        openalex_id = ids_dict.get("openalex")
+        microsoft_academic_graph = ids_dict.get("mag")
+        pubmed_id = ids_dict.get("pmid")
+        pubmed_central_id = ids_dict.get("pmcid")
+    else:
+        doi = None
+        openalex_id = None
+        microsoft_academic_graph = None
+        pubmed_id = None
+        pubmed_central_id = None
+
+    work_metadata = DestinyOpenAlexWorkMetadata(
+        doi=doi,
+        openalex_id=openalex_id,
+        microsoft_academic_graph=microsoft_academic_graph,
+        pubmed_id=pubmed_id,
+        pubmed_central_id=pubmed_central_id,
+        authorships_dict=authorships_dict,
+        host_organisation_name=host_organisation_name,
+        locations=locations,
+        topics=topics,
+        processor_version=processor_version,
+    )
+    work = get_destiny_openalex_work(
+        work_metadata, openalex_work_dict, source=bad_source_for_openalex_input
+    )
+
+    assert isinstance(
+        work, DestinyOpenAlexWork
+    ), "Expect that the returned object is of type DestinyOpenAlexWork"
+
+    abstract_dict = next(
+        enhancement_dict
+        for enhancement_dict in work.enhancements
+        if "abstract" in enhancement_dict["enhancement_type"]
+    )
+
+    assert (
+        work.identifiers[0]["identifier"] == expected_openalex_id
+    ), "Expect that the OpenAlex ID is set correctly in the identifiers"
+    assert abstract_dict["content"]["abstract"] == expected_abstract, (
+        "Expect that no abstract is returned when trying to directly get the abstract from openalex source input",
+    )
+    assert (
+        abstract_dict["content"]["process"] == expected_abstract_process
+    ), "Expect that the abstract process returns 'other' for a non-openalex source"
