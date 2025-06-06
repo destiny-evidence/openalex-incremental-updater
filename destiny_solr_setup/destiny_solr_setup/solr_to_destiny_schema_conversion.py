@@ -14,6 +14,7 @@ from tqdm import tqdm
 from openalex_incremental_updater.models import (
     AbstractProcessType,
     DestinyOpenAlexWork,
+    DestinyOpenAlexWorkMetadata,
     EnhancementType,
     ExternalIdentifierType,
     Visibility,
@@ -45,46 +46,66 @@ def convert_solr_to_destiny(solr_document: dict) -> DestinyOpenAlexWork:
     authorships_list_of_dicts = json.loads(solr_document.get("authorships", "[]"))  # type: list[dict]
 
     publisher = solr_document.get("publisher")
-    publication_date = solr_document.get("publication_date")
-    publication_year = solr_document.get("publication_year")
 
     is_retracted = solr_document.get("is_retracted")
 
     locations_list_of_dicts = json.loads(solr_document.get("locations", "[]"))
     topics_list_of_dicts = json.loads(solr_document.get("topics", "[]"))
 
+    work_metadata = DestinyOpenAlexWorkMetadata(
+        is_retracted=is_retracted,
+        doi=doi,
+        openalex_id=openalex_id,
+        microsoft_academic_graph=microsoft_academic_graph,
+        pubmed_id=pubmed_id,
+        pubmed_central_id=pubmed_central_id,
+        authorships_dict=authorships_list_of_dicts,
+        host_organisation_name=publisher,
+        locations=locations_list_of_dicts,
+        topics=topics_list_of_dicts,
+        processor_version=processor_version,
+    )
+    return get_destiny_solr_work(work_metadata, solr_document)
+
+
+def get_destiny_solr_work(
+    metadata: DestinyOpenAlexWorkMetadata, source_document: dict
+) -> DestinyOpenAlexWork:
+    """
+    Create a DestinyOpenAlexWork from metadata and source document.
+
+    Args:
+        metadata (DestinyOpenAlexWorkMetadata): Metadata for the work.
+        source_document (dict): The source document containing additional information.
+
+    Returns:
+        DestinyOpenAlexWork: The constructed DestinyOpenAlexWork object.
+
+    """
     destiny_work = DestinyOpenAlexWork(
-        visibility=Visibility.PUBLIC if not is_retracted else Visibility.HIDDEN,
+        visibility=Visibility.HIDDEN if metadata.is_retracted else Visibility.PUBLIC,
         identifiers=[
             {
                 "identifier_type": ExternalIdentifierType.DOI.value,
-                "identifier": doi,
+                "identifier": metadata.doi,
             },
             {
                 "identifier_type": ExternalIdentifierType.OPEN_ALEX.value,
-                "identifier": openalex_id,
+                "identifier": metadata.openalex_id,
             },
             {
                 "identifier_type": ExternalIdentifierType.PM_ID.value,
-                "identifier": pubmed_id,
+                "identifier": metadata.pubmed_id,
             },
         ],
         enhancements=[
             {
                 "source": "pik_solr",
-                "processor_version": processor_version,
+                "processor_version": metadata.processor_version,
                 "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
                 "content": {
                     "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
-                    "title": solr_document.get("title"),
-                },
-            },
-            {
-                "source": "pik_solr",
-                "processor_version": processor_version,
-                "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
-                "content": {
-                    "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
+                    "title": source_document.get("title"),
                     "authorship": [
                         {
                             "display_name": author_dict["author"].get("display_name")
@@ -97,28 +118,28 @@ def convert_solr_to_destiny(solr_document: dict) -> DestinyOpenAlexWork:
                             if author_dict
                             else None,
                         }
-                        for author_dict in authorships_list_of_dicts or {}
+                        for author_dict in metadata.authorships_dict or {}
                     ],
-                    "cited_by_count": solr_document.get("cited_by_count"),
-                    "created_date": solr_document.get("created_date"),
-                    "publication_date": publication_date,
-                    "publication_year": publication_year,
-                    "publisher": publisher,
+                    "cited_by_count": source_document.get("cited_by_count"),
+                    "created_date": source_document.get("created_date"),
+                    "publication_date": source_document.get("publication_date"),
+                    "publication_year": source_document.get("publication_year"),
+                    "publisher": metadata.host_organisation_name,
                 },
             },
             {
                 "source": "pik_solr",
-                "processor_version": processor_version,
+                "processor_version": metadata.processor_version,
                 "enhancement_type": EnhancementType.ABSTRACT.value,
                 "content": {
                     "enhancement_type": EnhancementType.ABSTRACT.value,
                     "process": AbstractProcessType.OTHER.value,
-                    "abstract": solr_document.get("abstract"),
+                    "abstract": source_document.get("abstract"),
                 },
             },
             {
                 "source": "pik_solr",
-                "processor_version": processor_version,
+                "processor_version": metadata.processor_version,
                 "enhancement_type": EnhancementType.LOCATION.value,
                 "content": {
                     "enhancement_type": EnhancementType.LOCATION.value,
@@ -130,13 +151,13 @@ def convert_solr_to_destiny(solr_document: dict) -> DestinyOpenAlexWork:
                             "pdf_url": location.get("pdf_url"),
                             "license": location.get("license"),
                         }
-                        for location in locations_list_of_dicts or {}
+                        for location in metadata.locations or {}
                     ],
                 },
             },
             {
                 "source": "pik_solr",
-                "processor_version": processor_version,
+                "processor_version": metadata.processor_version,
                 "enhancement_type": EnhancementType.ANNOTATION.value,
                 "content": {
                     "enhancement_type": EnhancementType.ANNOTATION.value,
@@ -146,24 +167,24 @@ def convert_solr_to_destiny(solr_document: dict) -> DestinyOpenAlexWork:
                             "label": annotation["display_name"],
                             "data": annotation,
                         }
-                        for annotation in topics_list_of_dicts or {}
+                        for annotation in metadata.topics or {}
                     ],
                 },
             },
         ],
     )
-    if microsoft_academic_graph:
+    if metadata.microsoft_academic_graph:
         destiny_work.identifiers.append(
             {
                 "identifier_type": ExternalIdentifierType.OTHER.value,
-                "identifier": microsoft_academic_graph,
+                "identifier": metadata.microsoft_academic_graph,
             }
         )
-    if pubmed_central_id:
+    if metadata.pubmed_central_id:
         destiny_work.identifiers.append(
             {
                 "identifier_type": ExternalIdentifierType.OTHER.value,
-                "identifier": pubmed_central_id,
+                "identifier": metadata.pubmed_central_id,
             }
         )
     return destiny_work

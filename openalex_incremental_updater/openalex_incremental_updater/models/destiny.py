@@ -314,7 +314,8 @@ def convert_openalex_to_destiny(
 
 
 def get_destiny_openalex_work(
-    metadata: DestinyOpenAlexWorkMetadata, source_document: dict
+    metadata: DestinyOpenAlexWorkMetadata,
+    source_document: dict,
 ) -> DestinyOpenAlexWork:
     """
     Get a DestinyOpenAlexWork object from provided metadata.
@@ -323,6 +324,7 @@ def get_destiny_openalex_work(
         metadata (dict): A dictionary containing metadata for the OpenAlex work.
         source_document (dict): The source document containing the data of interest.
             This could be dervied from an OpenAlex work, Solr or similar.
+        source (str): The source of the metadata, default is "openalex".
 
     Returns:
         DestinyOpenAlexWork: An instance of DestinyOpenAlexWork populated with the metadata.
