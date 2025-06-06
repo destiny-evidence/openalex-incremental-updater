@@ -12,12 +12,9 @@ from loguru import logger
 from tqdm import tqdm
 
 from openalex_incremental_updater.models import (
-    AbstractProcessType,
     DestinyOpenAlexWork,
     DestinyOpenAlexWorkMetadata,
-    EnhancementType,
-    ExternalIdentifierType,
-    Visibility,
+    get_destiny_openalex_work,
 )
 
 logger.add(
@@ -65,129 +62,7 @@ def convert_solr_to_destiny(solr_document: dict) -> DestinyOpenAlexWork:
         topics=topics_list_of_dicts,
         processor_version=processor_version,
     )
-    return get_destiny_solr_work(work_metadata, solr_document)
-
-
-def get_destiny_solr_work(
-    metadata: DestinyOpenAlexWorkMetadata, source_document: dict
-) -> DestinyOpenAlexWork:
-    """
-    Create a DestinyOpenAlexWork from metadata and source document.
-
-    Args:
-        metadata (DestinyOpenAlexWorkMetadata): Metadata for the work.
-        source_document (dict): The source document containing additional information.
-
-    Returns:
-        DestinyOpenAlexWork: The constructed DestinyOpenAlexWork object.
-
-    """
-    destiny_work = DestinyOpenAlexWork(
-        visibility=Visibility.HIDDEN if metadata.is_retracted else Visibility.PUBLIC,
-        identifiers=[
-            {
-                "identifier_type": ExternalIdentifierType.DOI.value,
-                "identifier": metadata.doi,
-            },
-            {
-                "identifier_type": ExternalIdentifierType.OPEN_ALEX.value,
-                "identifier": metadata.openalex_id,
-            },
-            {
-                "identifier_type": ExternalIdentifierType.PM_ID.value,
-                "identifier": metadata.pubmed_id,
-            },
-        ],
-        enhancements=[
-            {
-                "source": "pik_solr",
-                "processor_version": metadata.processor_version,
-                "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
-                "content": {
-                    "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
-                    "title": source_document.get("title"),
-                    "authorship": [
-                        {
-                            "display_name": author_dict["author"].get("display_name")
-                            if author_dict["author"]
-                            else None,
-                            "orcid": author_dict["author"].get("orcid")
-                            if author_dict["author"]
-                            else None,
-                            "position": author_dict.get("author_position")
-                            if author_dict
-                            else None,
-                        }
-                        for author_dict in metadata.authorships_dict or {}
-                    ],
-                    "cited_by_count": source_document.get("cited_by_count"),
-                    "created_date": source_document.get("created_date"),
-                    "publication_date": source_document.get("publication_date"),
-                    "publication_year": source_document.get("publication_year"),
-                    "publisher": metadata.host_organisation_name,
-                },
-            },
-            {
-                "source": "pik_solr",
-                "processor_version": metadata.processor_version,
-                "enhancement_type": EnhancementType.ABSTRACT.value,
-                "content": {
-                    "enhancement_type": EnhancementType.ABSTRACT.value,
-                    "process": AbstractProcessType.OTHER.value,
-                    "abstract": source_document.get("abstract"),
-                },
-            },
-            {
-                "source": "pik_solr",
-                "processor_version": metadata.processor_version,
-                "enhancement_type": EnhancementType.LOCATION.value,
-                "content": {
-                    "enhancement_type": EnhancementType.LOCATION.value,
-                    "locations": [
-                        {
-                            "is_oa": location.get("is_oa"),
-                            "version": location.get("version"),
-                            "landing_page_url": location.get("landing_page_url"),
-                            "pdf_url": location.get("pdf_url"),
-                            "license": location.get("license"),
-                        }
-                        for location in metadata.locations or {}
-                    ],
-                },
-            },
-            {
-                "source": "pik_solr",
-                "processor_version": metadata.processor_version,
-                "enhancement_type": EnhancementType.ANNOTATION.value,
-                "content": {
-                    "enhancement_type": EnhancementType.ANNOTATION.value,
-                    "annotations": [
-                        {
-                            "annotation_type": "openalex:topic",
-                            "label": annotation["display_name"],
-                            "data": annotation,
-                        }
-                        for annotation in metadata.topics or {}
-                    ],
-                },
-            },
-        ],
-    )
-    if metadata.microsoft_academic_graph:
-        destiny_work.identifiers.append(
-            {
-                "identifier_type": ExternalIdentifierType.OTHER.value,
-                "identifier": metadata.microsoft_academic_graph,
-            }
-        )
-    if metadata.pubmed_central_id:
-        destiny_work.identifiers.append(
-            {
-                "identifier_type": ExternalIdentifierType.OTHER.value,
-                "identifier": metadata.pubmed_central_id,
-            }
-        )
-    return destiny_work
+    return get_destiny_openalex_work(work_metadata, solr_document, source="pik-solr")
 
 
 def transform_batch(batch: list[dict]) -> list[DestinyOpenAlexWork]:
