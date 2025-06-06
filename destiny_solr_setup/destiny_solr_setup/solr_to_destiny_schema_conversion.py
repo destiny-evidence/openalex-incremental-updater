@@ -45,6 +45,8 @@ def convert_solr_to_destiny(solr_document: dict) -> DestinyOpenAlexWork:
     publisher = solr_document.get("publisher")
 
     is_retracted = solr_document.get("is_retracted")
+    if is_retracted is None:
+        is_retracted = False
 
     locations_list_of_dicts = json.loads(solr_document.get("locations", "[]"))
     topics_list_of_dicts = json.loads(solr_document.get("topics", "[]"))
