@@ -256,7 +256,7 @@ class DestinyOpenAlexWork(BaseModel):
             enhancement.get("content")
             and (
                 enhancement["enhancement_type"] == EnhancementType.BIBLIOGRAPHIC.value
-                or (enhancement["content"].get("created_date"))
+                and (enhancement["content"].get("created_date"))
             )
             for enhancement in self.enhancements
         ):
