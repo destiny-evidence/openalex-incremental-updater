@@ -1,0 +1,19 @@
+[Unit]
+Description=Apache SOLR
+After=network.target
+
+[Service]
+Type=simple
+User=solr
+Group=solr
+WorkingDirectory=/var/solr
+ExecStart=/opt/solr/bin/solr start -c -p 8983 --host 0.0.0.0  -s /var/solr -Denable.packages=true -Dsolr.modules=sql,clustering -Dsolr.max.booleanClauses=4096
+ExecReload=/opt/solr/bin/solr restart -p 8983
+ExecStop=/opt/solr/bin/solr stop -p 8983
+LimitNOFILE=65000
+LimitNPROC=65000
+PIDFile=/var/solr/pid/solr-8983.pid
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
