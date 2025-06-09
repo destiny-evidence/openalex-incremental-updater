@@ -3,7 +3,6 @@
 from enum import StrEnum
 from typing import Literal, Self
 
-from loguru import logger
 from pydantic import (
     BaseModel,
     Field,
@@ -254,13 +253,10 @@ class DestinyOpenAlexWork(BaseModel):
             raise ValueError(error_message)
         if not any(
             enhancement.get("content")
-            and (
-                enhancement["enhancement_type"] == EnhancementType.BIBLIOGRAPHIC.value
-                and (enhancement["content"].get("created_date"))
-            )
+            and enhancement["enhancement_type"] == EnhancementType.BIBLIOGRAPHIC.value
+            and (enhancement["content"].get("created_date"))
             for enhancement in self.enhancements
         ):
-            logger.error(f"Enhancements missing. Enhancements: {self.enhancements}")
             error_message = "At least one enhancement must be of type BIBLIOGRAPHIC with authorship or created_date."
             raise ValueError(error_message)
         return self
