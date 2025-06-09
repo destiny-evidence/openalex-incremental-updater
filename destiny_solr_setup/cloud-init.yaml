@@ -1,0 +1,14 @@
+#cloud-config
+package_update: true
+package_upgrade: true
+packages:
+  - openjdk-11-jdk
+  - wget
+  - unzip
+
+runcmd:
+  - wget https://archive.apache.org/dist/solr/solr/9.7.0/solr-9.7.0.tgz
+  - tar xzf solr-9.7.0.tgz
+  - ./solr-9.7.0/bin/install_solr_service.sh solr-9.7.0.tgz
+  - sudo systemctl start solr
+  - sudo systemctl enable solr
