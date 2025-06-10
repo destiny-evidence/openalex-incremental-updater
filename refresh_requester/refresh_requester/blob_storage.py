@@ -60,7 +60,7 @@ class DestinyBlobStorageClient:
             account_name=self.settings.STORAGE_BLOB_ACCOUNT,
             container_name=self.settings.STORAGE_BLOB_CONTAINER,
             blob_name=blob_name,
-            account_key=self.settings.STORAGE_BLOB_ACCOUNT_KEY.get_secret_value,
+            account_key=self.settings.STORAGE_BLOB_ACCOUNT_KEY.get_secret_value(),
             permission=BlobSasPermissions(read=True),
             expiry=datetime.now(tz=ZoneInfo("UTC")) + timedelta(hours=1),
         )

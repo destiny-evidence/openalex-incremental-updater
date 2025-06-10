@@ -79,7 +79,7 @@ class DestinyRepositoryContentUploader:
             dict: The response from the DESTINY repository after registering the import.
 
         """
-        registration_url = f"{self.settings.REPOSITORY_ENDPOINT}/imports/record"
+        registration_url = f"{self.settings.REPOSITORY_ENDPOINT}/imports/record/"
         payload = DestinyRepositoryImportRecord(
             processor_name="Bulk OpenAlex Importer",
             processor_version="initial_openalex_import",
@@ -129,7 +129,7 @@ class DestinyRepositoryContentUploader:
 
         return import_batch
 
-    def finalise_import_record(self, import_record: dict) -> dict:
+    def finalise_import_record(self, import_record: dict) -> None:
         """
         Finalise the import record in the DESTINY repository.
 
@@ -140,19 +140,11 @@ class DestinyRepositoryContentUploader:
             DestinyRepositoryImportError: The error that occurred while finalising the import record,
                 with a descriptive message.
 
-        Returns:
-            dict: The response from the DESTINY repository after finalising the import record.
-
         """
         response = self.session.patch(
-            f"{self.settings.REPOSITORY_ENDPOINT}/imports/record/{import_record['id']}/finalise",
+            f"{self.settings.REPOSITORY_ENDPOINT}/imports/record/{import_record['id']}/finalise/",
         )
         response.raise_for_status()
-        try:
-            return response.json()
-        except JSONDecodeError as json_decode_error:
-            error_message = f"Failed to decode JSON response: {json_decode_error} from {response.content}"
-            raise DestinyRepositoryImportError(error_message) from json_decode_error
 
     def check_if_import_batch_completed(self, import_batch_id: str) -> bool:
         """
@@ -166,7 +158,7 @@ class DestinyRepositoryContentUploader:
 
         """
         response = self.session.get(
-            f"{self.settings.REPOSITORY_ENDPOINT}/imports/batch/{import_batch_id}"
+            f"{self.settings.REPOSITORY_ENDPOINT}/imports/batch/{import_batch_id}/"
         )
         response.raise_for_status()
         import_batch_status = response.json()
@@ -186,7 +178,7 @@ class DestinyRepositoryContentUploader:
 
         """
         response = self.session.get(
-            f"{self.settings.REPOSITORY_ENDPOINT}/imports/batch/{import_batch_id}/summary"
+            f"{self.settings.REPOSITORY_ENDPOINT}/imports/batch/{import_batch_id}/summary/"
         )
         response.raise_for_status()
         return response.json()
@@ -208,6 +200,7 @@ def upload_blob_storage_contents_to_repository(
     uploader = DestinyRepositoryContentUploader(settings)
     import_record = uploader.register_new_import()
 
+    retry_time_seconds = 30
     import_batch_ids = []
     for blob_url_pair in blob_url_pairs:
         blob_name = blob_url_pair["blob_name"]
@@ -229,9 +222,10 @@ def upload_blob_storage_contents_to_repository(
                 logger.info(f"Import batch {import_batch_id} completed successfully.")
                 break
             logger.info(
-                f"Import batch {import_batch_id} not completed yet. Attempt {attempt + 1}/{max_retries}. Retry in 10s."
+                f"Import batch {import_batch_id} not completed yet. Attempt {attempt + 1}/{max_retries}."
             )
-            time.sleep(10)
+            logger.info(f"Waiting {retry_time_seconds} seconds before retrying...")
+            time.sleep(retry_time_seconds)
         summary = uploader.get_import_batch_summary(import_batch_id)
         logger.info(f"Import batch {import_batch_id} summary: {summary}")
     logger.success("All import batches completed successfully.")
