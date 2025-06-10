@@ -442,7 +442,7 @@ def get_destiny_openalex_work(
     )
     if authors_dict_not_empty:
         destiny_work.enhancements[0]["content"].update(
-            "authorship", formatted_authors_dict_list
+            {"authorship": formatted_authors_dict_list}
         )
     if is_valid_string(metadata.microsoft_academic_graph):
         destiny_work.identifiers.append(
