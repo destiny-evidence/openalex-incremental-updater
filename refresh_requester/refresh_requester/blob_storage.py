@@ -30,9 +30,12 @@ class DestinyBlobStorageClient:
         self.blob_service_client = get_blob_service_client()
         self.settings = get_settings()
 
-    def list_all_blobs(self) -> list[str]:
+    def list_all_blobs(self, blob_path: str | None = None) -> list[str]:
         """
         List all blobs in the storage container.
+
+        Args:
+            blob_path (str | None): Optional path to filter blobs by. If None, all blobs are returned.
 
         Returns:
             list[str]: A list of blob names.
@@ -42,7 +45,10 @@ class DestinyBlobStorageClient:
         container_client = self.blob_service_client.get_container_client(
             self.settings.STORAGE_BLOB_CONTAINER
         )
-        return [blob.name for blob in container_client.list_blobs()]
+        return [
+            blob.name
+            for blob in container_client.list_blobs(name_starts_with=blob_path)
+        ]
 
     def get_single_blob_sas_token(self, blob_name: str) -> str:
         """
@@ -82,16 +88,19 @@ class DestinyBlobStorageClient:
 
         return {"blob_name": blob_name, "sas_url": sas_url}
 
-    def get_all_blob_url_pairs(self) -> list[dict]:
+    def get_all_blob_url_pairs(self, blob_path: str | None = None) -> list[dict]:
         """
         Get all blob names and their corresponding SAS URLs.
+
+        Args:
+            blob_path (str | None): Optional path to filter blobs by. If None, all blobs are returned.
 
         Returns:
             list[dict]: A list of dictionaries, each containing a blob name and its corresponding SAS URL.
 
         """
         all_blob_sas_pairs = []
-        blobs_list = self.list_all_blobs()
+        blobs_list = self.list_all_blobs(blob_path)
         for blob in blobs_list:
             blob_sas_pair = self.get_blob_sas_pair(blob)
             all_blob_sas_pairs.append(blob_sas_pair)
@@ -123,13 +132,16 @@ def get_blob_service_client() -> BlobServiceClient:
         raise BlobUploadError(error_message) from azure_error
 
 
-def blob_upload(data: str, fetch_date: date, refresh_date: date) -> None:
+def blob_upload(data: str, fetch_date: date, refresh_date: date) -> str:
     """
     Upload the refresh response to blob storage.
 
     Args:
         data (str): The response from the API, converted to JSON-lines
         refresh_date (date): The date at which the data was fetched
+
+    Returns:
+        str: The filename of the uploaded blob
 
     """
     filename = (
@@ -161,6 +173,7 @@ def blob_upload(data: str, fetch_date: date, refresh_date: date) -> None:
         error_message = f"Error uploading refresh response: {value_error}"
         logger.error(error_message)
         raise BlobUploadError(error_message) from value_error
+    return filename
 
 
 def list_blobs_in_storage() -> list[str]:

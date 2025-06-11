@@ -29,13 +29,15 @@ def main() -> None:
         sys.exit(1)
     logger.info("Data fetched successfully, preparing to upload to blob storage.")
     try:
-        run_blob_upload_job(data, fetch_date, date_today)
+        uploaded_blob = run_blob_upload_job(data, fetch_date, date_today)
     except BlobUploadError as upload_error:
         logger.error(f"Error uploading data to blob storage: {upload_error}")
         sys.exit(1)
 
     logger.info("Uploading blob storage contents to repository")
-    upload_blob_storage_contents_to_repository(settings, max_retires=5)
+    upload_blob_storage_contents_to_repository(
+        settings, max_retires=5, blob_to_upload=uploaded_blob
+    )
     logger.success(
         f"JOB COMPLETED - Data fetched for date: {fetch_date}, uploaded {date_today}"
     )

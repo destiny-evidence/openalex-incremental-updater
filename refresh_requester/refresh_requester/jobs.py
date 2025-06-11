@@ -7,6 +7,7 @@ from loguru import logger
 from refresh_requester.blob_storage import blob_upload
 from refresh_requester.config import get_settings
 from refresh_requester.openalex_refresh import request_refresh
+from refresh_requester.repository import DestinyRepositoryContentUploader
 
 
 def run_refresh_job(fetch_date: date, limit: int | None) -> str:
@@ -28,7 +29,7 @@ def run_refresh_job(fetch_date: date, limit: int | None) -> str:
     return jsonl_response
 
 
-def run_blob_upload_job(data: str, fetch_date: date, refresh_date: date) -> None:
+def run_blob_upload_job(data: str, fetch_date: date, refresh_date: date) -> str:
     """
     Run the blob upload job.
 
@@ -37,11 +38,16 @@ def run_blob_upload_job(data: str, fetch_date: date, refresh_date: date) -> None
         fetch_date (date): The date at which the data was fetched
         refresh_date (date): The date at which the data was refreshed
 
+    Returns:
+        str: The filename of the uploaded blob
+
     """
-    blob_upload(data, fetch_date, refresh_date)
+    uploaded_blob = blob_upload(data, fetch_date, refresh_date)
     logger.info(
         f"Data uploaded to blob storage for date: {fetch_date}, uploaded {refresh_date}"
     )
+    logger.info(f"Uploaded blob: {uploaded_blob}")
+    return uploaded_blob
 
 
 def run_repository_data_ingestion(fetch_date: date, refresh_date: date) -> None:
@@ -53,8 +59,6 @@ def run_repository_data_ingestion(fetch_date: date, refresh_date: date) -> None:
         refresh_date (date): The date at which the data was refreshed
 
     """
-    from refresh_requester.repository import DestinyRepositoryContentUploader
-
     uploader = DestinyRepositoryContentUploader(get_settings())
     uploader.ingest_data(fetch_date, refresh_date)
     logger.info(

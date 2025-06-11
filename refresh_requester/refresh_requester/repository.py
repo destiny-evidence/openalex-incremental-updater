@@ -129,7 +129,7 @@ class DestinyRepositoryContentUploader:
 
         return import_batch
 
-    def finalise_import_record(self, import_record: dict) -> None:
+    def finalise_import_record(self, import_record: dict) -> dict:
         """
         Finalise the import record in the DESTINY repository.
 
@@ -145,6 +145,7 @@ class DestinyRepositoryContentUploader:
             f"{self.settings.REPOSITORY_ENDPOINT}/imports/record/{import_record['id']}/finalise/",
         )
         response.raise_for_status()
+        return response
 
     def check_if_import_batch_completed(self, import_batch_id: str) -> bool:
         """
@@ -185,7 +186,7 @@ class DestinyRepositoryContentUploader:
 
 
 def upload_blob_storage_contents_to_repository(
-    settings: Settings, max_retries: int = 5
+    settings: Settings, max_retries: int = 5, blob_to_upload: str | None = None
 ) -> None:
     """
     Upload all blob storage contents to the DESTINY repository.
@@ -193,10 +194,12 @@ def upload_blob_storage_contents_to_repository(
     Args:
         settings (Settings): Pydantic settings object containing configuration.
         max_retries (int, optional): The maximum number of retries for checking import batch completion. Defaults to 5.
+        blob_to_upload (str | None, optional): Specific blob to upload.
+            If None, all blobs in the container will be uploaded. Defaults to None.
 
     """
     blob_client = DestinyBlobStorageClient()
-    blob_url_pairs = blob_client.get_all_blob_url_pairs()
+    blob_url_pairs = blob_client.get_all_blob_url_pairs(blob_to_upload)
     uploader = DestinyRepositoryContentUploader(settings)
     import_record = uploader.register_new_import()
 

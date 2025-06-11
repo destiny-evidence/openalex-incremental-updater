@@ -64,9 +64,9 @@ def test_finalise_import_record(mocker, test_settings) -> None:
             json=lambda: {"id": "test-import-id", "status": "finalised"},
         ),
     )
-
+    http_ok_status = 200
     response = uploader.finalise_import_record({"id": "test-import-id"})
-    assert response == {"id": "test-import-id", "status": "finalised"}
+    assert response.status_code == http_ok_status
 
 
 def test_check_if_import_batch_completed_true(mocker, test_settings) -> None:
