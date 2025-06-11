@@ -207,14 +207,39 @@ def test_get_destiny_openalex_work_success(
     ), "Expect that the abstract process is set correctly"
 
 
-def test_get_destiny_openalex_work_blank_abstract_openalex_input_incorrect_source(
+def test_get_destiny_openalex_work_blank_abstract_from_openalex_input_with_incorrect_source(
     openalex_work_dict: dict,
 ) -> None:
-    """Test that the get_destiny_openalex_work function returns a DestinyOpenAlexWorkMetadata object."""
+    """
+    Test that the get_destiny_openalex_work function returns a DestinyOpenAlexWorkMetadata object.
+
+    This test checks that when the source is not set to 'openalex' for openalex-type (inverted abstract)
+    data, the abstract is not set and does not appear as an enhancement.
+    """
     bad_source_for_openalex_input = "pik_solr"
     expected_openalex_id = openalex_work_dict["ids"]["openalex"]
-    expected_abstract = ""
-    expected_abstract_process = "other"
+    openalex_work_dict_locations = next(iter(openalex_work_dict.get("locations", {})))
+    openalex_work_locations_with_null_values_removed = {
+        key: value
+        for key, value in openalex_work_dict_locations.items()
+        if value not in (None, "", {}, [])
+    }
+    destiny_location_keys = [
+        "is_oa",
+        "version",
+        "landing_page_url",
+        "pdf_url",
+        "license",
+        "source",
+    ]
+    expected_locations = {
+        key: value
+        for key, value in openalex_work_locations_with_null_values_removed.items()
+        if key in destiny_location_keys
+    }
+    if "source" in expected_locations:
+        expected_locations["extra"] = expected_locations.pop("source")
+    expected_annotations = next(iter(openalex_work_dict.get("topics", [])))
 
     ids_dict = openalex_work_dict.get("ids") if openalex_work_dict.get("ids") else None
     authorships_dict = openalex_work_dict.get("authorships")
@@ -254,22 +279,32 @@ def test_get_destiny_openalex_work_blank_abstract_openalex_input_incorrect_sourc
         work_metadata, openalex_work_dict, source=bad_source_for_openalex_input
     )
 
+    work_annotations = next(
+        enhancement.get("content").get("annotations")
+        for enhancement in work.enhancements
+        if enhancement.get("enhancement_type") == "annotation"
+    )
+
+    work_locations = next(
+        enhancement.get("content").get("locations")
+        for enhancement in work.enhancements
+        if enhancement.get("enhancement_type") == "location"
+    )
+
     assert isinstance(
         work, DestinyOpenAlexWork
     ), "Expect that the returned object is of type DestinyOpenAlexWork"
-
-    abstract_dict = next(
-        enhancement_dict
-        for enhancement_dict in work.enhancements
-        if "abstract" in enhancement_dict["enhancement_type"]
-    )
-
     assert (
         work.identifiers[0]["identifier"] == expected_openalex_id
     ), "Expect that the OpenAlex ID is set correctly in the identifiers"
-    assert abstract_dict["content"]["abstract"] == expected_abstract, (
-        "Expect that no abstract is returned when trying to directly get the abstract from openalex source input",
-    )
+
     assert (
-        abstract_dict["content"]["process"] == expected_abstract_process
-    ), "Expect that the abstract process returns 'other' for a non-openalex source"
+        next(iter(work_annotations))["data"] == expected_annotations
+    ), "Expect that the annotations are still set correctly in the case of no abstract"
+    assert (
+        next(iter(work_locations)) == expected_locations
+    ), "Expect that the locations are still set correctly in the case of no abstract"
+
+    assert "abstract" not in [
+        enhancement_dict["enhancement_type"] for enhancement_dict in work.enhancements
+    ], "Expect that the abstract is not set in the enhancements"

@@ -284,61 +284,26 @@ def convert_openalex_to_destiny(
     return get_destiny_openalex_work(work_metadata, openalex_work, source="openalex")
 
 
-def get_destiny_openalex_work(
+def create_core_destiny_openalex_work(
     metadata: DestinyOpenAlexWorkMetadata,
+    destiny_work_identifiers: list[dict],
+    source: str,
     source_document: dict,
-    source: str = "openalex",
 ) -> DestinyOpenAlexWork:
     """
-    Get a DestinyOpenAlexWork object from provided metadata.
+    Create a core DestinyOpenAlexWork object from metadata and identifiers.
 
     Args:
-        metadata (dict): A dictionary containing metadata for the OpenAlex work.
-        source_document (dict): The source document containing the data of interest.
-            This could be dervied from an OpenAlex work, Solr or similar.
-        source (str): The source of the metadata, default is "openalex".
+        metadata (DestinyOpenAlexWorkMetadata): DestinyOpenAlexWorkMetadata object containing metadata.
+        destiny_work_identifiers (list[dict]): List of identifiers for the work.
+        source (str, optional): Source of the metadata, default is "openalex".
+        source_document (dict | None, optional): Source document containing the data of interest.
 
     Returns:
-        DestinyOpenAlexWork: An instance of DestinyOpenAlexWork populated with the metadata.
+        DestinyOpenAlexWork: An instance of DestinyOpenAlexWork populated with the metadata and core identifiers.
 
     """
-    destiny_work_identifiers = [
-        {
-            "identifier_type": ExternalIdentifierType.OPEN_ALEX.value,
-            "identifier": metadata.openalex_id,
-        }
-    ]
-
-    if is_valid_string(metadata.doi):
-        destiny_work_identifiers.append(
-            {
-                "identifier_type": ExternalIdentifierType.DOI.value,
-                "identifier": metadata.doi,
-            }
-        )
-    if is_valid_string(metadata.pubmed_id):
-        destiny_work_identifiers.append(
-            {
-                "identifier_type": ExternalIdentifierType.PM_ID.value,
-                "identifier": metadata.pubmed_id,
-            }
-        )
-
-    formatted_authors_dict_list = [
-        {
-            "display_name": author["author"].get("display_name", "")
-            if author["author"]
-            else "",
-            "orcid": author["author"].get("orcid", "") if author["author"] else "",
-            "position": author.get("author_position", "") if author else "",
-        }
-        for author in metadata.authorships_dict or {}
-    ]
-    authors_dict_not_empty = any(
-        author.get("display_name") or author.get("orcid") or author.get("position")
-        for author in formatted_authors_dict_list
-    )
-    destiny_work = DestinyOpenAlexWork(
+    return DestinyOpenAlexWork(
         visibility=Visibility.HIDDEN if metadata.is_retracted else Visibility.PUBLIC,
         identifiers=destiny_work_identifiers,
         enhancements=[
@@ -359,6 +324,210 @@ def get_destiny_openalex_work(
                     "publisher": metadata.host_organisation_name,
                 },
             },
+        ],
+    )
+
+
+def prepare_destiny_identifiers(metadata: DestinyOpenAlexWorkMetadata) -> list[dict]:
+    """
+    Prepare a list of identifiers for the Destiny OpenAlex work.
+
+    Args:
+        metadata (DestinyOpenAlexWorkMetadata): The metadata containing identifiers.
+
+    Returns:
+        list[dict]: A list of dictionaries containing identifier type and value.
+
+    """
+    destiny_work_identifiers = [
+        {
+            "identifier_type": ExternalIdentifierType.OPEN_ALEX.value,
+            "identifier": metadata.openalex_id,
+        }
+    ]
+
+    if is_valid_nonempty_string(metadata.doi):
+        destiny_work_identifiers.append(
+            {
+                "identifier_type": ExternalIdentifierType.DOI.value,
+                "identifier": metadata.doi,
+            }
+        )
+    if is_valid_nonempty_string(metadata.pubmed_id):
+        destiny_work_identifiers.append(
+            {
+                "identifier_type": ExternalIdentifierType.PM_ID.value,
+                "identifier": metadata.pubmed_id,
+            }
+        )
+
+    return destiny_work_identifiers
+
+
+def prepare_destiny_authorships(metadata: DestinyOpenAlexWorkMetadata) -> list[dict]:
+    """
+    Prepare a list of authorships for the Destiny OpenAlex work.
+
+    Args:
+        metadata (DestinyOpenAlexWorkMetadata): The metadata containing authorships.
+
+    Returns:
+        list[dict]: A list of dictionaries containing authorship information.
+
+    """
+    return [
+        {
+            "display_name": author["author"].get("display_name", "")
+            if author["author"]
+            else "",
+            "orcid": author["author"].get("orcid", "") if author["author"] else "",
+            "position": author.get("author_position", "") if author else "",
+        }
+        for author in metadata.authorships_dict or {}
+    ]
+
+
+def prepare_destiny_locations(metadata: DestinyOpenAlexWorkMetadata) -> list[dict]:
+    """
+    Prepare a list of locations for the Destiny OpenAlex work.
+
+    Args:
+        metadata (DestinyOpenAlexWorkMetadata): The metadata containing locations.
+
+    Returns:
+        list[dict]: A list of dictionaries containing location information.
+
+    """
+    return [
+        {
+            key: value
+            for key, value in {
+                "is_oa": location.get("is_oa", False),
+                "version": location.get("version", ""),
+                "landing_page_url": location.get("landing_page_url", ""),
+                "pdf_url": location.get("pdf_url", ""),
+                "license": location.get("license", ""),
+                "extra": location.get("source", {}),
+            }.items()
+            if is_valid_nonempty_string(str(value))
+        }
+        for location in metadata.locations or {}
+    ]
+
+
+def prepare_destiny_annotations(metadata: DestinyOpenAlexWorkMetadata) -> list[dict]:
+    """
+    Prepare a list of annotations for the Destiny OpenAlex work.
+
+    Args:
+        metadata (DestinyOpenAlexWorkMetadata): The metadata containing annotations.
+
+    Returns:
+        list[dict]: A list of dictionaries containing annotation information.
+
+    """
+    annotation_content = []  # type: list[dict]
+    for annotation in metadata.topics or {}:
+        label = annotation.get("display_name", "")
+        data = annotation
+        label_valid = is_valid_nonempty_string(label)
+        data_valid = bool(data)
+        if not label_valid and not data_valid:
+            annotation_content.append({})
+        else:
+            annotation_content.append(
+                {
+                    "annotation_type": "openalex:topic",
+                    "label": label,
+                    "data": data,
+                }
+            )
+    return annotation_content
+
+
+def prepare_destiny_work_abstract_annotation(
+    source: str,
+    source_document: dict,
+) -> dict:
+    """
+    Prepare the abstract content for a Destiny OpenAlex work.
+
+    This function creates the abstract content based on the source and source document.
+
+    Args:
+        source (str): The source of the document, e.g., "openalex".
+        source_document (dict): The source document containing the abstract data.
+
+    Returns:
+        dict: A dictionary containing the abstract content.
+
+    """
+    return {
+        "enhancement_type": EnhancementType.ABSTRACT.value,
+        "process": AbstractProcessType.UNINVERTED.value
+        if source == "openalex"
+        else AbstractProcessType.OTHER.value,
+        "abstract": convert_inverted_abstract(
+            source_document.get("abstract_inverted_index", "")
+        )
+        if source == "openalex"
+        else source_document.get("abstract", ""),
+    }
+
+
+def get_destiny_openalex_work(
+    metadata: DestinyOpenAlexWorkMetadata,
+    source_document: dict,
+    source: str = "openalex",
+) -> DestinyOpenAlexWork:
+    """
+    Get a DestinyOpenAlexWork object from provided metadata.
+
+    Args:
+        metadata (dict): A dictionary containing metadata for the OpenAlex work.
+        source_document (dict): The source document containing the data of interest.
+            This could be dervied from an OpenAlex work, Solr or similar.
+        source (str): The source of the metadata, default is "openalex".
+
+    Returns:
+        DestinyOpenAlexWork: An instance of DestinyOpenAlexWork populated with the metadata.
+
+    """
+    destiny_work_identifiers = prepare_destiny_identifiers(metadata)
+    destiny_work_authors = prepare_destiny_authorships(metadata)
+    destiny_work_locations = prepare_destiny_locations(metadata)
+    destiny_work_annotations = prepare_destiny_annotations(metadata)
+    destiny_work_abstract = prepare_destiny_work_abstract_annotation(
+        source, source_document
+    )
+
+    authors_dict_not_empty = any(
+        author.get("display_name") or author.get("orcid") or author.get("position")
+        for author in destiny_work_authors
+    )
+
+    locations_content_populated = any(
+        bool(location_dict) for location_dict in destiny_work_locations
+    )
+
+    annotation_content_populated = any(
+        bool(annotation_dict) for annotation_dict in destiny_work_annotations
+    )
+
+    core_destiny_work = create_core_destiny_openalex_work(
+        metadata=metadata,
+        destiny_work_identifiers=destiny_work_identifiers,
+        source=source,
+        source_document=source_document,
+    )
+
+    if authors_dict_not_empty:
+        core_destiny_work.enhancements[0]["content"].update(
+            {"authorship": destiny_work_authors}
+        )
+
+    if is_valid_nonempty_string(destiny_work_abstract.get("abstract")):
+        core_destiny_work.enhancements.append(
             {
                 "source": source,
                 "visiblity": Visibility.RESTRICTED.value
@@ -366,18 +535,12 @@ def get_destiny_openalex_work(
                 else Visibility.PUBLIC.value,
                 "processor_version": metadata.processor_version,
                 "enhancement_type": EnhancementType.ABSTRACT.value,
-                "content": {
-                    "enhancement_type": EnhancementType.ABSTRACT.value,
-                    "process": AbstractProcessType.UNINVERTED.value
-                    if source == "openalex"
-                    else AbstractProcessType.OTHER.value,
-                    "abstract": convert_inverted_abstract(
-                        source_document.get("abstract_inverted_index", "")
-                    )
-                    if source == "openalex"
-                    else source_document.get("abstract", ""),
-                },
-            },
+                "content": destiny_work_abstract,
+            }
+        )
+
+    if locations_content_populated:
+        core_destiny_work.enhancements.append(
             {
                 "source": source,
                 "visiblity": Visibility.RESTRICTED.value
@@ -387,18 +550,13 @@ def get_destiny_openalex_work(
                 "enhancement_type": EnhancementType.LOCATION.value,
                 "content": {
                     "enhancement_type": EnhancementType.LOCATION.value,
-                    "locations": [
-                        {
-                            "is_oa": location.get("is_oa"),
-                            "version": location.get("version"),
-                            "landing_page_url": location.get("landing_page_url"),
-                            "pdf_url": location.get("pdf_url"),
-                            "license": location.get("license"),
-                        }
-                        for location in metadata.locations or {}
-                    ],
+                    "locations": destiny_work_locations,
                 },
-            },
+            }
+        )
+
+    if annotation_content_populated:
+        core_destiny_work.enhancements.append(
             {
                 "source": source,
                 "visiblity": Visibility.RESTRICTED.value
@@ -408,40 +566,29 @@ def get_destiny_openalex_work(
                 "enhancement_type": EnhancementType.ANNOTATION.value,
                 "content": {
                     "enhancement_type": EnhancementType.ANNOTATION.value,
-                    "annotations": [
-                        {
-                            "annotation_type": "openalex:topic",
-                            "label": annotation["display_name"],
-                            "data": annotation,
-                        }
-                        for annotation in metadata.topics or {}
-                    ],
+                    "annotations": destiny_work_annotations,
                 },
             },
-        ],
-    )
-    if authors_dict_not_empty:
-        destiny_work.enhancements[0]["content"].update(
-            {"authorship": formatted_authors_dict_list}
         )
-    if is_valid_string(metadata.microsoft_academic_graph):
-        destiny_work.identifiers.append(
+
+    if is_valid_nonempty_string(metadata.microsoft_academic_graph):
+        core_destiny_work.identifiers.append(
             {
                 "identifier_type": ExternalIdentifierType.OTHER.value,
                 "identifier": metadata.microsoft_academic_graph,
             }
         )
-    if is_valid_string(metadata.pubmed_central_id):
-        destiny_work.identifiers.append(
+    if is_valid_nonempty_string(metadata.pubmed_central_id):
+        core_destiny_work.identifiers.append(
             {
                 "identifier_type": ExternalIdentifierType.OTHER.value,
                 "identifier": metadata.pubmed_central_id,
             }
         )
-    return destiny_work
+    return core_destiny_work
 
 
-def is_valid_string(value: str | None) -> bool:
+def is_valid_nonempty_string(value: str | None) -> bool:
     """
     Check if a string is valid (not None and not empty).
 
