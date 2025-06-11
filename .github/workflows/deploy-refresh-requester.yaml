@@ -31,7 +31,7 @@ jobs:
           password: ${{ secrets.REGISTRY_PASSWORD }}
       - run: |
           export TAG=${{ github.event.inputs.imageTag || github.sha }}
-          docker build -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${TAG} openalex_incremental_updater/
+          docker build -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${TAG} refresh_requester/
           docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${TAG}
 
       - name: Deploy to Azure Container App Jobs
