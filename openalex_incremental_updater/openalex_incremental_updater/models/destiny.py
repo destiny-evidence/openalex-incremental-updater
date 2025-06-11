@@ -390,6 +390,9 @@ def get_destiny_openalex_work(
             },
             {
                 "source": source,
+                "visiblity": Visibility.RESTRICTED.value
+                if metadata.is_retracted
+                else Visibility.PUBLIC.value,
                 "processor_version": metadata.processor_version,
                 "enhancement_type": EnhancementType.ABSTRACT.value,
                 "content": {
@@ -406,6 +409,9 @@ def get_destiny_openalex_work(
             },
             {
                 "source": source,
+                "visiblity": Visibility.RESTRICTED.value
+                if metadata.is_retracted
+                else Visibility.PUBLIC.value,
                 "processor_version": metadata.processor_version,
                 "enhancement_type": EnhancementType.LOCATION.value,
                 "content": {
@@ -424,6 +430,9 @@ def get_destiny_openalex_work(
             },
             {
                 "source": source,
+                "visiblity": Visibility.RESTRICTED.value
+                if metadata.is_retracted
+                else Visibility.PUBLIC.value,
                 "processor_version": metadata.processor_version,
                 "enhancement_type": EnhancementType.ANNOTATION.value,
                 "content": {
