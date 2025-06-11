@@ -232,35 +232,6 @@ class DestinyOpenAlexWork(BaseModel):
             raise ValueError(error_message)
         return self
 
-    @model_validator(mode="after")
-    def validate_enhancements(self) -> Self:
-        """
-        Validate the enhancements of the work.
-
-        This method checks that the bibiliographic enhancements list is not empty and that it
-        contains at least the authorship and created_date fields.
-
-        Raises:
-            ValueError: If the identifiers list is empty or does not contain a
-                valid identifier type.
-
-        Returns:
-            self: The validated instance of DestinyOpenAlexWork.
-
-        """
-        if not self.enhancements:
-            error_message = "Enhancements list cannot be empty."
-            raise ValueError(error_message)
-        if not any(
-            enhancement.get("content")
-            and enhancement["enhancement_type"] == EnhancementType.BIBLIOGRAPHIC.value
-            and (enhancement["content"].get("created_date"))
-            for enhancement in self.enhancements
-        ):
-            error_message = "At least one enhancement must be of type BIBLIOGRAPHIC with authorship or created_date."
-            raise ValueError(error_message)
-        return self
-
 
 def convert_openalex_to_destiny(
     openalex_work: dict,

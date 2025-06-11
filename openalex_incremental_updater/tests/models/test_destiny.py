@@ -79,28 +79,6 @@ def test_destiny_openalex_work_missing_required_identifiers_failure(
     )
 
 
-@pytest.mark.parametrize(
-    "missing_field",
-    [["created_date"]],
-)
-def test_destiny_openalex_work_missing_required_enhancements_failure(
-    missing_field: list[str], openalex_work_dict: dict
-) -> None:
-    missing_fields_dict = openalex_work_dict.copy()
-    for field in missing_field:
-        missing_fields_dict.pop(field, None)
-
-    with pytest.raises(ValidationError) as validation_error:
-        convert_openalex_to_destiny(missing_fields_dict)
-
-    assert "1 validation error" in str(
-        validation_error.value
-    ), "Expect that the validation error is raised"
-    assert "At least one enhancement must be of type BIBLIOGRAPHIC" in str(
-        validation_error.value
-    )
-
-
 def test_destiny_openalex_work_unexpected_fields_ignored_success(
     openalex_work_dict: dict,
 ) -> None:
