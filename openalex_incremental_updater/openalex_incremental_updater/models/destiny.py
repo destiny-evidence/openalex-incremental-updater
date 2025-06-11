@@ -602,6 +602,9 @@ def is_valid_nonempty_string(value: str | None) -> bool:
     if value is None:
         return value is not None
 
+    if not isinstance(value, str):
+        return False
+
     value_not_null = value.strip().lower() != "null"
     value_not_empty_string = value.strip() != ""
     value_not_strnone = value.lower() != "none"

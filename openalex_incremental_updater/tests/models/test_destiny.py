@@ -1,4 +1,5 @@
 from datetime import datetime
+from typing import Any
 from zoneinfo import ZoneInfo
 
 import pytest
@@ -10,6 +11,7 @@ from openalex_incremental_updater.models.destiny import (
     convert_inverted_abstract,
     convert_openalex_to_destiny,
     get_destiny_openalex_work,
+    is_valid_nonempty_string,
 )
 
 
@@ -308,3 +310,25 @@ def test_get_destiny_openalex_work_blank_abstract_from_openalex_input_with_incor
     assert "abstract" not in [
         enhancement_dict["enhancement_type"] for enhancement_dict in work.enhancements
     ], "Expect that the abstract is not set in the enhancements"
+
+
+@pytest.mark.parametrize(
+    ("input_value", "expected_output"),
+    [
+        ("  ", False),
+        ("", False),
+        (None, False),
+        ("None", False),
+        ("null", False),
+        (0, False),
+        ("Valid String", True),
+        ("Another valid string", True),
+        ("12345", True),
+        ("!@#$%^&*()", True),
+    ],
+)
+def test_is_valid_nonempty_string(input_value: Any, *, expected_output: bool) -> None:  # noqa: ANN401
+    """Test the is_valid_nonempty_string function."""
+    assert (
+        is_valid_nonempty_string(input_value) == expected_output
+    ), "Confirm that valid strings return True and invalid strings return False"
