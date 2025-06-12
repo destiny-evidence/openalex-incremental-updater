@@ -4,6 +4,7 @@ import sys
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from dotenv import load_dotenv
 from loguru import logger
 
 from refresh_requester.blob_storage import BlobUploadError, check_previous_file_dates
@@ -12,12 +13,17 @@ from refresh_requester.jobs import run_blob_upload_job, run_refresh_job
 from refresh_requester.openalex_refresh import OpenAlexRefreshError
 from refresh_requester.repository import upload_blob_storage_contents_to_repository
 
+load_dotenv(override=True)
+
 
 def main() -> None:
     """Run the refresh requester job."""
     settings = get_settings()
-    if not settings.fetch_date:
-        fetch_date = check_previous_file_dates()
+
+    fetch_date = (
+        check_previous_file_dates() if not settings.fetch_date else settings.fetch_date
+    )
+
     date_today = datetime.now(ZoneInfo("UTC")).date()
 
     logger.info(f"RUNNING JOB - Fetching data for date: {fetch_date}")
