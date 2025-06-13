@@ -1,5 +1,6 @@
 from datetime import date, timedelta
 
+import freezegun
 import pytest
 from azure.core.exceptions import (
     AzureError,
@@ -46,13 +47,11 @@ def test_check_previous_file_dates_success_files_found(mocker):
     assert result == test_date_latest
 
 
-def test_check_previous_file_dates_success_no_files_found_return_yesterday(
-    mocker, freezer
-):
+@freezegun.freeze_time("2025-06-12")
+def test_check_previous_file_dates_success_no_files_found_return_yesterday(mocker):
     """Test check_previous_file_dates function returns the previous days date if no files are found."""
-    test_date_today = date(2025, 3, 2)
+    test_date_today = date.today()  # noqa: DTZ011
     test_date_yesterday = test_date_today - timedelta(days=1)
-    freezer.move_to(test_date_today)
     mocker.patch(
         "refresh_requester.blob_storage.list_blobs_in_storage", return_value=[]
     )
