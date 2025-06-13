@@ -1,6 +1,7 @@
 """Functionality to ingest content to the DESTINY repository."""
 
 import time
+from enum import StrEnum
 
 from destiny_sdk.imports import (
     CollisionStrategy,
@@ -20,6 +21,13 @@ from refresh_requester.config import Settings, get_retry_session
 from refresh_requester.token import get_token
 
 
+class ImportSourceType(StrEnum):
+    """Enumeration for import source types."""
+
+    OPEN_ALEX = "openalex"
+    SOLR = "solr"
+
+
 class DestinyRepositoryImportError(Exception):
     """Custom exception for errors during import to the DESTINY repository."""
 
@@ -35,9 +43,68 @@ class DestinyRepositoryContentUploader:
             "Authorization": f"Bearer {get_token(self.settings)}",
         }
 
-    def register_new_import(self) -> ImportRecordRead:
+    def construct_payload(
+        self,
+        processor_name: str,
+        processor_version: str,
+        expected_reference_count: int,
+        source_name: str,
+    ) -> ImportRecordIn:
+        """
+        Construct the payload for the import record.
+
+        Args:
+            processor_name (str): The name of the processor.
+            processor_version (str): The version of the processor.
+            expected_reference_count (int): The expected number of references.
+            source_name (str): The name of the source.
+
+        Returns:
+            ImportRecordIn: The constructed payload for the import record.
+
+        """
+        return ImportRecordIn(
+            processor_name=processor_name,
+            processor_version=processor_version,
+            expected_reference_count=expected_reference_count,
+            source_name=source_name,
+        )
+
+    def retrieve_payload_from_source_type(
+        self, source_type: ImportSourceType
+    ) -> ImportRecordIn:
+        """
+        Retrieve the payload for the import record based on the source type.
+
+        Args:
+            source_type (ImportSourceType): The type of source for the import (e.g., OPEN_ALEX, SOLR).
+
+        Returns:
+            ImportRecordIn: The constructed payload for the import record.
+
+        """
+        if source_type == ImportSourceType.SOLR:
+            return self.construct_payload(
+                processor_name="Bulk Solr Importer",
+                processor_version="initial_solr_import",
+                expected_reference_count=-1,
+                source_name="pik-solr",
+            )
+        return self.construct_payload(
+            processor_name="Bulk OpenAlex Importer",
+            processor_version="initial_openalex_import",
+            expected_reference_count=-1,
+            source_name="openalex",
+        )
+
+    def register_new_import(
+        self, source_type: ImportSourceType = ImportSourceType.OPEN_ALEX
+    ) -> ImportRecordRead:
         """
         Register a new import record with the DESTINY repository.
+
+        Args:
+            source_type (ImportSourceType): The type of source for the import (e.g., OPEN_ALEX, SOLR).
 
         Raises:
             DestinyRepositoryImportError: The error that occurred while registering the import,
@@ -48,12 +115,8 @@ class DestinyRepositoryContentUploader:
 
         """
         registration_url = f"{self.settings.REPOSITORY_ENDPOINT}/imports/record/"
-        payload = ImportRecordIn(
-            processor_name="Bulk OpenAlex Importer",
-            processor_version="initial_openalex_import",
-            expected_reference_count=-1,
-            source_name="OpenAlex",
-        )
+        payload = self.retrieve_payload_from_source_type(source_type)
+
         response = self.session.post(
             registration_url,
             json=payload.model_dump(mode="json"),
@@ -173,7 +236,8 @@ def upload_blob_storage_contents_to_repository(
     blob_client = DestinyBlobStorageClient()
     blob_url_pairs = blob_client.get_all_blob_url_pairs(blob_to_upload)
     uploader = DestinyRepositoryContentUploader(settings)
-    import_record = uploader.register_new_import()
+    blob_content_source = ImportSourceType.OPEN_ALEX
+    import_record = uploader.register_new_import(source_type=blob_content_source)
 
     retry_time_seconds = 30
     import_batch_ids = []  # type: list[UUID4]

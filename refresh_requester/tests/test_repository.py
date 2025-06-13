@@ -8,6 +8,7 @@ from destiny_sdk.imports import (
     ImportBatchRead,
     ImportBatchStatus,
     ImportBatchSummary,
+    ImportRecordIn,
     ImportRecordRead,
     ImportRecordStatus,
     ImportResultStatus,
@@ -15,6 +16,7 @@ from destiny_sdk.imports import (
 
 from refresh_requester.repository import (
     DestinyRepositoryContentUploader,
+    ImportSourceType,
     upload_blob_storage_contents_to_repository,
 )
 
@@ -587,3 +589,83 @@ def test_upload_blob_storage_contents_to_repository_handles_incomplete_batches(
         mock_get_summary.assert_called_once_with(test_batch_id),
         "get_import_batch_summary should be called after the batch is completed",
     )
+
+
+def test_construct_payload(mocker, test_settings) -> None:
+    """Test the register_new_import method with source type."""
+    mocker.patch(
+        "refresh_requester.repository.get_token",
+        return_value="test-token",
+    )
+    uploader = DestinyRepositoryContentUploader(test_settings)
+    test_processor_name = "Test Processor"
+    test_processor_version = "999.9.9"
+    test_expected_reference_count = -1
+    test_source_name = "Test Source"
+    result = uploader.construct_payload(
+        test_processor_name,
+        test_processor_version,
+        test_expected_reference_count,
+        test_source_name,
+    )
+
+    assert isinstance(
+        result, ImportRecordIn
+    ), "Result should be an instance of ImportSourceType"
+
+
+@pytest.mark.parametrize(
+    (
+        "source_type",
+        "processor_name",
+        "processor_version",
+        "expected_reference_count",
+        "source_name",
+    ),
+    [
+        (
+            ImportSourceType.OPEN_ALEX,
+            "Bulk OpenAlex Importer",
+            "initial_openalex_import",
+            -1,
+            "openalex",
+        ),
+        (
+            ImportSourceType.SOLR,
+            "Bulk Solr Importer",
+            "initial_solr_import",
+            -1,
+            "pik-solr",
+        ),
+    ],
+)
+def test_retrieve_payload_from_source_type(
+    mocker,
+    test_settings,
+    source_type,
+    processor_name,
+    processor_version,
+    expected_reference_count,
+    source_name,
+) -> None:
+    """Test the retrieve_payload_from_source_type method."""
+    mocker.patch(
+        "refresh_requester.repository.get_token",
+        return_value="test-token",
+    )
+    uploader = DestinyRepositoryContentUploader(test_settings)
+    result = uploader.retrieve_payload_from_source_type(source_type)
+
+    assert isinstance(
+        result, ImportRecordIn
+    ), "Result should be an instance of ImportRecordIn"
+    assert (
+        result.processor_name == processor_name
+    ), f"Processor name should be {processor_name}"
+    assert (
+        result.processor_version == processor_version
+    ), f"Processor version should be {processor_version}"
+    assert (
+        result.expected_reference_count == expected_reference_count
+    ), f"Expected reference count should be {expected_reference_count}"
+    assert result.source_name == source_name, f"Source name should be {source_name}"
