@@ -8,18 +8,14 @@ from dotenv import load_dotenv
 from loguru import logger
 
 from refresh_requester.blob_storage import BlobUploadError, check_previous_file_dates
-from refresh_requester.config import get_settings
+from refresh_requester.config import Settings, get_settings
 from refresh_requester.jobs import run_blob_upload_job, run_refresh_job
 from refresh_requester.openalex_refresh import OpenAlexRefreshError
 from refresh_requester.repository import upload_blob_storage_contents_to_repository
 
-load_dotenv(override=True)
 
-
-def main() -> None:
+def main(settings: Settings) -> None:
     """Run the refresh requester job."""
-    settings = get_settings()
-
     fetch_date = (
         check_previous_file_dates() if not settings.fetch_date else settings.fetch_date
     )
@@ -42,7 +38,7 @@ def main() -> None:
 
     logger.info("Uploading blob storage contents to repository")
     upload_blob_storage_contents_to_repository(
-        settings, max_retires=5, blob_to_upload=uploaded_blob
+        settings, max_retries=5, blob_to_upload=uploaded_blob
     )
     logger.success(
         f"JOB COMPLETED - Data fetched for date: {fetch_date}, uploaded {date_today}"
@@ -50,4 +46,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    main()
+    load_dotenv(override=True)
+    main(get_settings())
