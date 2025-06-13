@@ -235,7 +235,7 @@ def test_get_destiny_openalex_work_blank_abstract_openalex_input_incorrect_sourc
     """Test that the get_destiny_openalex_work function returns a DestinyOpenAlexWorkMetadata object."""
     bad_source_for_openalex_input = "pik_solr"
     expected_openalex_id = openalex_work_dict["ids"]["openalex"]
-    expected_abstract = None
+    expected_abstract = ""
     expected_abstract_process = "other"
 
     ids_dict = openalex_work_dict.get("ids") if openalex_work_dict.get("ids") else None
