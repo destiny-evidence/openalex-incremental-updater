@@ -58,6 +58,8 @@ jobs:
       - name: Install dependencies if cache was not found
         working-directory: refresh_requester
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
+        env:
+          POETRY_VCS_BACKEND: git
         run: poetry install --no-interaction
 
       - name: Run test with pytest via poetry
