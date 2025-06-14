@@ -52,6 +52,9 @@ jobs:
           path: ~/openalex_incremental_updater/.venv
           key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('openalex_incremental_updater/poetry.lock') }}
 
+      - name: Rewrite SSH to HTTPS with token
+        run: git config --global url."https://${{ secrets.GH_PAT }}:x-oauth-basic@github.com/".insteadOf "git@github.com:"
+
       - name: Install dependencies if cache was not found
         working-directory: openalex_incremental_updater
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
