@@ -52,13 +52,13 @@ jobs:
           path: ~/openalex_incremental_updater/.venv
           key: venv-${{ runner.os }}-${{ matrix.python-version }}-${{ hashFiles('openalex_incremental_updater/poetry.lock') }}
 
-      - name: Rewrite SSH to HTTPS with token
-        run: git config --global url."https://${{ secrets.GH_PAT }}:x-oauth-basic@github.com/".insteadOf "git@github.com:"
-
       - name: Install dependencies if cache was not found
         working-directory: openalex_incremental_updater
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction
+        run: |
+          sed -i 's|git@github.com:|https://${{ secrets.GH_PAT }}:x-oauth-basic@github.com/|' pyproject.toml
+          poetry lock
+          poetry install --no-interaction
 
       - name: Run test with pytest via poetry
         working-directory: openalex_incremental_updater
