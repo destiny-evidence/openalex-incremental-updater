@@ -59,7 +59,7 @@ jobs:
           POETRY_VCS_BACKEND: git
         run: |
           sed -i 's|git@github.com:|https://${{ secrets.GH_PAT }}:x-oauth-basic@github.com/|' pyproject.toml
-          sed -i 's|git@github.com:|https://${{ secrets.GH_PAT }}:x-oauth-basic@github.com/|' poetry.lock
+          poetry lock
           poetry install --no-interaction
 
       - name: Run test with pytest via poetry
