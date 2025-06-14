@@ -31,6 +31,7 @@ jobs:
           password: ${{ secrets.REGISTRY_PASSWORD }}
         env:
           GH_PAT: ${{ secrets.GH_PAT }}
+          DOCKER_BUILDKIT: 1
       - run: |
           export TAG=${{ github.event.inputs.imageTag || github.sha }}
           docker build --build-arg GH_PAT=$GH_PAT -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${TAG} openalex_incremental_updater/
