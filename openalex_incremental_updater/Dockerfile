@@ -18,12 +18,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 ENV PATH="/root/.local/bin:$PATH"
 
 ARG GH_PAT
-# Conditionally reconfigure Git to use HTTPS only if GH_PAT is passed
-RUN if [ -n "$GH_PAT" ]; then \
-      git config --global url."https://${GH_PAT}:x-oauth-basic@github.com/".insteadOf "git@github.com:" ; \
-    else \
-      echo "No GH_PAT provided. Assuming local SSH access." ; \
-    fi
 
 WORKDIR /app
 
@@ -37,20 +31,16 @@ COPY openalex_incremental_updater /app/openalex_incremental_updater
 # SSH-enabled install path for local use
 RUN --mount=type=ssh \
   if [ "$USE_SSH" = "true" ]; then \
-    # Add GitHub's SSH key to known_hosts to avoid host verification issues
-    # See https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/githubs-ssh-key-fingerprints
-    RUN mkdir -p ~/.ssh && echo \
-    "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" \
-    >> ~/.ssh/known_hosts && \
-    poetry config virtualenvs.create false && \
-    poetry install --no-root --only main; \
+    mkdir -p ~/.ssh && \
+    echo "github.com ssh-ed25519 AAAAC3Nza...your_key_here..." >> ~/.ssh/known_hosts ;\
   fi
 
 # HTTPS fallback install path for CI use
 RUN if [ "$USE_SSH" != "true" ] && [ -n "$GH_PAT" ]; then \
-    poetry config virtualenvs.create false && \
-    poetry install --no-root --only main; \
+    git config --global url."https://${GH_PAT}:x-oauth-basic@github.com/".insteadOf "git@github.com:" ;\
   fi
+
+RUN poetry install --no-root --only main;
 
 
 EXPOSE 8000
