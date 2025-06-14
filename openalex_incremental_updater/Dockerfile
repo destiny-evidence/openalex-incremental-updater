@@ -32,7 +32,7 @@ COPY openalex_incremental_updater /app/openalex_incremental_updater
 RUN --mount=type=ssh \
   if [ "$USE_SSH" = "true" ]; then \
     mkdir -p ~/.ssh && \
-    echo "github.com ssh-ed25519 AAAAC3Nza...your_key_here..." >> ~/.ssh/known_hosts ;\
+    echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" >> ~/.ssh/known_hosts ;\
   fi
 
 # HTTPS fallback install path for CI use
