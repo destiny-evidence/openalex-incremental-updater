@@ -3,7 +3,7 @@
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "b4fc11456f86632b4fa58914970fb36bf1ba2033bdf6f19b64362de95b6453e2"
+content-hash = "a11cba0890063f9f9af6afcbd772432c55e8d4e132cb4712cf08bfe2601f8e74"
 
 [[package]]
 name = "annotated-types"
@@ -497,6 +497,20 @@ url = "ssh://git@github.com/destiny-evidence/destiny-repository.git"
 reference = "HEAD"
 resolved_reference = "a1ad4c3be8ed15e1734056e61880b7f026749c8f"
 subdirectory = "libs/sdk"
+
+[[package]]
+name = "dotenv"
+version = "0.9.9"
+description = "Deprecated package"
+optional = false
+python-versions = "*"
+groups = ["main"]
+files = [
+  {file = "dotenv-0.9.9-py2.py3-none-any.whl", hash = "sha256:29cf74a087b31dafdb5a446b6d7e11cbce8ed2741540e2339c69fbef92c94ce9"}
+]
+
+[package.dependencies]
+python-dotenv = "*"
 
 [[package]]
 name = "ecdsa"
