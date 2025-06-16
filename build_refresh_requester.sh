@@ -16,12 +16,7 @@ fi
 
 echo "SSH agent is running."
 
-# Enable BuildKit and build with SSH forwarding and USE_SSH=true
-echo "Building Docker image: $IMAGE_TAG"
-DOCKER_BUILDKIT=1 docker build \
-  --ssh default \
-  --build-arg USE_SSH=true \
-  -t "refresh-requester:${IMAGE_TAG}" \
-  refresh_requester
+echo "Building Docker image refresh-requester:$IMAGE_TAG"
+docker buildx build --ssh default=$SSH_AUTH_SOCK --build-arg USE_SSH=true -t "refresh-requester:${IMAGE_TAG}" refresh_requester
 
-echo "Build complete: $IMAGE_TAG"
+echo "Build complete - refresh-requester:$IMAGE_TAG"

@@ -1,3 +1,4 @@
+#syntax=docker/dockerfile:1.4
 FROM python:3.13-slim-bookworm
 
 ENV PYTHONUNBUFFERED=1 \
@@ -31,8 +32,9 @@ COPY openalex_incremental_updater /app/openalex_incremental_updater
 # SSH-enabled install path for local use
 RUN --mount=type=ssh \
   if [ "$USE_SSH" = "true" ]; then \
+    mkdir -p -m 0600 ~/.ssh && ssh-keyscan github.com >> ~/.ssh/known_hosts && \
     mkdir -p ~/.ssh && \
-    echo "github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl" >> ~/.ssh/known_hosts ;\
+    --mount=type=ssh poetry bundle venv -vvv --only=main /app/.venv; \
   fi
 
 # HTTPS fallback install path for CI use

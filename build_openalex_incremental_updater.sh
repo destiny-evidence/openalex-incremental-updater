@@ -16,12 +16,7 @@ fi
 
 echo "SSH agent is running."
 
-# Enable BuildKit and build with SSH forwarding and USE_SSH=true
-echo "Building Docker image: $IMAGE_TAG"
-DOCKER_BUILDKIT=1 docker build \
-  --ssh default \
-  --build-arg USE_SSH=true \
-  -t "openalex-incremental-updater:${IMAGE_TAG}" \
-  openalex_incremental_updater
+echo "Building Docker image openalex-incremental-updater:$IMAGE_TAG"
+docker buildx build --ssh default=$SSH_AUTH_SOCK --build-arg USE_SSH=true -t "openalex-incremental-updater:${IMAGE_TAG}" openalex_incremental_updater
 
-echo "Build complete: $IMAGE_TAG"
+echo "Build complete - openalex-incremental-updater:$IMAGE_TAG"
