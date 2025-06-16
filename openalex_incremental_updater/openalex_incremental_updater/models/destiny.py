@@ -309,7 +309,7 @@ def create_core_destiny_openalex_work(
         enhancements=[
             {
                 "source": source,
-                "visiblity": Visibility.RESTRICTED.value
+                "visibility": Visibility.RESTRICTED.value
                 if metadata.is_retracted
                 else Visibility.PUBLIC.value,
                 "processor_version": metadata.processor_version,
@@ -437,7 +437,9 @@ def prepare_destiny_annotations(metadata: DestinyOpenAlexWorkMetadata) -> list[d
         else:
             annotation_content.append(
                 {
-                    "annotation_type": "openalex:topic",
+                    "annotation_type": "boolean",
+                    "scheme": "openalex:topic",
+                    "value": True,
                     "label": label,
                     "data": data,
                 }
@@ -530,7 +532,7 @@ def get_destiny_openalex_work(
         core_destiny_work.enhancements.append(
             {
                 "source": source,
-                "visiblity": Visibility.RESTRICTED.value
+                "visibility": Visibility.RESTRICTED.value
                 if metadata.is_retracted
                 else Visibility.PUBLIC.value,
                 "processor_version": metadata.processor_version,
@@ -543,7 +545,7 @@ def get_destiny_openalex_work(
         core_destiny_work.enhancements.append(
             {
                 "source": source,
-                "visiblity": Visibility.RESTRICTED.value
+                "visibility": Visibility.RESTRICTED.value
                 if metadata.is_retracted
                 else Visibility.PUBLIC.value,
                 "processor_version": metadata.processor_version,
@@ -559,7 +561,7 @@ def get_destiny_openalex_work(
         core_destiny_work.enhancements.append(
             {
                 "source": source,
-                "visiblity": Visibility.RESTRICTED.value
+                "visibility": Visibility.RESTRICTED.value
                 if metadata.is_retracted
                 else Visibility.PUBLIC.value,
                 "processor_version": metadata.processor_version,
