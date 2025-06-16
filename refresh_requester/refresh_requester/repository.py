@@ -146,12 +146,12 @@ class DestinyRepositoryContentUploader:
         registration_url = f"{self.settings.REPOSITORY_ENDPOINT}/imports/record/{import_record.id}/batch/"
         payload = ImportBatchIn(
             collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
-            storage_url=sas_url,
+            storage_url=str(sas_url),
             callback_url=None,
         )
         response = self.session.post(
             registration_url,
-            json=payload,
+            json=payload.model_dump(mode="json"),
         )
         response.raise_for_status()
         import_batch = ImportBatchRead.model_validate(response.json())
