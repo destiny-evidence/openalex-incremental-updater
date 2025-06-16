@@ -2,8 +2,18 @@
 
 set -euo pipefail
 
-# Image name/tag (optional first argument)
-IMAGE_TAG=${1:-latest}
+IMAGE_TAG="latest"
+IGNORE_CACHE=false
+
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --tag=*|-t=*) IMAGE_TAG="${1#*=}" ;;
+    --tag|-t) [[ -n "$2" && "$2" != -* ]] && IMAGE_TAG="$2" && shift ;;
+    --no-cache) IGNORE_CACHE=true ;;
+  esac
+  shift
+done
+
 
 echo "Checking for SSH agent and key..."
 
@@ -17,6 +27,12 @@ fi
 echo "SSH agent is running."
 
 echo "Building Docker image openalex-incremental-updater:$IMAGE_TAG"
-docker buildx build --ssh default=$SSH_AUTH_SOCK --build-arg USE_SSH=true -t "openalex-incremental-updater:${IMAGE_TAG}" openalex_incremental_updater
+
+DOCKER_BUILD_STRING="buildx build --ssh default=$SSH_AUTH_SOCK --build-arg USE_SSH=true -t "openalex-incremental-updater:${IMAGE_TAG}" openalex_incremental_updater"
+if $IGNORE_CACHE; then
+  echo "Ignoring cache for this build."
+  DOCKER_BUILD_STRING+=" --no-cache"
+fi
+docker ${DOCKER_BUILD_STRING}
 
 echo "Build complete - openalex-incremental-updater:$IMAGE_TAG"
