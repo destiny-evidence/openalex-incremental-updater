@@ -345,9 +345,11 @@ def test_pubmed_identifier_parsed_as_integer(
     test_openalex_work_dict = openalex_work_dict.copy()
     openalex_identifier = openalex_work_dict["ids"].get("openalex")
     doi_identifier = openalex_work_dict["ids"].get("doi")
-    test_pmid_identifier = "123456789"
+    test_pmid_identifier = "https://pubmed.ncbi.nlm.nih.gov/123456789"
     test_microsoft_academic_graph_identifier = "2222222222"
     test_pubmed_central_identifier = "3333333333"
+
+    expected_resulting_pmid = test_pmid_identifier.rsplit("/", 1)[-1]
 
     test_openalex_work_dict["ids"]["pmid"] = test_pmid_identifier
     test_openalex_work_dict["ids"]["mag"] = test_microsoft_academic_graph_identifier
@@ -413,7 +415,7 @@ def test_pubmed_identifier_parsed_as_integer(
         destiny_pubmed_identifier["identifier"], int
     ), "Expect that pubmed_id is an integer"
     assert destiny_pubmed_identifier["identifier"] == int(
-        test_pmid_identifier
+        expected_resulting_pmid
     ), "Expect that pubmed_id is parsed correctly"
 
 

@@ -268,6 +268,12 @@ def convert_openalex_to_destiny(
         pubmed_id = None
         pubmed_central_id = None
 
+    pubmed_id = (
+        int(pubmed_id.rsplit("/", 1)[-1])
+        if isinstance(pubmed_id, str) and pubmed_id.startswith("http")
+        else pubmed_id
+    )
+
     work_metadata = DestinyOpenAlexWorkMetadata(
         doi=doi,
         openalex_id=openalex_id,
