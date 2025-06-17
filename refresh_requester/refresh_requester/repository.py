@@ -131,7 +131,7 @@ class DestinyRepositoryContentUploader:
             ImportRecordRead: The response from the DESTINY repository after registering the import.
 
         """
-        registration_url = f"{self.settings.REPOSITORY_ENDPOINT}/imports/record/"
+        registration_url = f"{self.settings.REPOSITORY_ENDPOINT}imports/record/"
         payload = self.retrieve_payload_from_source_type(source_type)
 
         response = self.session.post(
@@ -160,7 +160,7 @@ class DestinyRepositoryContentUploader:
             ImportBatchRead: The response from the DESTINY repository after registering the import batch.
 
         """
-        registration_url = f"{self.settings.REPOSITORY_ENDPOINT}/imports/record/{import_record.id}/batch/"
+        registration_url = f"{self.settings.REPOSITORY_ENDPOINT}imports/record/{import_record.id}/batch/"
         payload = ImportBatchIn(
             collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
             storage_url=str(sas_url),
@@ -211,7 +211,7 @@ class DestinyRepositoryContentUploader:
 
         """
         response = self.session.get(
-            f"{self.settings.REPOSITORY_ENDPOINT}imports/batch/{import_batch_id}/"
+            f"{self.settings.REPOSITORY_ENDPOINT}/imports/batch/{import_batch_id}/"
         )
         response.raise_for_status()
         import_batch_status = ImportBatchRead.model_validate(response.json())
@@ -236,10 +236,47 @@ class DestinyRepositoryContentUploader:
         response.raise_for_status()
         return ImportBatchSummary.model_validate(response.json())
 
+    def poll_import_batches_for_completion(
+        self,
+        import_batch_ids: list[UUID4],
+        retry_time_seconds: int = 30,
+        max_retries: int = 5,
+    ) -> None:
+        """
+        Poll the import batches for completion.
+
+        This method checks the status of each import batch until it is completed
+        or the maximum number of retries is reached.
+
+        Args:
+            import_batch_ids (list[UUID4]): List of import batch IDs to poll for completion.
+            retry_time_seconds (int, optional): Time to wait between retries in seconds. Defaults to 30.
+            max_retries (int, optional): The maximum number of retries for checking import
+                batch completion. Defaults to 5.
+
+        """
+        for import_batch_id in import_batch_ids:
+            logger.info(f"Polling import batch {import_batch_id} for completion...")
+
+            for attempt in range(max_retries):
+                completed_status = self.check_if_import_batch_completed(import_batch_id)
+                if completed_status:
+                    logger.info(
+                        f"Import batch {import_batch_id} completed successfully."
+                    )
+                    break
+                logger.info(
+                    f"Import batch {import_batch_id} not completed yet. Attempt {attempt + 1}/{max_retries}."
+                )
+                logger.info(f"Waiting {retry_time_seconds} seconds before retrying...")
+                time.sleep(retry_time_seconds)
+            summary = self.get_import_batch_summary(import_batch_id)
+            logger.info(f"Import batch {import_batch_id} summary: {summary}")
+
 
 def upload_blob_storage_contents_to_repository(
-    settings: Settings, max_retries: int = 5, blob_to_upload: str | None = None
-) -> None:
+    settings: Settings, blob_to_upload: str | None = None
+) -> list[UUID4]:
     """
     Upload all blob storage contents to the DESTINY repository.
 
@@ -249,6 +286,9 @@ def upload_blob_storage_contents_to_repository(
         blob_to_upload (str | None, optional): Specific blob to upload.
             If None, all blobs in the container will be uploaded. Defaults to None.
 
+    Returns:
+        list[UUID4]: A list of UUIDs representing the IDs of the import batches created for each blob.
+
     """
     blob_client = DestinyBlobStorageClient()
     blob_url_pairs = blob_client.get_all_blob_url_pairs(blob_to_upload)
@@ -256,7 +296,6 @@ def upload_blob_storage_contents_to_repository(
     blob_content_source = ImportSourceType.OPEN_ALEX
     import_record = uploader.register_new_import(source_type=blob_content_source)
 
-    retry_time_seconds = 30
     import_batch_ids = []  # type: list[UUID4]
     for blob_url_pair in blob_url_pairs:
         blob_name = blob_url_pair["blob_name"]
@@ -269,19 +308,4 @@ def upload_blob_storage_contents_to_repository(
 
     uploader.finalise_import_record(import_record.id)
 
-    for import_batch_id in import_batch_ids:
-        logger.info(f"Polling import batch {import_batch_id} for completion...")
-
-        for attempt in range(max_retries):
-            completed_status = uploader.check_if_import_batch_completed(import_batch_id)
-            if completed_status:
-                logger.info(f"Import batch {import_batch_id} completed successfully.")
-                break
-            logger.info(
-                f"Import batch {import_batch_id} not completed yet. Attempt {attempt + 1}/{max_retries}."
-            )
-            logger.info(f"Waiting {retry_time_seconds} seconds before retrying...")
-            time.sleep(retry_time_seconds)
-        summary = uploader.get_import_batch_summary(import_batch_id)
-        logger.info(f"Import batch {import_batch_id} summary: {summary}")
-    logger.success("All import batches completed successfully.")
+    return import_batch_ids

@@ -237,7 +237,6 @@ def test_upload_blob_storage_contents_to_repository_success_single_blob(
     )
     test_import_record_id = uuid4()
     test_batch_id = uuid4()
-    test_summary_id = uuid4()
     http_no_content_status = 204
 
     mock_import_record = ImportRecordRead(
@@ -257,19 +256,6 @@ def test_upload_blob_storage_contents_to_repository_success_single_blob(
         collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
     )
 
-    mock_batch_summary = ImportBatchSummary(
-        storage_url="http://test-storage-url",
-        id=test_summary_id,
-        import_batch_id=test_batch_id,
-        import_batch_status=ImportBatchStatus.COMPLETED,
-        collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
-        results={
-            ImportResultStatus.COMPLETED.value: 10,
-            ImportResultStatus.FAILED.value: 0,
-        },
-        failure_details=None,
-    )
-
     mock_register_new_import = mocker.patch(
         "refresh_requester.repository.DestinyRepositoryContentUploader.register_new_import",
         return_value=mock_import_record,
@@ -282,19 +268,9 @@ def test_upload_blob_storage_contents_to_repository_success_single_blob(
         "refresh_requester.repository.DestinyRepositoryContentUploader.finalise_import_record",
         return_value=mocker.Mock(status_code=http_no_content_status),
     )
-    mock_check_completed = mocker.patch(
-        "refresh_requester.repository.DestinyRepositoryContentUploader.check_if_import_batch_completed",
-        return_value=True,
-    )
-    mock_get_summary = mocker.patch(
-        "refresh_requester.repository.DestinyRepositoryContentUploader.get_import_batch_summary",
-        return_value=mock_batch_summary,
-    )
-
-    mocker.patch("refresh_requester.repository.time.sleep", return_value=None)
 
     upload_blob_storage_contents_to_repository(
-        test_settings, max_retries=2, blob_to_upload="test-blob"
+        test_settings, blob_to_upload="test-blob"
     )
     (
         mock_blob_storage_client.assert_called_once_with("test-blob"),
@@ -315,14 +291,6 @@ def test_upload_blob_storage_contents_to_repository_success_single_blob(
     (
         mock_finalise_import.assert_called_once_with(test_import_record_id),
         "Finalise import record should be called once",
-    )
-    (
-        mock_check_completed.assert_called_once_with(test_batch_id),
-        "check_if_import_batch_completed should be called with the batch ID",
-    )
-    (
-        mock_get_summary.assert_called_once_with(test_batch_id),
-        "get_import_batch_summary should be called with the batch ID",
     )
 
 
@@ -345,7 +313,6 @@ def test_upload_blob_storage_contents_to_repository_success_multiple_blobs(
     )
     test_import_record_id = uuid4()
     test_batch_ids = [uuid4(), uuid4()]
-    test_summary_ids = [uuid4(), uuid4()]
     http_no_content_status = 204
 
     mock_import_record = ImportRecordRead(
@@ -374,33 +341,6 @@ def test_upload_blob_storage_contents_to_repository_success_multiple_blobs(
         ),
     ]
 
-    mock_batch_summaries = [
-        ImportBatchSummary(
-            storage_url="http://test-storage-url-1",
-            id=test_summary_ids[0],
-            import_batch_id=test_batch_ids[0],
-            import_batch_status=ImportBatchStatus.COMPLETED,
-            collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
-            results={
-                ImportResultStatus.COMPLETED.value: 5,
-                ImportResultStatus.FAILED.value: 0,
-            },
-            failure_details=None,
-        ),
-        ImportBatchSummary(
-            storage_url="http://test-storage-url-2",
-            id=test_summary_ids[1],
-            import_batch_id=test_batch_ids[1],
-            import_batch_status=ImportBatchStatus.COMPLETED,
-            collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
-            results={
-                ImportResultStatus.COMPLETED.value: 7,
-                ImportResultStatus.FAILED.value: 0,
-            },
-            failure_details=None,
-        ),
-    ]
-
     mock_register_new_import = mocker.patch(
         "refresh_requester.repository.DestinyRepositoryContentUploader.register_new_import",
         return_value=mock_import_record,
@@ -413,18 +353,8 @@ def test_upload_blob_storage_contents_to_repository_success_multiple_blobs(
         "refresh_requester.repository.DestinyRepositoryContentUploader.finalise_import_record",
         return_value=mocker.Mock(status_code=http_no_content_status),
     )
-    mock_check_completed = mocker.patch(
-        "refresh_requester.repository.DestinyRepositoryContentUploader.check_if_import_batch_completed",
-        side_effect=[True, True],
-    )
-    mock_get_summary = mocker.patch(
-        "refresh_requester.repository.DestinyRepositoryContentUploader.get_import_batch_summary",
-        side_effect=mock_batch_summaries,
-    )
 
-    mocker.patch("refresh_requester.repository.time.sleep", return_value=None)
-
-    upload_blob_storage_contents_to_repository(test_settings, max_retries=2)
+    upload_blob_storage_contents_to_repository(test_settings)
     (
         mock_blob_storage_client.assert_called_once_with(None),
         "get_all_blob_url_pairs should be called with None to get all blobs in a container",
@@ -456,31 +386,9 @@ def test_upload_blob_storage_contents_to_repository_success_multiple_blobs(
         mock_finalise_import.assert_called_once_with(test_import_record_id),
         "Finalise import record should be called once",
     )
-    assert mock_check_completed.call_count == len(
-        mock_blob_url_pairs
-    ), "check_if_import_batch_completed should be called for each batch"
-    (
-        mock_check_completed.assert_any_call(test_batch_ids[0]),
-        "Check that the import ID was called for the first batch",
-    )
-    (
-        mock_check_completed.assert_any_call(test_batch_ids[1]),
-        "Check that the import ID was called for the second batch",
-    )
-    assert mock_get_summary.call_count == len(
-        mock_blob_url_pairs
-    ), "get_import_batch_summary should be called for each batch"
-    (
-        mock_get_summary.assert_any_call(test_batch_ids[0]),
-        "Check that the import ID was called for the first batch",
-    )
-    (
-        mock_get_summary.assert_any_call(test_batch_ids[1]),
-        "Check that the import ID was called for the second batch",
-    )
 
 
-def test_upload_blob_storage_contents_to_repository_handles_incomplete_batches(
+def test_poll_import_batches_for_completion_retries_if_batch_incomplete(
     mocker, test_settings
 ):
     """
@@ -489,106 +397,84 @@ def test_upload_blob_storage_contents_to_repository_handles_incomplete_batches(
     Simulates a failure, followed by a successful completion on retry.
     """
     mocker.patch("refresh_requester.repository.get_token", return_value="test-token")
-    mock_blob_url_pairs = [{"blob_name": "test-blob", "sas_url": "http://test-sas-url"}]
-    mock_blob_storage_client = mocker.patch(
-        "refresh_requester.repository.DestinyBlobStorageClient.get_all_blob_url_pairs",
-        return_value=mock_blob_url_pairs,
-    )
-    test_import_record_id = uuid4()
-    test_batch_id = uuid4()
-    test_summary_id = uuid4()
-    http_no_content_status = 204
+    uploader = DestinyRepositoryContentUploader(test_settings)
+    test_import_batch_id = uuid4()
+    test_number_of_retries = 2
 
-    expected_completion_statuses = [False, True]
-    mock_import_record = ImportRecordRead(
-        id=test_import_record_id,
-        status=ImportRecordStatus.CREATED,
-        processor_name="Test Processor",
-        processor_version="999.9.9",
-        expected_reference_count=-1,
-        source_name="Test Source",
-    )
-
-    mock_batch_registration = ImportBatchRead(
-        id=test_batch_id,
+    import_batch_id_one = uuid4()
+    import_batch_id_two = uuid4()
+    summary_id_one = uuid4()
+    summary_id_two = uuid4()
+    started_status = ImportBatchRead(
+        id=test_import_batch_id,
         storage_url="http://test-storage-url",
-        import_record_id=test_import_record_id,
-        status=ImportBatchStatus.CREATED,
+        import_record_id=import_batch_id_one,
+        status=ImportBatchStatus.STARTED,
         collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
     )
-
-    mock_batch_summary = ImportBatchSummary(
+    completed_status = ImportBatchRead(
+        id=test_import_batch_id,
         storage_url="http://test-storage-url",
-        id=test_summary_id,
-        import_batch_id=test_batch_id,
-        import_batch_status=ImportBatchStatus.COMPLETED,
+        import_record_id=import_batch_id_two,
+        status=ImportBatchStatus.COMPLETED,
         collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
-        results={
-            ImportResultStatus.COMPLETED.value: 10,
-            ImportResultStatus.FAILED.value: 0,
-        },
-        failure_details=None,
+    )
+    mocker.patch.object(
+        uploader.session,
+        "get",
+        side_effect=[
+            mocker.Mock(
+                status_code=200,
+                json=lambda: started_status.model_dump(),
+            ),
+            mocker.Mock(
+                status_code=200,
+                json=lambda: completed_status.model_dump(),
+            ),
+        ],
     )
 
-    mock_register_new_import = mocker.patch(
-        "refresh_requester.repository.DestinyRepositoryContentUploader.register_new_import",
-        return_value=mock_import_record,
-    )
-    mock_register_import_batch = mocker.patch(
-        "refresh_requester.repository.DestinyRepositoryContentUploader.register_import_batch_for_single_blob",
-        return_value=mock_batch_registration,
-    )
-    mock_finalise_import = mocker.patch(
-        "refresh_requester.repository.DestinyRepositoryContentUploader.finalise_import_record",
-        return_value=mocker.Mock(status_code=http_no_content_status),
-    )
-    # Simulate incomplete batch on first check, then completed on retry
-    mock_check_completed = mocker.patch(
-        "refresh_requester.repository.DestinyRepositoryContentUploader.check_if_import_batch_completed",
-        side_effect=[False, True],
-    )
+    mock_batch_summaries = [
+        ImportBatchSummary(
+            storage_url="http://test-storage-url-1",
+            id=summary_id_one,
+            import_batch_id=import_batch_id_one,
+            import_batch_status=ImportBatchStatus.COMPLETED,
+            collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
+            results={
+                ImportResultStatus.COMPLETED.value: 5,
+                ImportResultStatus.FAILED.value: 0,
+            },
+            failure_details=None,
+        ),
+        ImportBatchSummary(
+            storage_url="http://test-storage-url-2",
+            id=summary_id_two,
+            import_batch_id=import_batch_id_two,
+            import_batch_status=ImportBatchStatus.COMPLETED,
+            collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
+            results={
+                ImportResultStatus.COMPLETED.value: 7,
+                ImportResultStatus.FAILED.value: 0,
+            },
+            failure_details=None,
+        ),
+    ]
     mock_get_summary = mocker.patch(
         "refresh_requester.repository.DestinyRepositoryContentUploader.get_import_batch_summary",
-        return_value=mock_batch_summary,
-    )
-    mock_sleep = mocker.patch(
-        "refresh_requester.repository.time.sleep", return_value=None
+        side_effect=mock_batch_summaries,
     )
 
-    upload_blob_storage_contents_to_repository(
-        test_settings, max_retries=2, blob_to_upload="test-blob"
+    mocker.patch("refresh_requester.repository.time.sleep", return_value=None)
+
+    uploader.poll_import_batches_for_completion(
+        [test_import_batch_id], max_retries=test_number_of_retries
     )
-    (
-        mock_blob_storage_client.assert_called_once_with("test-blob"),
-        "get_all_blob_url_pairs should be called with 'test-blob' to get the specific blob",
-    )
-    (
-        mock_register_new_import.assert_called_once(),
-        "register_new_import should be called once",
-    )
-    (
-        mock_register_import_batch.assert_called_once_with(
-            "test-blob",
-            "http://test-sas-url",
-            mock_import_record,
-        ),
-        "register_import_batch_for_single_blob should be called once with the blob name, SAS URL and import record",
-    )
-    (
-        mock_finalise_import.assert_called_once_with(test_import_record_id),
-        "Finalise import record should be called once",
-    )
+
     assert (
-        mock_check_completed.call_count == len(expected_completion_statuses)
-    ), "check_if_import_batch_completed should be called twice if it fails the first time"
-    (
-        mock_sleep.assert_called_once(),
-        "sleep should be called once to wait before retrying",
-    )
-    (
-        mock_get_summary.assert_called_once_with(test_batch_id),
-        "get_import_batch_summary should be called after the batch is completed",
-    )
+        uploader.session.get.call_count == test_number_of_retries
+    ), "Should have made two GET requests to check batch status"
+    mock_get_summary.assert_called_once_with(test_import_batch_id)
 
 
 def test_construct_payload(mocker, test_settings) -> None:

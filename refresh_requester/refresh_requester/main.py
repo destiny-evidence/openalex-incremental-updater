@@ -35,13 +35,13 @@ def main(settings: Settings) -> None:
     except BlobUploadError as upload_error:
         logger.error(f"Error uploading data to blob storage: {upload_error}")
         sys.exit(1)
-
-    logger.info("Uploading blob storage contents to repository")
-    upload_blob_storage_contents_to_repository(
-        settings, max_retries=5, blob_to_upload=uploaded_blob
+    logger.info(f"Data fetched for date: {fetch_date}, uploaded {date_today}")
+    logger.info("Ingesting blob storage contents to repository")
+    uploaded_blob_ids = upload_blob_storage_contents_to_repository(
+        settings, blob_to_upload=uploaded_blob
     )
     logger.success(
-        f"JOB COMPLETED - Data fetched for date: {fetch_date}, uploaded {date_today}"
+        f"Data ingestion for {fetch_date} started for {len(uploaded_blob_ids)} blobs."
     )
 
 

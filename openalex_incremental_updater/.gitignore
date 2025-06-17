@@ -136,7 +136,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-
+.env.app_ids
 # Spyder project settings
 .spyderproject
 .spyproject

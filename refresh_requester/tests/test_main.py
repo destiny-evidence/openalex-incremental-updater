@@ -52,7 +52,7 @@ def test_main_success_no_fetch_date_set(mocker, test_settings) -> None:
     )
     (
         upload_blob_storage_mock.assert_called_once_with(
-            settings, max_retries=5, blob_to_upload=test_blob
+            settings, blob_to_upload=test_blob
         ),
         "should be called with the correct settings, max_retries, and blob to upload",
     )
@@ -102,7 +102,7 @@ def test_main_success_fetch_date_set_in_settings(mocker, test_settings) -> None:
     )
     (
         upload_blob_storage_mock.assert_called_once_with(
-            settings, max_retries=5, blob_to_upload=test_blob
+            settings, blob_to_upload=test_blob
         ),
         "should be called with the correct settings, max_retries, and blob to upload",
     )
