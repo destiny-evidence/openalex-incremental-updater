@@ -22,9 +22,7 @@ pytest-cov = "^6.0.0"
 pytest-mock = "^3.14.0"
 python = "^3.12"
 requests = "^2.32.3"
-
-[tool.poetry.group.test.dependencies]
-pytest-freezer = "^0.4.9"
+freezegun = "^1.5.2"
 
 [tool.ruff]
 fix = true
