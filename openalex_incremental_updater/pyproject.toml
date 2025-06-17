@@ -10,7 +10,7 @@ authors = ["Harry Moss <h.moss@ucl.ac.uk>"]
 description = ""
 name = "openalex-incremental-updater"
 readme = "README.md"
-version = "0.3.3"
+version = "0.4.0"
 
 [tool.poetry.dependencies]
 fastapi = {extras = ["standard"], version = "^0.115.6"}
