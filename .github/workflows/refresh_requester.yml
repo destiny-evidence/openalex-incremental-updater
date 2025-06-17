@@ -55,7 +55,10 @@ jobs:
       - name: Install dependencies if cache was not found
         working-directory: refresh_requester
         if: steps.cached-poetry-dependencies.outputs.cache-hit != 'true'
-        run: poetry install --no-interaction
+        run: |
+          sed -i 's|git@github.com:|https://${{ secrets.GH_PAT }}:x-oauth-basic@github.com/|' pyproject.toml
+          poetry lock
+          poetry install --no-interaction
 
       - name: Run test with pytest via poetry
         working-directory: refresh_requester
