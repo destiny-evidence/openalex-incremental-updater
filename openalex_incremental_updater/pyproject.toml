@@ -27,6 +27,7 @@ requests = "^2.32.3"
 sqlalchemy = "^2.0.37"
 sqlmodel = "^0.0.22"
 msal = "^1.32.3"
+destiny-sdk = {git = "git@github.com:destiny-evidence/destiny-repository.git", subdirectory = "libs/sdk"}
 
 [tool.poetry.group.dev.dependencies]
 detect-secrets = "^1.5.0"
@@ -79,6 +80,7 @@ lint.per-file-ignores = {"openalex_incremental_updater/openalex_incremental_upda
   "D107", # Missing docstring in __init__
   "DTZ007", # Naive datetime constructed using `datetime.datetime.strptime()` without %z
   "INP001", # File is part of an implicit namespace package.
+  "PLR0913", # Too many arguments in function definition
   "S101" # Use of `assert` detected
 ], "openalex_incremental_updater/tests*" = [
   "ARG001", # Unused function argument
