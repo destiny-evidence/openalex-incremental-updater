@@ -3,6 +3,7 @@
 from enum import StrEnum
 from typing import Literal, Self
 
+from loguru import logger
 from pydantic import (
     BaseModel,
     Field,
@@ -259,20 +260,31 @@ def convert_openalex_to_destiny(
         doi = ids_dict.get("doi")
         openalex_id = ids_dict.get("openalex")
         microsoft_academic_graph = ids_dict.get("mag")
-        pubmed_id = ids_dict.get("pmid")
+        pubmed_id_candidate = ids_dict.get("pmid")
         pubmed_central_id = ids_dict.get("pmcid")
     else:
         doi = None
         openalex_id = None
         microsoft_academic_graph = None
-        pubmed_id = None
+        pubmed_id_candidate = None
         pubmed_central_id = None
 
-    pubmed_id = (
-        int(pubmed_id.rsplit("/", 1)[-1])
-        if isinstance(pubmed_id, str) and pubmed_id.startswith("http")
-        else pubmed_id
+    pubmed_id_string = (
+        int(pubmed_id_candidate.rsplit("/", 1)[-1])
+        if isinstance(pubmed_id_candidate, str)
+        and pubmed_id_candidate.startswith("http")
+        else pubmed_id_candidate
     )
+    if pubmed_id_string is not None:
+        try:
+            pubmed_id = int(pubmed_id_string)
+        except ValueError as invalid_pmid:
+            logger.error(
+                f"Invalid PubMed ID: {pubmed_id_string} for DOI {doi}. Error: {invalid_pmid}"
+            )
+            pubmed_id = None
+    else:
+        pubmed_id = None
 
     work_metadata = DestinyOpenAlexWorkMetadata(
         doi=doi,

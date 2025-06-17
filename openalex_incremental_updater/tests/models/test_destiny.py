@@ -464,3 +464,50 @@ def test_pubmed_identifier_none_case_handled(
     assert "pm_id" not in [
         identifier["identifier_type"] for identifier in destiny_work.identifiers
     ], "Expect that pm_id is not present if it is None"
+
+
+def test_pubmed_central_identifier_masquerading_as_pubmed_id(
+    openalex_work_dict: dict,
+) -> None:
+    """
+    Test that the pubmed identifier is parsed as an integer in DestinyOpenAlexWork.
+
+    All other identifiers should be parsed as strings.
+    """
+    test_openalex_work_dict = openalex_work_dict.copy()
+    openalex_identifier = openalex_work_dict["ids"].get("openalex")
+    doi_identifier = openalex_work_dict["ids"].get("doi")
+    test_pmid_identifier = "PMCID123456789"
+
+    test_openalex_work_dict["ids"]["pmid"] = test_pmid_identifier
+
+    destiny_work = convert_openalex_to_destiny(test_openalex_work_dict)
+
+    destiny_openalex_identifier = next(
+        identifier
+        for identifier in destiny_work.identifiers
+        if identifier["identifier_type"] == "open_alex"
+    )
+    destiny_doi_identifier = next(
+        identifier
+        for identifier in destiny_work.identifiers
+        if identifier["identifier_type"] == "doi"
+    )
+
+    assert isinstance(
+        destiny_openalex_identifier["identifier"], str
+    ), "Expect that openalex_id is a string"
+    assert isinstance(
+        destiny_doi_identifier["identifier"], str
+    ), "Expect that doi_id is a string"
+    assert (
+        destiny_openalex_identifier["identifier"] == openalex_identifier
+    ), "Expect that openalex_id is parsed correctly"
+    assert (
+        destiny_doi_identifier["identifier"] == doi_identifier
+    ), "Expect that doi_id is parsed correctly"
+
+    # Pubmed ID shouldn't be present if it is None
+    assert "pm_id" not in [
+        identifier["identifier_type"] for identifier in destiny_work.identifiers
+    ], "Expect that pm_id is not present if it is None"
