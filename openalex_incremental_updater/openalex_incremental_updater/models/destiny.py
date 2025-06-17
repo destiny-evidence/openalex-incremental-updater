@@ -353,34 +353,31 @@ def get_destiny_openalex_work(
             }
         )
 
-    formatted_authors_dict_list = [
-        {
-            "display_name": author["author"].get("display_name", "")
-            if author["author"]
-            else "",
-            "orcid": author["author"].get("orcid", "") if author["author"] else "",
-            "position": author.get("author_position", "") if author else "",
-        }
-        for author in metadata.authorships_dict or {}
-    ]
-    authors_dict_not_empty = any(
-        author.get("display_name") or author.get("orcid") or author.get("position")
-        for author in formatted_authors_dict_list
-    )
     destiny_work = DestinyOpenAlexWork(
         visibility=Visibility.HIDDEN if metadata.is_retracted else Visibility.PUBLIC,
         identifiers=destiny_work_identifiers,
         enhancements=[
             {
                 "source": source,
-                "visiblity": Visibility.RESTRICTED.value
-                if metadata.is_retracted
-                else Visibility.PUBLIC.value,
                 "processor_version": metadata.processor_version,
                 "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
                 "content": {
                     "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
                     "title": source_document.get("title"),
+                    "authorship": [
+                        {
+                            "display_name": author["author"].get("display_name")
+                            if author["author"]
+                            else None,
+                            "orcid": author["author"].get("orcid")
+                            if author["author"]
+                            else None,
+                            "position": author.get("author_position")
+                            if author
+                            else None,
+                        }
+                        for author in metadata.authorships_dict or {}
+                    ],
                     "cited_by_count": source_document.get("cited_by_count"),
                     "created_date": source_document.get("created_date"),
                     "publication_date": source_document.get("publication_date"),
@@ -398,10 +395,10 @@ def get_destiny_openalex_work(
                     if source == "openalex"
                     else AbstractProcessType.OTHER.value,
                     "abstract": convert_inverted_abstract(
-                        source_document.get("abstract_inverted_index", "")
+                        source_document.get("abstract_inverted_index")
                     )
                     if source == "openalex"
-                    else source_document.get("abstract", ""),
+                    else source_document.get("abstract"),
                 },
             },
             {
@@ -440,10 +437,6 @@ def get_destiny_openalex_work(
             },
         ],
     )
-    if authors_dict_not_empty:
-        destiny_work.enhancements[0]["content"].update(
-            {"authorship": formatted_authors_dict_list}
-        )
     if is_valid_string(metadata.microsoft_academic_graph):
         destiny_work.identifiers.append(
             {
