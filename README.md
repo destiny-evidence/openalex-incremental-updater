@@ -4,6 +4,8 @@ A service to offer incremental updates from the OpenAlex API.
 
 ## Developers
 
+Dependency management is handled by [Poetry](https://python-poetry.org/). To install Poetry, follow the instructions on the [Poetry installation page](https://python-poetry.org/docs/#installation). Ensure you install poetry version 2.1.2 or later, as this is the version used in the Dockerfiles and Poetry will shout at you about lock file version mismatches if you use an earlier version.
+
 Install the package with development and testing dependencies with:
 
 ```bash
