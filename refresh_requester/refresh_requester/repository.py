@@ -18,7 +18,7 @@ from requests.exceptions import JSONDecodeError
 
 from refresh_requester.blob_storage import DestinyBlobStorageClient
 from refresh_requester.config import Settings, get_retry_session
-from refresh_requester.token import get_token
+from refresh_requester.token import TokenRequestError, get_token
 
 
 class ImportSourceType(StrEnum):
@@ -42,6 +42,23 @@ class DestinyRepositoryContentUploader:
         self.session.headers = {
             "Authorization": f"Bearer {get_token(self.settings)}",
         }
+
+    def refresh_token(self) -> None:
+        """
+        Refresh the token used for authentication with the DESTINY repository.
+
+        This method updates the session headers with a new access token.
+
+        Raises:
+            DestinyRepositoryImportError: If there is an error while refreshing the token.
+
+        """
+        try:
+            self.session.headers["Authorization"] = f"Bearer {get_token(self.settings)}"
+            logger.info("Token refreshed successfully.")
+        except TokenRequestError as token_error:
+            error_message = f"Failed to refresh token: {token_error}"
+            raise DestinyRepositoryImportError(error_message) from token_error
 
     def construct_payload(
         self,
@@ -194,7 +211,7 @@ class DestinyRepositoryContentUploader:
 
         """
         response = self.session.get(
-            f"{self.settings.REPOSITORY_ENDPOINT}/imports/batch/{import_batch_id}/"
+            f"{self.settings.REPOSITORY_ENDPOINT}imports/batch/{import_batch_id}/"
         )
         response.raise_for_status()
         import_batch_status = ImportBatchRead.model_validate(response.json())

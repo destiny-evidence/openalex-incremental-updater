@@ -68,7 +68,7 @@ class DestinyBlobStorageClient:
             blob_name=blob_name,
             account_key=self.settings.STORAGE_BLOB_ACCOUNT_KEY.get_secret_value(),
             permission=BlobSasPermissions(read=True),
-            expiry=datetime.now(tz=ZoneInfo("UTC")) + timedelta(hours=1),
+            expiry=datetime.now(tz=ZoneInfo("UTC")) + timedelta(hours=12),
         )
 
     def get_blob_sas_pair(self, blob_name: str) -> dict:
