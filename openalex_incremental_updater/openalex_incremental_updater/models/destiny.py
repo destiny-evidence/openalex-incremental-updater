@@ -39,11 +39,11 @@ class ExternalIdentifierType(StrEnum):
     class.
     **Allowed values**:
     - `doi`: A DOI (Digital Object Identifier) which is a unique identifier for a
-        document.
-    - `pmid`: A PubMed ID which is a unique identifier for a document in PubMed.
+        document. The identifier itself is a string.
+    - `pmid`: A PubMed ID which is a unique identifier for a document in PubMed. The identifier is an integer.
     - `openalex`: An OpenAlex ID which is a unique identifier for a document in
-        OpenAlex.
-    - `other`: Any other identifier not defined. This should be used sparingly.
+        OpenAlex. The identifier is a string.
+    - `other`: Any other identifier not defined. The identifier is a string.
     """
 
     DOI = "doi"
@@ -128,7 +128,7 @@ class DestinyOpenAlexWorkMetadata(BaseModel):
         default=None,
         description="The Microsoft Academic Graph ID of the work.",
     )
-    pubmed_id: str | None = Field(
+    pubmed_id: int | None = Field(
         default=None,
         description="The PubMed ID of the work.",
     )
@@ -344,8 +344,7 @@ def prepare_destiny_identifiers(metadata: DestinyOpenAlexWorkMetadata) -> list[d
             "identifier_type": ExternalIdentifierType.OPEN_ALEX.value,
             "identifier": metadata.openalex_id,
         }
-    ]
-
+    ]  # type: list[dict]
     if is_valid_nonempty_string(metadata.doi):
         destiny_work_identifiers.append(
             {
@@ -353,7 +352,7 @@ def prepare_destiny_identifiers(metadata: DestinyOpenAlexWorkMetadata) -> list[d
                 "identifier": metadata.doi,
             }
         )
-    if is_valid_nonempty_string(metadata.pubmed_id):
+    if metadata.pubmed_id is not None:
         destiny_work_identifiers.append(
             {
                 "identifier_type": ExternalIdentifierType.PM_ID.value,
@@ -578,6 +577,7 @@ def get_destiny_openalex_work(
             {
                 "identifier_type": ExternalIdentifierType.OTHER.value,
                 "identifier": metadata.microsoft_academic_graph,
+                "other_identifier_name": "Microsoft Academic Graph ID",
             }
         )
     if is_valid_nonempty_string(metadata.pubmed_central_id):
@@ -585,6 +585,7 @@ def get_destiny_openalex_work(
             {
                 "identifier_type": ExternalIdentifierType.OTHER.value,
                 "identifier": metadata.pubmed_central_id,
+                "other_identifier_name": "Pubmed Central ID",
             }
         )
     return core_destiny_work

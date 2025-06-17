@@ -332,3 +332,133 @@ def test_is_valid_nonempty_string(input_value: Any, *, expected_output: bool) ->
     assert (
         is_valid_nonempty_string(input_value) == expected_output
     ), "Confirm that valid strings return True and invalid strings return False"
+
+
+def test_pubmed_identifier_parsed_as_integer(
+    openalex_work_dict: dict,
+) -> None:
+    """
+    Test that the pubmed identifier is parsed as an integer in DestinyOpenAlexWork.
+
+    All other identifiers should be parsed as strings.
+    """
+    test_openalex_work_dict = openalex_work_dict.copy()
+    openalex_identifier = openalex_work_dict["ids"].get("openalex")
+    doi_identifier = openalex_work_dict["ids"].get("doi")
+    test_pmid_identifier = "123456789"
+    test_microsoft_academic_graph_identifier = "2222222222"
+    test_pubmed_central_identifier = "3333333333"
+
+    test_openalex_work_dict["ids"]["pmid"] = test_pmid_identifier
+    test_openalex_work_dict["ids"]["mag"] = test_microsoft_academic_graph_identifier
+    test_openalex_work_dict["ids"]["pmcid"] = test_pubmed_central_identifier
+
+    destiny_work = convert_openalex_to_destiny(test_openalex_work_dict)
+    destiny_pubmed_identifier = next(
+        identifier
+        for identifier in destiny_work.identifiers
+        if identifier["identifier_type"] == "pm_id"
+    )
+    destiny_openalex_identifier = next(
+        identifier
+        for identifier in destiny_work.identifiers
+        if identifier["identifier_type"] == "open_alex"
+    )
+    destiny_doi_identifier = next(
+        identifier
+        for identifier in destiny_work.identifiers
+        if identifier["identifier_type"] == "doi"
+    )
+    destiny_microsoft_academic_graph_identifier = next(
+        identifier
+        for identifier in destiny_work.identifiers
+        if identifier["identifier_type"] == "other"
+        and identifier["other_identifier_name"] == "Microsoft Academic Graph ID"
+    )
+    destiny_pubmed_central_identifier = next(
+        identifier
+        for identifier in destiny_work.identifiers
+        if identifier["identifier_type"] == "other"
+        and identifier["other_identifier_name"] == "Pubmed Central ID"
+    )
+
+    assert isinstance(
+        destiny_openalex_identifier["identifier"], str
+    ), "Expect that openalex_id is a string"
+    assert isinstance(
+        destiny_doi_identifier["identifier"], str
+    ), "Expect that doi_id is a string"
+    assert isinstance(
+        destiny_microsoft_academic_graph_identifier["identifier"], str
+    ), "Expect that mag_id is a string"
+    assert isinstance(
+        destiny_pubmed_central_identifier["identifier"], str
+    ), "Expect that pubmed_central_id is a string"
+    assert (
+        destiny_openalex_identifier["identifier"] == openalex_identifier
+    ), "Expect that openalex_id is parsed correctly"
+    assert (
+        destiny_doi_identifier["identifier"] == doi_identifier
+    ), "Expect that doi_id is parsed correctly"
+    assert (
+        destiny_microsoft_academic_graph_identifier["identifier"]
+        == test_microsoft_academic_graph_identifier
+    ), "Expect that mag_id is parsed correctly"
+    assert (
+        destiny_pubmed_central_identifier["identifier"]
+        == test_pubmed_central_identifier
+    ), "Expect that pubmed_central_id is parsed correctly"
+
+    assert isinstance(
+        destiny_pubmed_identifier["identifier"], int
+    ), "Expect that pubmed_id is an integer"
+    assert destiny_pubmed_identifier["identifier"] == int(
+        test_pmid_identifier
+    ), "Expect that pubmed_id is parsed correctly"
+
+
+def test_pubmed_identifier_none_case_handled(
+    openalex_work_dict: dict,
+) -> None:
+    """
+    Test that the pubmed identifier is parsed as an integer in DestinyOpenAlexWork.
+
+    All other identifiers should be parsed as strings.
+    """
+    test_openalex_work_dict = openalex_work_dict.copy()
+    openalex_identifier = openalex_work_dict["ids"].get("openalex")
+    doi_identifier = openalex_work_dict["ids"].get("doi")
+    test_pmid_identifier = None
+
+    test_openalex_work_dict["ids"]["pmid"] = test_pmid_identifier
+
+    destiny_work = convert_openalex_to_destiny(test_openalex_work_dict)
+
+    destiny_openalex_identifier = next(
+        identifier
+        for identifier in destiny_work.identifiers
+        if identifier["identifier_type"] == "open_alex"
+    )
+    destiny_doi_identifier = next(
+        identifier
+        for identifier in destiny_work.identifiers
+        if identifier["identifier_type"] == "doi"
+    )
+
+    assert isinstance(
+        destiny_openalex_identifier["identifier"], str
+    ), "Expect that openalex_id is a string"
+    assert isinstance(
+        destiny_doi_identifier["identifier"], str
+    ), "Expect that doi_id is a string"
+    assert (
+        destiny_openalex_identifier["identifier"] == openalex_identifier
+    ), "Expect that openalex_id is parsed correctly"
+    assert (
+        destiny_doi_identifier["identifier"] == doi_identifier
+    ), "Expect that doi_id is parsed correctly"
+
+    # Pubmed ID shouldn't be present if it is None
+    assert "pm_id" not in [
+        identifier["identifier_type"] for identifier in destiny_work.identifiers
+    ], "Expect that pm_id is not present if it is None"
