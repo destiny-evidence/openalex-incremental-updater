@@ -51,6 +51,12 @@ def convert_solr_to_destiny(solr_document: dict) -> DestinyOpenAlexWork:
     locations_list_of_dicts = json.loads(solr_document.get("locations", "[]"))
     topics_list_of_dicts = json.loads(solr_document.get("topics", "[]"))
 
+    pubmed_id = (
+        int(pubmed_id.rsplit("/", 1)[-1])
+        if isinstance(pubmed_id, str) and pubmed_id.startswith("http")
+        else pubmed_id
+    )
+
     work_metadata = DestinyOpenAlexWorkMetadata(
         is_retracted=is_retracted,
         doi=doi,
