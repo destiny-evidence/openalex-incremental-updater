@@ -18,7 +18,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV PATH="/root/.local/bin:$PATH"
 
-ARG GH_PAT
 ARG USE_SSH=false
 ENV USE_SSH=${USE_SSH}
 
@@ -39,18 +38,17 @@ RUN --mount=type=ssh \
     poetry install --no-interaction --no-ansi; \
   fi
 
-# HTTPS fallback install path for CI use
-RUN if [ "$USE_SSH" != "true" ] && [ -n "$GH_PAT" ]; then \
-    git config --global url."https://${GH_PAT}:x-oauth-basic@github.com/".insteadOf "git@github.com:" && \
+# HTTPS fallback install path for CI use using BuildKit secrets
+RUN --mount=type=secret,id=gh_pat \
+  if [ "$USE_SSH" != "true" ] && [ -f /run/secrets/gh_pat ]; then \
+    GH_PAT=$(cat /run/secrets/gh_pat) && \
+    cp pyproject.toml pyproject.toml.bak && \
+    sed "s|git@github.com:|https://${GH_PAT}@github.com/|g" pyproject.toml.bak > pyproject.toml && \
+    poetry lock && \
     poetry config virtualenvs.create false && \
-    poetry install --no-interaction --no-ansi; \
+    poetry install --no-interaction --no-ansi && \
+    mv pyproject.toml.bak pyproject.toml; \
   fi
 
-EXPOSE 8000
-
-# Cleanup of Git config if GH_PAT was set & used
-RUN if [ -n "$GH_PAT" ]; then \
-      git config --global --unset-all url."https://${GH_PAT}:x-oauth-basic@github.com/".insteadOf || true ; \
-    fi
 
 CMD ["poetry", "run", "uvicorn", "openalex_incremental_updater.main:app", "--host", "0.0.0.0", "--port", "8000"]
