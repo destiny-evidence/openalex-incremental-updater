@@ -23,9 +23,6 @@ ENV USE_SSH=${USE_SSH}
 
 WORKDIR /app
 
-ARG GH_PAT
-
-
 COPY pyproject.toml poetry.lock README.md /app/
 
 COPY openalex_incremental_updater /app/openalex_incremental_updater
