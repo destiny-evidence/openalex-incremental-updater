@@ -7,7 +7,7 @@ authors = ["Harry Moss <h.moss@ucl.ac.uk>"]
 description = ""
 name = "refresh-requester"
 readme = "README.md"
-version = "0.1.0"
+version = "0.2.0"
 
 [tool.poetry.dependencies]
 azure-core = "^1.32.0"
