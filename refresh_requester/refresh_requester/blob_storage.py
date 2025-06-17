@@ -41,7 +41,12 @@ class DestinyBlobStorageClient:
             list[str]: A list of blob names.
 
         """
-        logger.info("Listing all blobs in the storage container.")
+        if blob_path is None:
+            logger.info("Listing all blobs in the storage container.")
+        else:
+            logger.info(
+                f"Listing blobs in the storage container with filter: {blob_path}"
+            )
         container_client = self.blob_service_client.get_container_client(
             self.settings.STORAGE_BLOB_CONTAINER
         )
