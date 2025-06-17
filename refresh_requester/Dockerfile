@@ -17,7 +17,6 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 ENV PATH="/root/.local/bin:$PATH"
 
-ARG GH_PAT
 ARG USE_SSH=false
 ENV USE_SSH=${USE_SSH}
 WORKDIR /app
@@ -37,17 +36,15 @@ RUN --mount=type=ssh \
   fi
 
 # HTTPS fallback install path for CI use
-RUN if [ "$USE_SSH" != "true" ] && [ -n "$GH_PAT" ]; then \
-    git config --global url."https//${GH_PAT}:x-oauth-basic@github.com/".insteadOf "git@github.com:" && \
+RUN --mount=type=secret,id=gh_pat \
+  if [ "$USE_SSH" != "true" ] && [ -f /run/secrets/gh_pat ]; then \
+    GH_PAT=$(cat /run/secrets/gh_pat) && \
+    cp pyproject.toml pyproject.toml.bak && \
+    sed "s|git@github.com:|https://${GH_PAT}@github.com/|g" pyproject.toml.bak > pyproject.toml && \
+    poetry lock && \
     poetry config virtualenvs.create false && \
     poetry install --no-interaction --no-ansi; \
+    mv pyproject.toml.bak pyproject.toml; \
   fi
-
-RUN
-
-# Cleanup of Git config if GH_PAT was set & used
-RUN if [ -n "$GH_PAT" ]; then \
-      git config --global --unset-all url."https://${GH_PAT}:x-oauth-basic@github.com/".insteadOf || true ; \
-    fi
 
 CMD ["python", "refresh_requester/main.py"]
