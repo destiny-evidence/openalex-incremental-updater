@@ -1,5 +1,7 @@
+import uuid
 from datetime import date, timedelta
 
+from destiny_sdk.imports import ImportRecordRead
 from freezegun import freeze_time
 
 from refresh_requester.main import main
@@ -19,25 +21,49 @@ def test_main_success_no_fetch_date_set(mocker, test_settings) -> None:
     test_latest_blob_date = date_yesterday
     test_data = "test_data"
     test_blob = "test_blob"
-    check_prev_dates_mock = mocker.patch(
-        "refresh_requester.main.check_previous_file_dates",
+    test_id = uuid.uuid4()
+    test_batch_ids = [uuid.uuid4()]
+
+    test_import_record = ImportRecordRead(
+        id=test_id,
+        processor_name="test_processor",
+        processor_version="1.0.0",
+        expected_reference_count=-1,
+        source_name="test_source",
+        status="completed",
+        created_at=date_today,
+        updated_at=date_today,
+        fetch_date=test_latest_blob_date,
+        refresh_date=date_today,
+    )
+    get_fetch_date_mock = mocker.patch(
+        "refresh_requester.main.get_fetch_date",
         return_value=test_latest_blob_date,
     )
     run_refresh_job_mock = mocker.patch(
         "refresh_requester.main.run_refresh_job", return_value=test_data
     )
-    run_blob_upload_job_mock = mocker.patch(
-        "refresh_requester.main.run_blob_upload_job", return_value=test_blob
+    run_openalex_refresh_blob_upload_job_mock = mocker.patch(
+        "refresh_requester.main.run_openalex_refresh_blob_upload_job",
+        return_value=test_blob,
     )
-    upload_blob_storage_mock = mocker.patch(
-        "refresh_requester.main.upload_blob_storage_contents_to_repository"
+    upload_blob_storage_contents_to_repository_mock = mocker.patch(
+        "refresh_requester.main.upload_blob_storage_contents_to_repository",
+        return_value={
+            "import_record": test_import_record,
+            "import_batch_ids": test_batch_ids,
+        },
+    )
+    run_ingestion_metadata_blob_upload_job_mock = mocker.patch(
+        "refresh_requester.main.run_ingestion_metadata_blob_upload_job",
+        return_value=f"ingestion_metadata/{test_id}.jsonl",
     )
 
     assert settings.fetch_date is None, "fetch_date should be None in test settings"
     main(settings)
 
     (
-        check_prev_dates_mock.assert_called_once(),
+        get_fetch_date_mock.assert_called_once(),
         "check_previous_file_dates should be called once",
     )
     (
@@ -45,17 +71,21 @@ def test_main_success_no_fetch_date_set(mocker, test_settings) -> None:
         "run_refresh_job should be called with the correct date and no limit set",
     )
     (
-        run_blob_upload_job_mock.assert_called_once_with(
+        run_openalex_refresh_blob_upload_job_mock.assert_called_once_with(
             test_data, test_latest_blob_date, date_today
         ),
-        "run_blob_upload_job should be called with the correct data, date, and today's date",
+        "run_openalex_refresh_blob_upload_job should be called with the correct data, date, and today's date",
     )
     (
-        upload_blob_storage_mock.assert_called_once_with(
+        upload_blob_storage_contents_to_repository_mock.assert_called_once_with(
             settings, blob_to_upload=test_blob
         ),
         "should be called with the correct settings, max_retries, and blob to upload",
     )
+
+    assert (
+        run_ingestion_metadata_blob_upload_job_mock.call_count == 1
+    ), "run_ingestion_metadata_blob_upload_job should be called once at the end of the job"
 
 
 @freeze_time("2025-06-12")
@@ -71,38 +101,67 @@ def test_main_success_fetch_date_set_in_settings(mocker, test_settings) -> None:
     settings.fetch_date = date_yesterday
     test_data = "test_data"
     test_blob = "test_blob"
-    check_prev_dates_mock = mocker.patch(
-        "refresh_requester.main.check_previous_file_dates",
-        return_value=test_settings.fetch_date,
+
+    test_id = uuid.uuid4()
+    test_batch_ids = [uuid.uuid4()]
+
+    test_import_record = ImportRecordRead(
+        id=test_id,
+        processor_name="test_processor",
+        processor_version="1.0.0",
+        expected_reference_count=-1,
+        source_name="test_source",
+        status="completed",
+        created_at=date_today,
+        updated_at=date_today,
+        fetch_date=settings.fetch_date,
+        refresh_date=date_today,
+    )
+
+    check_previous_file_dates_mock = mocker.patch(
+        "refresh_requester.utils.check_previous_file_dates",
     )
     run_refresh_job_mock = mocker.patch(
         "refresh_requester.main.run_refresh_job", return_value=test_data
     )
-    run_blob_upload_job_mock = mocker.patch(
-        "refresh_requester.main.run_blob_upload_job", return_value=test_blob
+    run_openalex_refresh_blob_upload_job_mock = mocker.patch(
+        "refresh_requester.main.run_openalex_refresh_blob_upload_job",
+        return_value=test_blob,
     )
-    upload_blob_storage_mock = mocker.patch(
-        "refresh_requester.main.upload_blob_storage_contents_to_repository"
+    upload_blob_storage_contents_to_repository_mock = mocker.patch(
+        "refresh_requester.main.upload_blob_storage_contents_to_repository",
+        return_value={
+            "import_record": test_import_record,
+            "import_batch_ids": test_batch_ids,
+        },
+    )
+    run_ingestion_metadata_blob_upload_job_mock = mocker.patch(
+        "refresh_requester.main.run_ingestion_metadata_blob_upload_job",
+        return_value=f"ingestion_metadata/{test_id}.jsonl",
     )
 
     main(settings)
 
     assert (
-        check_prev_dates_mock.call_count == 0
-    ), "check_previous_file_dates should not be called"
+        check_previous_file_dates_mock.call_count == 0
+    ), "check_previous_file_dates should not be called when fetch_date is set in settings"
     (
-        run_refresh_job_mock.assert_called_once_with(settings.fetch_date, limit=None),
+        run_refresh_job_mock.assert_called_once_with(date_yesterday, limit=None),
         "run_refresh_job should be called with the correct date and no limit set",
     )
     (
-        run_blob_upload_job_mock.assert_called_once_with(
+        run_openalex_refresh_blob_upload_job_mock.assert_called_once_with(
             test_data, settings.fetch_date, date_today
         ),
-        "run_blob_upload_job should be called with the correct data, date, and today's date",
+        "run_openalex_refresh_blob_upload_job should be called with the correct data, date, and today's date",
     )
+
     (
-        upload_blob_storage_mock.assert_called_once_with(
+        upload_blob_storage_contents_to_repository_mock.assert_called_once_with(
             settings, blob_to_upload=test_blob
         ),
         "should be called with the correct settings, max_retries, and blob to upload",
     )
+    assert (
+        run_ingestion_metadata_blob_upload_job_mock.call_count == 1
+    ), "run_ingestion_metadata_blob_upload_job should be called once at the end of the job"

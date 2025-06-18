@@ -88,15 +88,14 @@ def test_blob_upload_success(mocker, test_settings):
     test_data = (
         '{"key1": "value1", "key2": "value2"},{"key3": "value3", "key4": "value4"}'
     )
-    test_updated_date = date(2025, 3, 1)
-    test_fetch_date = date(2025, 2, 27)
+    test_filename = "a_test_path/to_a/test_blob.jsonl"
     mock_blob_client = mocker.Mock()
     mock_blob_service = mocker.patch("refresh_requester.blob_storage.BlobServiceClient")
 
     mock_blob_service.return_value.get_blob_client.return_value = mock_blob_client
 
-    blob_upload(test_data, test_fetch_date, test_updated_date)
-
+    result = blob_upload(test_data, test_filename)
+    assert result == test_filename, "Check that the returned filename matches the input"
     mock_blob_client.upload_blob.assert_called_once_with(test_data, overwrite=True)
 
 
@@ -114,8 +113,7 @@ def test_blob_upload_success(mocker, test_settings):
 def test_blob_upload_failure(mocker, test_settings, exception):
     """Test failed blob upload."""
     test_data = {"key1": "value1", "key2": "value2"}
-    test_updated_date = date(2025, 3, 1)
-    test_fetch_date = date(2025, 2, 27)
+    test_filename = "a_test_path/to_a/test_blob.jsonl"
 
     mock_blob_client = mocker.Mock()
     mock_blob_client.upload_blob.side_effect = exception("Test uploading error")
@@ -128,7 +126,7 @@ def test_blob_upload_failure(mocker, test_settings, exception):
     )
 
     with pytest.raises(BlobUploadError) as error:
-        blob_upload(test_data, test_fetch_date, test_updated_date)
+        blob_upload(test_data, test_filename)
     assert "Test uploading error" in str(error.value)
 
 

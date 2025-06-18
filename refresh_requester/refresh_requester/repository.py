@@ -275,8 +275,10 @@ class DestinyRepositoryContentUploader:
 
 
 def upload_blob_storage_contents_to_repository(
-    settings: Settings, blob_to_upload: str | None = None
-) -> list[UUID4]:
+    settings: Settings,
+    blob_to_upload: str | None = None,
+    blob_content_source: ImportSourceType = ImportSourceType.OPEN_ALEX,
+) -> dict:
     """
     Upload all blob storage contents to the DESTINY repository.
 
@@ -287,13 +289,12 @@ def upload_blob_storage_contents_to_repository(
             If None, all blobs in the container will be uploaded. Defaults to None.
 
     Returns:
-        list[UUID4]: A list of UUIDs representing the IDs of the import batches created for each blob.
+        dict: A dictionary containing the import record and a list of import batch IDs.
 
     """
     blob_client = DestinyBlobStorageClient()
     blob_url_pairs = blob_client.get_all_blob_url_pairs(blob_to_upload)
     uploader = DestinyRepositoryContentUploader(settings)
-    blob_content_source = ImportSourceType.OPEN_ALEX
     import_record = uploader.register_new_import(source_type=blob_content_source)
 
     import_batch_ids = []  # type: list[UUID4]
@@ -308,4 +309,4 @@ def upload_blob_storage_contents_to_repository(
 
     uploader.finalise_import_record(import_record.id)
 
-    return import_batch_ids
+    return {"import_record": import_record, "import_batch_ids": import_batch_ids}
