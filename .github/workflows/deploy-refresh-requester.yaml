@@ -33,7 +33,7 @@ jobs:
           DOCKER_BUILDKIT: 1
       - run: |
           export TAG=${{ github.event.inputs.imageTag || github.sha }}
-          docker build --secret id=gh_pat,src=<(echo "${{ secrets.GH_PAT }}") -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${TAG} refresh_requester/
+          docker build -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${TAG} refresh_requester/
           docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${TAG}
 
       - name: Deploy to Azure Container App Jobs
