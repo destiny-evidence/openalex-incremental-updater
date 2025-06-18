@@ -66,14 +66,13 @@ class DestinyBlobStorageClient:
             str: The generated SAS token for the specified blob.
 
         """
-        logger.info(f"Generating SAS token for blob: {blob_name}")
         return generate_blob_sas(
             account_name=self.settings.STORAGE_BLOB_ACCOUNT,
             container_name=self.settings.STORAGE_BLOB_CONTAINER,
             blob_name=blob_name,
             account_key=self.settings.STORAGE_BLOB_ACCOUNT_KEY.get_secret_value(),
             permission=BlobSasPermissions(read=True),
-            expiry=datetime.now(tz=ZoneInfo("UTC")) + timedelta(hours=12),
+            expiry=datetime.now(tz=ZoneInfo("UTC")) + timedelta(hours=72),
         )
 
     def get_blob_sas_pair(self, blob_name: str) -> dict:
@@ -137,21 +136,18 @@ def get_blob_service_client() -> BlobServiceClient:
         raise BlobUploadError(error_message) from azure_error
 
 
-def blob_upload(data: str, fetch_date: date, refresh_date: date) -> str:
+def blob_upload(data: str, filename: str) -> str:
     """
-    Upload the refresh response to blob storage.
+    Upload data to blob storage.
 
     Args:
         data (str): The response from the API, converted to JSON-lines
-        refresh_date (date): The date at which the data was fetched
+        filename (str): The name of the file to upload
 
     Returns:
         str: The filename of the uploaded blob
 
     """
-    filename = (
-        f"openalex_refresh_from_date_{fetch_date}_refreshed_on_{refresh_date}.jsonl"
-    )
     try:
         blob_service_client = get_blob_service_client()
 
