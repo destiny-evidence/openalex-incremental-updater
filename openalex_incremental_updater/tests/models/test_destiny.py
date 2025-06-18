@@ -12,6 +12,7 @@ from openalex_incremental_updater.models.destiny import (
     convert_openalex_to_destiny,
     get_destiny_openalex_work,
     is_valid_nonempty_string,
+    strip_url_prefix,
 )
 
 
@@ -21,7 +22,7 @@ def test_destiny_openalex_work_valid_from_valid_openalex_work_dict(
     expected_creation_date = datetime(2025, 1, 1, tzinfo=ZoneInfo("UTC")).date()
     expected_creation_date_string = expected_creation_date.isoformat()
     expected_publication_year = expected_creation_date.year
-    expected_openalex_id = openalex_work_dict["ids"]["openalex"]
+    expected_openalex_id = openalex_work_dict["ids"]["openalex"].rsplit("/", 1)[-1]
     expected_abstract = convert_inverted_abstract(
         openalex_work_dict["abstract_inverted_index"]
     )
@@ -91,7 +92,7 @@ def test_destiny_openalex_work_unexpected_fields_ignored_success(
     In this way, if DestinyOpenAlex adds additional fields to their API response, we can be more confident
     our pipeline will not break due to unexpected fields, as long as required fields are still present.
     """
-    expected_openalex_id = openalex_work_dict["ids"]["openalex"]
+    expected_openalex_id = openalex_work_dict["ids"]["openalex"].rsplit("/", 1)[-1]
     invalid_openalex_work_dict = openalex_work_dict.copy()
     invalid_openalex_work_dict.update(
         {"an_unexpected_field": "This should not be here"}
@@ -118,7 +119,7 @@ def test_destiny_openalex_work_missing_identifier_fields_ignored(
     openalex_work_dict: dict, missing_field: str, missing_field_value: None | str
 ) -> None:
     """Test that empty identifier fields are ignored when creating an DestinyOpenAlexWork object."""
-    expected_openalex_id = openalex_work_dict["ids"]["openalex"]
+    expected_openalex_id = openalex_work_dict["ids"]["openalex"].rsplit("/", 1)[-1]
     invalid_openalex_work_dict = openalex_work_dict.copy()
     invalid_openalex_work_dict["ids"][missing_field] = missing_field_value
 
@@ -146,7 +147,7 @@ def test_get_destiny_openalex_work_success(
 ) -> None:
     """Test that the get_destiny_openalex_work function returns a DestinyOpenAlexWorkMetadata object."""
     correct_source_for_openalex_input = "openalex"
-    expected_openalex_id = openalex_work_dict["ids"]["openalex"]
+    expected_openalex_id = openalex_work_dict["ids"]["openalex"].rsplit("/", 1)[-1]
     expected_abstract = "This is an example abstract"
     expected_abstract_process = "uninverted"
 
@@ -161,7 +162,7 @@ def test_get_destiny_openalex_work_success(
     processor_version = "initial_openalex_import"
     if ids_dict:
         doi = ids_dict.get("doi")
-        openalex_id = ids_dict.get("openalex")
+        openalex_id = ids_dict.get("openalex").rsplit("/", 1)[-1]
         microsoft_academic_graph = ids_dict.get("mag")
         pubmed_id = ids_dict.get("pmid")
         pubmed_central_id = ids_dict.get("pmcid")
@@ -219,7 +220,7 @@ def test_get_destiny_openalex_work_blank_abstract_from_openalex_input_with_incor
     data, the abstract is not set and does not appear as an enhancement.
     """
     bad_source_for_openalex_input = "pik_solr"
-    expected_openalex_id = openalex_work_dict["ids"]["openalex"]
+    expected_openalex_id = openalex_work_dict["ids"]["openalex"].rsplit("/", 1)[-1]
     openalex_work_dict_locations = next(iter(openalex_work_dict.get("locations", {})))
     openalex_work_locations_with_null_values_removed = {
         key: value
@@ -254,7 +255,7 @@ def test_get_destiny_openalex_work_blank_abstract_from_openalex_input_with_incor
     processor_version = "initial_openalex_import"
     if ids_dict:
         doi = ids_dict.get("doi")
-        openalex_id = ids_dict.get("openalex")
+        openalex_id = ids_dict.get("openalex").rsplit("/", 1)[-1]
         microsoft_academic_graph = ids_dict.get("mag")
         pubmed_id = ids_dict.get("pmid")
         pubmed_central_id = ids_dict.get("pmcid")
@@ -343,7 +344,7 @@ def test_pubmed_identifier_parsed_as_integer(
     All other identifiers should be parsed as strings.
     """
     test_openalex_work_dict = openalex_work_dict.copy()
-    openalex_identifier = openalex_work_dict["ids"].get("openalex")
+    openalex_identifier = openalex_work_dict["ids"].get("openalex").rsplit("/", 1)[-1]
     doi_identifier = openalex_work_dict["ids"].get("doi")
     test_pmid_identifier = "https://pubmed.ncbi.nlm.nih.gov/123456789"
     test_microsoft_academic_graph_identifier = "2222222222"
@@ -428,7 +429,7 @@ def test_pubmed_identifier_none_case_handled(
     All other identifiers should be parsed as strings.
     """
     test_openalex_work_dict = openalex_work_dict.copy()
-    openalex_identifier = openalex_work_dict["ids"].get("openalex")
+    openalex_identifier = openalex_work_dict["ids"].get("openalex").rsplit("/", 1)[-1]
     doi_identifier = openalex_work_dict["ids"].get("doi")
     test_pmid_identifier = None
 
@@ -475,7 +476,7 @@ def test_pubmed_central_identifier_masquerading_as_pubmed_id(
     All other identifiers should be parsed as strings.
     """
     test_openalex_work_dict = openalex_work_dict.copy()
-    openalex_identifier = openalex_work_dict["ids"].get("openalex")
+    openalex_identifier = openalex_work_dict["ids"].get("openalex").rsplit("/", 1)[-1]
     doi_identifier = openalex_work_dict["ids"].get("doi")
     test_pmid_identifier = "PMCID123456789"
 
@@ -511,3 +512,23 @@ def test_pubmed_central_identifier_masquerading_as_pubmed_id(
     assert "pm_id" not in [
         identifier["identifier_type"] for identifier in destiny_work.identifiers
     ], "Expect that pm_id is not present if it is None"
+
+
+@pytest.mark.parametrize(
+    ("url", "expected_output"),
+    [
+        ("https://example.com/path", "path"),
+        ("https://example.com/path/subdirectory/W123456789", "W123456789"),
+        ("http://example.com/path", "path"),
+        ("ftp://example.com/path", "ftp://example.com/path"),
+        ("example.com/path", "example.com/path"),
+        ("https://", ""),
+        ("", ""),
+        (None, None),
+    ],
+)
+def test_strip_url_prefix(url: str, expected_output: str) -> None:
+    """Test the strip_url_prefix function."""
+    assert (
+        strip_url_prefix(url) == expected_output
+    ), f"Expected {expected_output} for {url}"

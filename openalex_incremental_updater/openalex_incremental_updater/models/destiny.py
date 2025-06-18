@@ -234,6 +234,26 @@ class DestinyOpenAlexWork(BaseModel):
         return self
 
 
+def strip_url_prefix(url: str | None) -> str | None:
+    """
+    Strip the URL prefix from a given URL.
+
+    Args:
+        url (str | None): The URL to strip.
+
+    Returns:
+        str | None: The stripped URL or None if the input is None.
+
+    """
+    if url is None:
+        return None
+    return (
+        url.rsplit("/", 1)[-1]
+        if isinstance(url, str) and url.startswith("http")
+        else url
+    )
+
+
 def convert_openalex_to_destiny(
     openalex_work: dict,
 ) -> DestinyOpenAlexWork:
@@ -269,12 +289,10 @@ def convert_openalex_to_destiny(
         pubmed_id_candidate = None
         pubmed_central_id = None
 
-    pubmed_id_string = (
-        int(pubmed_id_candidate.rsplit("/", 1)[-1])
-        if isinstance(pubmed_id_candidate, str)
-        and pubmed_id_candidate.startswith("http")
-        else pubmed_id_candidate
-    )
+    openalex_id = strip_url_prefix(openalex_id)
+
+    pubmed_id_string = strip_url_prefix(pubmed_id_candidate)
+
     if pubmed_id_string is not None:
         try:
             pubmed_id = int(pubmed_id_string)
