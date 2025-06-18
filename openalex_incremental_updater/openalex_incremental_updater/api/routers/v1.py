@@ -41,7 +41,7 @@ async def get_openalex_works_ingest_from_date(
 
     Args:
         fetch_date (date): Date to fetch data from. Must be in the format YYYY-MM-DD.
-        ingest_type (str): Method of determining ingest data. Must be one of "created" or "updated".
+        ingest_type (CreatedOrUpdated): Method of determining ingest data. Must be one of "created" or "updated".
         limit (int): Maximum number of records to ingest.
 
     Returns:
