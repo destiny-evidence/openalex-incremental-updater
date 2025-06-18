@@ -3,7 +3,7 @@
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "5e4d9f9d7114ae7882d1e719c41bf7801b25476e5ab18dbacd8b7cd248ff33f4"
+content-hash = "aa43231e883611897a80120a0c58686d04bb3972dcc91474e36e5b34932191c9"
 
 [[package]]
 name = "annotated-types"
@@ -442,9 +442,9 @@ python-jose = "^3.4.0"
 
 [package.source]
 type = "git"
-url = "ssh://git@github.com/destiny-evidence/destiny-repository.git"
+url = "https://github.com/destiny-evidence/destiny-repository.git"
 reference = "HEAD"
-resolved_reference = "ab79220a432a696eb2cc5c90cf8585d3a02b1d25"
+resolved_reference = "694e8cd50a36c817eca737b4e220bbce1f5d9fc1"
 subdirectory = "libs/sdk"
 
 [[package]]
