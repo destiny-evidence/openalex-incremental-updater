@@ -55,12 +55,15 @@ class DestinyBlobStorageClient:
             for blob in container_client.list_blobs(name_starts_with=blob_path)
         ]
 
-    def get_single_blob_sas_token(self, blob_name: str) -> str:
+    def get_single_blob_sas_token(
+        self, blob_name: str, token_expiry_hours: int = 72
+    ) -> str:
         """
         Generate a SAS token for a single blob.
 
         Args:
             blob_name (str): The name of the blob to generate a SAS token for.
+            token_expiry_hours (int): The number of hours until the SAS token expires. Default is 72 hours.
 
         Returns:
             str: The generated SAS token for the specified blob.
@@ -72,7 +75,8 @@ class DestinyBlobStorageClient:
             blob_name=blob_name,
             account_key=self.settings.STORAGE_BLOB_ACCOUNT_KEY.get_secret_value(),
             permission=BlobSasPermissions(read=True),
-            expiry=datetime.now(tz=ZoneInfo("UTC")) + timedelta(hours=72),
+            expiry=datetime.now(tz=ZoneInfo("UTC"))
+            + timedelta(hours=token_expiry_hours),
         )
 
     def get_blob_sas_pair(self, blob_name: str) -> dict:
