@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from openalex_incremental_updater.models.destiny import (
+    DataSource,
     DestinyOpenAlexWork,
     DestinyOpenAlexWorkMetadata,
     convert_inverted_abstract,
@@ -146,7 +147,7 @@ def test_get_destiny_openalex_work_success(
     openalex_work_dict: dict,
 ) -> None:
     """Test that the get_destiny_openalex_work function returns a DestinyOpenAlexWorkMetadata object."""
-    correct_source_for_openalex_input = "openalex"
+    correct_source_for_openalex_input = DataSource.OPEN_ALEX
     expected_openalex_id = openalex_work_dict["ids"]["openalex"].rsplit("/", 1)[-1]
     expected_abstract = "This is an example abstract"
     expected_abstract_process = "uninverted"
@@ -186,7 +187,7 @@ def test_get_destiny_openalex_work_success(
         processor_version=processor_version,
     )
     work = get_destiny_openalex_work(
-        work_metadata, openalex_work_dict, source=correct_source_for_openalex_input
+        work_metadata, openalex_work_dict, data_source=correct_source_for_openalex_input
     )
 
     assert isinstance(
@@ -219,7 +220,7 @@ def test_get_destiny_openalex_work_blank_abstract_from_openalex_input_with_incor
     This test checks that when the source is not set to 'openalex' for openalex-type (inverted abstract)
     data, the abstract is not set and does not appear as an enhancement.
     """
-    bad_source_for_openalex_input = "pik_solr"
+    bad_source_for_openalex_input = DataSource.SOLR
     expected_openalex_id = openalex_work_dict["ids"]["openalex"].rsplit("/", 1)[-1]
     openalex_work_dict_locations = next(iter(openalex_work_dict.get("locations", {})))
     openalex_work_locations_with_null_values_removed = {
@@ -279,7 +280,7 @@ def test_get_destiny_openalex_work_blank_abstract_from_openalex_input_with_incor
         processor_version=processor_version,
     )
     work = get_destiny_openalex_work(
-        work_metadata, openalex_work_dict, source=bad_source_for_openalex_input
+        work_metadata, openalex_work_dict, data_source=bad_source_for_openalex_input
     )
 
     work_annotations = next(

@@ -20,6 +20,21 @@ class UrlModel(BaseModel):
     )
 
 
+class DataSource(StrEnum):
+    """
+    The source of the data.
+
+    This is used to identify the source of the data in the `ExternalIdentifier`
+    class.
+    **Allowed values**:
+    - `openalex`: The OpenAlex data source.
+    - `solr`: The Solr data source.
+    """
+
+    OPEN_ALEX = "openalex"
+    SOLR = "pik-solr"
+
+
 class Visibility(StrEnum):
     """
     The visibility of a data element in the repository.
@@ -328,13 +343,15 @@ def convert_openalex_to_destiny(
         processor_version=processor_version,
     )
 
-    return get_destiny_openalex_work(work_metadata, openalex_work, source="openalex")
+    return get_destiny_openalex_work(
+        work_metadata, openalex_work, data_source=DataSource.OPEN_ALEX
+    )
 
 
 def create_core_destiny_openalex_work(
     metadata: DestinyOpenAlexWorkMetadata,
     destiny_work_identifiers: list[dict],
-    source: str,
+    data_source: DataSource,
     source_document: dict,
 ) -> DestinyOpenAlexWork:
     """
@@ -343,7 +360,7 @@ def create_core_destiny_openalex_work(
     Args:
         metadata (DestinyOpenAlexWorkMetadata): DestinyOpenAlexWorkMetadata object containing metadata.
         destiny_work_identifiers (list[dict]): List of identifiers for the work.
-        source (str, optional): Source of the metadata, default is "openalex".
+        data_source (DataSource): Source of the metadata.
         source_document (dict | None, optional): Source document containing the data of interest.
 
     Returns:
@@ -355,7 +372,7 @@ def create_core_destiny_openalex_work(
         identifiers=destiny_work_identifiers,
         enhancements=[
             {
-                "source": source,
+                "source": data_source.value,
                 "visibility": Visibility.RESTRICTED.value
                 if metadata.is_retracted
                 else Visibility.PUBLIC.value,
@@ -494,7 +511,7 @@ def prepare_destiny_annotations(metadata: DestinyOpenAlexWorkMetadata) -> list[d
 
 
 def prepare_destiny_work_abstract_annotation(
-    source: str,
+    data_source: DataSource,
     source_document: dict,
 ) -> dict:
     """
@@ -503,7 +520,7 @@ def prepare_destiny_work_abstract_annotation(
     This function creates the abstract content based on the source and source document.
 
     Args:
-        source (str): The source of the document, e.g., "openalex".
+        data_source (DataSource): The source of the data coming in.
         source_document (dict): The source document containing the abstract data.
 
     Returns:
@@ -513,12 +530,12 @@ def prepare_destiny_work_abstract_annotation(
     return {
         "enhancement_type": EnhancementType.ABSTRACT.value,
         "process": AbstractProcessType.UNINVERTED.value
-        if source == "openalex"
+        if data_source == DataSource.OPEN_ALEX
         else AbstractProcessType.OTHER.value,
         "abstract": convert_inverted_abstract(
             source_document.get("abstract_inverted_index", "")
         )
-        if source == "openalex"
+        if data_source == DataSource.OPEN_ALEX
         else source_document.get("abstract", ""),
     }
 
@@ -526,7 +543,7 @@ def prepare_destiny_work_abstract_annotation(
 def get_destiny_openalex_work(
     metadata: DestinyOpenAlexWorkMetadata,
     source_document: dict,
-    source: str = "openalex",
+    data_source: DataSource = DataSource.OPEN_ALEX,
 ) -> DestinyOpenAlexWork:
     """
     Get a DestinyOpenAlexWork object from provided metadata.
@@ -535,7 +552,7 @@ def get_destiny_openalex_work(
         metadata (dict): A dictionary containing metadata for the OpenAlex work.
         source_document (dict): The source document containing the data of interest.
             This could be dervied from an OpenAlex work, Solr or similar.
-        source (str): The source of the metadata, default is "openalex".
+        data_source (DataSource, optional): The source of the metadata, default is DataSource.OPEN_ALEX.
 
     Returns:
         DestinyOpenAlexWork: An instance of DestinyOpenAlexWork populated with the metadata.
@@ -546,7 +563,7 @@ def get_destiny_openalex_work(
     destiny_work_locations = prepare_destiny_locations(metadata)
     destiny_work_annotations = prepare_destiny_annotations(metadata)
     destiny_work_abstract = prepare_destiny_work_abstract_annotation(
-        source, source_document
+        data_source, source_document
     )
 
     authors_dict_not_empty = any(
@@ -565,7 +582,7 @@ def get_destiny_openalex_work(
     core_destiny_work = create_core_destiny_openalex_work(
         metadata=metadata,
         destiny_work_identifiers=destiny_work_identifiers,
-        source=source,
+        data_source=data_source,
         source_document=source_document,
     )
 
@@ -577,7 +594,7 @@ def get_destiny_openalex_work(
     if is_valid_nonempty_string(destiny_work_abstract.get("abstract")):
         core_destiny_work.enhancements.append(
             {
-                "source": source,
+                "source": data_source.value,
                 "visibility": Visibility.RESTRICTED.value
                 if metadata.is_retracted
                 else Visibility.PUBLIC.value,
@@ -590,7 +607,7 @@ def get_destiny_openalex_work(
     if locations_content_populated:
         core_destiny_work.enhancements.append(
             {
-                "source": source,
+                "source": data_source.value,
                 "visibility": Visibility.RESTRICTED.value
                 if metadata.is_retracted
                 else Visibility.PUBLIC.value,
@@ -606,7 +623,7 @@ def get_destiny_openalex_work(
     if annotation_content_populated:
         core_destiny_work.enhancements.append(
             {
-                "source": source,
+                "source": data_source.value,
                 "visibility": Visibility.RESTRICTED.value
                 if metadata.is_retracted
                 else Visibility.PUBLIC.value,
