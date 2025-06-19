@@ -40,6 +40,6 @@ jobs:
         run: |
           export TAG=${{ github.event.inputs.imageTag || github.sha }}
           az containerapp job update \
-            --name ${{ secrets.CONTAINER_APP_NAME }} \
+            --name ${{ secrets.CONTAINER_APP_JOB_NAME }} \
             --resource-group ${{ secrets.RESOURCE_GROUP }} \
             --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:$TAG

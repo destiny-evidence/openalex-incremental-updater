@@ -12,7 +12,7 @@ from azure.core.exceptions import (
     ServiceRequestError,
 )
 from azure.identity import DefaultAzureCredential
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob import BlobSasPermissions, BlobServiceClient, generate_blob_sas
 from loguru import logger
 
 from refresh_requester.config import get_settings
@@ -20,6 +20,99 @@ from refresh_requester.config import get_settings
 
 class BlobUploadError(Exception):
     """Blob Upload Error."""
+
+
+class DestinyBlobStorageClient:
+    """A client for interacting with Blobs within the internal Azure Blob Storage Containers."""
+
+    def __init__(self) -> None:
+        """Class constructor."""
+        self.blob_service_client = get_blob_service_client()
+        self.settings = get_settings()
+
+    def list_all_blobs(self, blob_path: str | None = None) -> list[str]:
+        """
+        List all blobs in the storage container.
+
+        Args:
+            blob_path (str | None): Optional path to filter blobs by. If None, all blobs are returned.
+
+        Returns:
+            list[str]: A list of blob names.
+
+        """
+        if blob_path is None:
+            logger.info("Listing all blobs in the storage container.")
+        else:
+            logger.info(
+                f"Listing blobs in the storage container with filter: {blob_path}"
+            )
+        container_client = self.blob_service_client.get_container_client(
+            self.settings.STORAGE_BLOB_CONTAINER
+        )
+        return [
+            blob.name
+            for blob in container_client.list_blobs(name_starts_with=blob_path)
+        ]
+
+    def get_single_blob_sas_token(
+        self, blob_name: str, token_expiry_hours: int = 72
+    ) -> str:
+        """
+        Generate a SAS token for a single blob.
+
+        Args:
+            blob_name (str): The name of the blob to generate a SAS token for.
+            token_expiry_hours (int): The number of hours until the SAS token expires. Default is 72 hours.
+
+        Returns:
+            str: The generated SAS token for the specified blob.
+
+        """
+        return generate_blob_sas(
+            account_name=self.settings.STORAGE_BLOB_ACCOUNT,
+            container_name=self.settings.STORAGE_BLOB_CONTAINER,
+            blob_name=blob_name,
+            account_key=self.settings.STORAGE_BLOB_ACCOUNT_KEY.get_secret_value(),
+            permission=BlobSasPermissions(read=True),
+            expiry=datetime.now(tz=ZoneInfo("UTC"))
+            + timedelta(hours=token_expiry_hours),
+        )
+
+    def get_blob_sas_pair(self, blob_name: str) -> dict:
+        """
+        Get the SAS URL for a blob.
+
+        Args:
+            blob_name (str): The name of the blob to get the SAS URL for.
+
+        Returns:
+            dict: A dictionary containing the blob name and its corresponding SAS URL.
+
+        """
+        logger.info(f"Generating SAS token for blob: {blob_name}")
+        sas_token = self.get_single_blob_sas_token(blob_name)
+        sas_url = f"https://{self.settings.STORAGE_BLOB_ACCOUNT}.blob.core.windows.net/{self.settings.STORAGE_BLOB_CONTAINER}/{blob_name}?{sas_token}"
+
+        return {"blob_name": blob_name, "sas_url": sas_url}
+
+    def get_all_blob_url_pairs(self, blob_path: str | None = None) -> list[dict]:
+        """
+        Get all blob names and their corresponding SAS URLs.
+
+        Args:
+            blob_path (str | None): Optional path to filter blobs by. If None, all blobs are returned.
+
+        Returns:
+            list[dict]: A list of dictionaries, each containing a blob name and its corresponding SAS URL.
+
+        """
+        all_blob_sas_pairs = []
+        blobs_list = self.list_all_blobs(blob_path)
+        for blob in blobs_list:
+            blob_sas_pair = self.get_blob_sas_pair(blob)
+            all_blob_sas_pairs.append(blob_sas_pair)
+        return all_blob_sas_pairs
 
 
 def get_blob_service_client() -> BlobServiceClient:
@@ -47,18 +140,18 @@ def get_blob_service_client() -> BlobServiceClient:
         raise BlobUploadError(error_message) from azure_error
 
 
-def blob_upload(data: str, fetch_date: date, refresh_date: date) -> None:
+def blob_upload(data: str, filename: str) -> str:
     """
-    Upload the refresh response to blob storage.
+    Upload data to blob storage.
 
     Args:
         data (str): The response from the API, converted to JSON-lines
-        refresh_date (date): The date at which the data was fetched
+        filename (str): The name of the file to upload
+
+    Returns:
+        str: The filename of the uploaded blob
 
     """
-    filename = (
-        f"openalex_refresh_from_date_{fetch_date}_refreshed_on_{refresh_date}.jsonl"
-    )
     try:
         blob_service_client = get_blob_service_client()
 
@@ -85,6 +178,7 @@ def blob_upload(data: str, fetch_date: date, refresh_date: date) -> None:
         error_message = f"Error uploading refresh response: {value_error}"
         logger.error(error_message)
         raise BlobUploadError(error_message) from value_error
+    return filename
 
 
 def list_blobs_in_storage() -> list[str]:

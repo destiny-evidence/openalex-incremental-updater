@@ -3,7 +3,7 @@
 from datetime import date
 from http import HTTPStatus
 
-from pydantic import Field, HttpUrl
+from pydantic import Field, HttpUrl, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from requests import Session
 from requests.adapters import HTTPAdapter, Retry
@@ -43,6 +43,18 @@ class Settings(BaseSettings):
     STORAGE_BLOB_CONTAINER: str = Field(
         ...,
         description="The container for the Azure Storage Blob",
+    )
+    STORAGE_BLOB_ACCOUNT_KEY: SecretStr = Field(
+        ...,
+        description="The account key for the Azure Storage Blob",
+    )
+    TOKEN_ENDPOINT: HttpUrl = Field(
+        ...,
+        description="The endpoint for Destiny Repository API token requests",
+    )
+    REPOSITORY_ENDPOINT: HttpUrl = Field(
+        ...,
+        description="The endpoint for the Destiny Repository API",
     )
     limit: int | None = None
     fetch_date: date | None = None
