@@ -215,9 +215,7 @@ class DestinyRepositoryContentUploader:
         )
         response.raise_for_status()
         import_batch_status = ImportBatchRead.model_validate(response.json())
-        completed = import_batch_status.status == "completed"
-        logger.info(f"Import completed? {completed}")
-        return completed
+        return import_batch_status.status == "completed"
 
     def get_import_batch_summary(self, import_batch_id: UUID4) -> ImportBatchSummary:
         """
