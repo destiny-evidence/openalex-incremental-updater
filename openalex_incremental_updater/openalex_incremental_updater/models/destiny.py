@@ -4,11 +4,20 @@ from enum import StrEnum
 from typing import Literal, Self
 
 from loguru import logger
-from pydantic import (
-    BaseModel,
-    Field,
-    model_validator,
-)
+from pydantic import AnyHttpUrl, BaseModel, Field, ValidationError, model_validator
+
+
+class UrlModel(BaseModel):
+    """
+    A model for validating URLs.
+
+    This model is used to validate URLs in the `ExternalIdentifier` class.
+    It ensures that the URL is a valid HTTP or HTTPS URL.
+    """
+
+    url: AnyHttpUrl = Field(
+        description="A valid HTTP or HTTPS URL.",
+    )
 
 
 class Visibility(StrEnum):
@@ -234,12 +243,12 @@ class DestinyOpenAlexWork(BaseModel):
         return self
 
 
-def strip_url_prefix(url: str | None) -> str | None:
+def strip_url_prefix(url: AnyHttpUrl | None) -> str | None:
     """
     Strip the URL prefix from a given URL.
 
     Args:
-        url (str | None): The URL to strip.
+        url (AnyHttpUrl | None): The URL to strip.
 
     Returns:
         str | None: The stripped URL or None if the input is None.
@@ -247,11 +256,13 @@ def strip_url_prefix(url: str | None) -> str | None:
     """
     if url is None:
         return None
-    return (
-        url.rsplit("/", 1)[-1]
-        if isinstance(url, str) and url.startswith("http")
-        else url
-    )
+
+    try:
+        validated_url_model = UrlModel(url=url)
+        validated_url = str(validated_url_model.url)
+        return validated_url.rsplit("/", 1)[-1]
+    except ValidationError:
+        return str(url)
 
 
 def convert_openalex_to_destiny(
