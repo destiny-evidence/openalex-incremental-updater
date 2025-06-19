@@ -7,7 +7,10 @@ from openalex_incremental_updater.models.destiny import DestinyOpenAlexWork
 def destiny_work_dict(set_test_environment_variables: None) -> dict:
     return {
         "visibility": "public",
-        "identifiers": [{"identifier_type": "doi", "identifier": "10.1234/sampledoi"}],
+        "identifiers": [
+            {"identifier_type": "doi", "identifier": "10.1234/sampledoi"},
+            {"identifier_type": "openalex", "identifier": "W1234567890"},
+        ],
         "enhancements": [
             {
                 "source": "openalex",

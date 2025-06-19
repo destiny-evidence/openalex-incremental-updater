@@ -37,7 +37,7 @@ def convert_solr_to_destiny(solr_document: dict) -> DestinyOpenAlexWork:
     doi = solr_document.get("doi")
     openalex_id = solr_document.get("id")
     microsoft_academic_graph = solr_document.get("mag")
-    pubmed_id = solr_document.get("pmid")
+    pubmed_id_candidate = solr_document.get("pmid")
     pubmed_central_id = solr_document.get("pmcid")
 
     authorships_list_of_dicts = json.loads(solr_document.get("authorships", "[]"))  # type: list[dict]
@@ -50,6 +50,23 @@ def convert_solr_to_destiny(solr_document: dict) -> DestinyOpenAlexWork:
 
     locations_list_of_dicts = json.loads(solr_document.get("locations", "[]"))
     topics_list_of_dicts = json.loads(solr_document.get("topics", "[]"))
+
+    pubmed_id_string = (
+        int(pubmed_id_candidate.rsplit("/", 1)[-1])
+        if isinstance(pubmed_id_candidate, str)
+        and pubmed_id_candidate.startswith("http")
+        else pubmed_id_candidate
+    )
+    if pubmed_id_string is not None:
+        try:
+            pubmed_id = int(pubmed_id_string)
+        except ValueError as invalid_pmid:
+            logger.error(
+                f"Invalid PubMed ID: {pubmed_id_string} for DOI {doi}. Error: {invalid_pmid}"
+            )
+            pubmed_id = None
+    else:
+        pubmed_id = None
 
     work_metadata = DestinyOpenAlexWorkMetadata(
         is_retracted=is_retracted,

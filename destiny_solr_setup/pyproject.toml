@@ -7,7 +7,7 @@ explicit_package_bases = true
 
 [tool.poetry]
 name = "destiny-solr-setup"
-version = "0.1.0"
+version = "0.1.2"
 description = "A small package to set up and manage a cloud-based Solr instance."
 authors = ["Harry Moss <h.moss@ucl.ac.uk>"]
 readme = "README.md"
