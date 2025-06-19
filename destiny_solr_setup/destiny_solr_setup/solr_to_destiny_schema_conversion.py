@@ -16,6 +16,7 @@ from openalex_incremental_updater.models.destiny import (
     DestinyOpenAlexWork,
     DestinyOpenAlexWorkMetadata,
     get_destiny_openalex_work,
+    strip_url_prefix,
 )
 
 logger.add(
@@ -52,12 +53,10 @@ def convert_solr_to_destiny(solr_document: dict) -> DestinyOpenAlexWork:
     locations_list_of_dicts = json.loads(solr_document.get("locations", "[]"))
     topics_list_of_dicts = json.loads(solr_document.get("topics", "[]"))
 
-    pubmed_id_string = (
-        int(pubmed_id_candidate.rsplit("/", 1)[-1])
-        if isinstance(pubmed_id_candidate, str)
-        and pubmed_id_candidate.startswith("http")
-        else pubmed_id_candidate
-    )
+    openalex_id = strip_url_prefix(openalex_id)
+
+    pubmed_id_string = strip_url_prefix(pubmed_id_candidate)
+
     if pubmed_id_string is not None:
         try:
             pubmed_id = int(pubmed_id_string)
