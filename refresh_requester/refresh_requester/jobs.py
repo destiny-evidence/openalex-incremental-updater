@@ -67,7 +67,7 @@ def run_ingestion_metadata_blob_upload_job(
         refresh_date (date): The date at which the data was refreshed
 
     Returns:
-        list[str]: A list of blob IDs that were uploaded
+        str: The path of the uploaded blob
 
     """
     blob_name = f"ingestion_metadata/destiny_repository_{data_source}_ingestion_batch_{refresh_date}.jsonl"
