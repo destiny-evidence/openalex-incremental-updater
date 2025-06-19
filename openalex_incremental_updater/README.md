@@ -59,3 +59,30 @@ Tests are provided in the `tests` directory and use the [pytest](https://pypi.or
 ```bash
 poetry run pytest
 ```
+
+## Azure Deployment
+
+- Create an Application Registration in your Azure Tenant as documented in the [Azure Samples documentation](https://github.com/Azure-Samples/ms-identity-python-daemon/tree/master/1-Call-MsGraph-WithSecret). Note down the Application (client) ID and Directory (tenant) ID
+- Create a client secret for the application and note it down.
+- Contact the [destiny-repository](https://github.com/destiny-evidence/destiny-repository) team to add the Application ID to the list of allowed applications.
+- This application can then be used to generate a token in the `openalex-incremental-updater` service (see [`openalex_incremental_updater/core/auth.py`](openalex_incremental_updater/core/auth.py)) to access the DESTINY repository API.
+- Create an Azure Container App:
+
+```bash
+az containerapp create --name openalex-incremental-updater-app --resource-group $RESOURCE_GROUP --environment $CONTAINER_APP_ENVIRONMENT --ingress internal --target-port 8000
+```
+
+- You will need to add Azure Key Vault read access to the application, as well as Azure Container Registry pull access.
+- Add environment variables to the Azure Container App, matching those in the `.env` file. Missing environment variables will cause the container to crash on startup. The recommended workflow is to add secrets to an Azure Key Vault, and then reference those secrets in the Azure Container App environment variables. For example:
+
+```bash
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name OPENALEX_API_KEY --value $OPENALEX_API_KEY
+az containerapp update \
+  --name $CONTAINER_APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --image $IMAGE_NAME:$IMAGE_TAG \
+  --set-env-vars "MY_VAR=secretref:mySecret"
+
+```
+
+Once the above steps are completed, you can automatically deploy updates to the service via the GitHub Actions workflow in the `.github/workflows/deploy-openalex-incremental-updater.yaml` file. This will build the Docker image and push it to the Azure Container Registry, then update the Azure Container App with the new image.
