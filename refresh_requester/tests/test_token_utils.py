@@ -1,7 +1,7 @@
 import pytest
 from requests.exceptions import JSONDecodeError, RequestException
 
-from refresh_requester.token import TokenRequestError, get_token
+from refresh_requester.token_utils import TokenRequestError, get_token
 
 
 def test_get_token_success(mocker, test_settings):
