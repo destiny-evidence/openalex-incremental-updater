@@ -12,6 +12,7 @@ from loguru import logger
 from tqdm import tqdm
 
 from openalex_incremental_updater.models.destiny import (
+    DataSource,
     DestinyOpenAlexWork,
     DestinyOpenAlexWorkMetadata,
     get_destiny_openalex_work,
@@ -81,7 +82,9 @@ def convert_solr_to_destiny(solr_document: dict) -> DestinyOpenAlexWork:
         topics=topics_list_of_dicts,
         processor_version=processor_version,
     )
-    return get_destiny_openalex_work(work_metadata, solr_document, source="pik-solr")
+    return get_destiny_openalex_work(
+        work_metadata, solr_document, data_source=DataSource.SOLR
+    )
 
 
 def transform_batch(batch: list[dict]) -> list[DestinyOpenAlexWork]:
