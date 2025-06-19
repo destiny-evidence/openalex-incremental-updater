@@ -16,9 +16,13 @@ In this early stage, remember to bump the version when you make changes to the c
 
 To run the application via either method detailed below, ensure you have a `.env` file in the root of the repository with the following environment variables populated:
 
-- `CORS_ORIGINS`
-- `USER_EMAIL`
-- `OPENALEX_API_KEY`
+- `CORS_ORIGINS`. This should be a comma-separated list of origins that are allowed to access the API. This can be set to `http://localhost:3000` for now. _To be deprecated in future versions._
+- `USER_EMAIL`. Email address of the user making the request against the OpenAlex API. Needed for the free tier, which we're not using. _To be deprecated in future versions._
+- `OPENALEX_API_KEY`. OpenAlex API key.
+- `AZURE_AUTH_ENVIRONMENT_ID`. The Application ID of the Azure environment in which the DESTINY repository is running. This will be different for `dev`, `staging` and `prod` environments, and must be obtained from the [destiny-repsository](https://github.com/destiny-evidence/destiny-repository) team.
+- `APP_REGISTRATION_APP_ID`. The Application (client) ID of the Azure Application Registration that has access to a deployment of the DESTINY repository API. See below for details on how to set this up.
+- `APP_REGISTRATION_SECRET`. The secret created for the Azure Application Registration that has access to a deployment of the DESTINY repository API. This is used to authenticate the application when requesting tokens for the DESTINY repository API.
+- `TENANT_ID`. The tenant ID of the Azure Active Directory in which the Application Registration was created. This should be the same tenant ID as the one used for the DESTINY repository API, and does not need to match the tenant ID for the `openalex-incremental-updater` service Azure Container App.
 
 (see `.env.example` for an example of how to format this file).
 
@@ -59,3 +63,30 @@ Tests are provided in the `tests` directory and use the [pytest](https://pypi.or
 ```bash
 poetry run pytest
 ```
+
+## Azure Deployment
+
+- Create an Application Registration in your Azure Tenant as documented in the [Azure Samples documentation](https://github.com/Azure-Samples/ms-identity-python-daemon/tree/master/1-Call-MsGraph-WithSecret). Note down the Application (client) ID and Directory (tenant) ID
+- Create a client secret for the application and note it down.
+- Contact the [destiny-repository](https://github.com/destiny-evidence/destiny-repository) team to add the Application ID to the list of allowed applications.
+- This application can then be used to generate a token in the `openalex-incremental-updater` service (see [`openalex_incremental_updater/core/auth.py`](openalex_incremental_updater/core/auth.py)) to access the DESTINY repository API.
+- Create an Azure Container App:
+
+```bash
+az containerapp create --name openalex-incremental-updater-app --resource-group $RESOURCE_GROUP --environment $CONTAINER_APP_ENVIRONMENT --ingress internal --target-port 8000
+```
+
+- You will need to add Azure Key Vault read access to the application, as well as Azure Container Registry pull access.
+- Add environment variables to the Azure Container App, matching those in the `.env` file. Missing environment variables will cause the container to crash on startup. The recommended workflow is to add secrets to an Azure Key Vault, and then reference those secrets in the Azure Container App environment variables. For example:
+
+```bash
+az keyvault secret set --vault-name $KEY_VAULT_NAME --name OPENALEX_API_KEY --value $OPENALEX_API_KEY
+az containerapp update \
+  --name $CONTAINER_APP_NAME \
+  --resource-group $RESOURCE_GROUP \
+  --image $IMAGE_NAME:$IMAGE_TAG \
+  --set-env-vars "MY_VAR=secretref:mySecret"
+
+```
+
+Once the above steps are completed, you can automatically deploy updates to the service via the GitHub Actions workflow in the `.github/workflows/deploy-openalex-incremental-updater.yaml` file. This will build the Docker image and push it to the Azure Container Registry, then update the Azure Container App with the new image.
