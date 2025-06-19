@@ -1,3 +1,5 @@
+from http import HTTPStatus
+
 import pytest
 from requests.exceptions import JSONDecodeError, RequestException
 
@@ -8,7 +10,7 @@ def test_get_token_success(mocker, test_settings):
     """Test get_token function returns a valid token."""
     test_token_value = "test_token"  # noqa: S105
     mock_response = mocker.Mock()
-    mock_response.status_code = 200
+    mock_response.status_code = HTTPStatus.OK
     mock_response.json.return_value = {"access_token": test_token_value}
 
     mocker.patch(
@@ -25,7 +27,7 @@ def test_get_token_success(mocker, test_settings):
 def test_get_token_fail_empty_access_token(mocker, test_settings):
     """Test get_token function raises an error when access_token is empty."""
     mock_response = mocker.Mock()
-    mock_response.status_code = 200
+    mock_response.status_code = HTTPStatus.OK
     mock_response.json.return_value = {}
 
     mocker.patch(
@@ -44,7 +46,7 @@ def test_get_token_fail_empty_access_token(mocker, test_settings):
 def test_get_token_fail_http_error(mocker, test_settings):
     """Test get_token function raises an error on HTTP error."""
     mock_response = mocker.Mock()
-    mock_response.status_code = 404
+    mock_response.status_code = HTTPStatus.NOT_FOUND
 
     mocker.patch(
         "requests.Session.get",
@@ -63,7 +65,7 @@ def test_get_token_fail_http_error(mocker, test_settings):
 def test_get_token_fail_value_error_on_json_read(mocker, test_settings):
     """Test get_token function raises an error on ValueError."""
     mock_response = mocker.Mock()
-    mock_response.status_code = 200
+    mock_response.status_code = HTTPStatus.OK
     mock_response.json.side_effect = ValueError("Value error")
 
     mocker.patch(
@@ -83,7 +85,7 @@ def test_get_token_fail_json_decode_error_on_json_read(mocker, test_settings):
     """Test get_token function raises an error on ValueError."""
     error_message = "A JSON decode error"
     mock_response = mocker.Mock()
-    mock_response.status_code = 200
+    mock_response.status_code = HTTPStatus.OK
     mock_response.json.side_effect = JSONDecodeError(error_message, "", 0)
 
     mocker.patch(

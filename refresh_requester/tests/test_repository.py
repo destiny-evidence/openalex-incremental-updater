@@ -1,4 +1,5 @@
 from datetime import UTC, datetime
+from http import HTTPStatus
 from uuid import uuid4
 
 import freezegun
@@ -42,7 +43,7 @@ def test_register_new_import_success(mocker, test_settings) -> None:
         uploader.session,
         "post",
         return_value=mocker.Mock(
-            status_code=200,
+            status_code=HTTPStatus.OK,
             json=lambda: test_response_dict,
         ),
     )
@@ -95,7 +96,7 @@ def test_register_import_batch_for_single_blob(mocker, test_settings) -> None:
         uploader.session,
         "post",
         return_value=mocker.Mock(
-            status_code=200,
+            status_code=HTTPStatus.OK,
             json=lambda: mock_import_batch_read_response,
         ),
     )
@@ -122,18 +123,17 @@ def test_finalise_import_record(mocker, test_settings) -> None:
     )
     uploader = DestinyRepositoryContentUploader(test_settings)
     test_id = uuid4()
-    http_no_content_status = 204
 
     mocker.patch.object(
         uploader.session,
         "patch",
         return_value=mocker.Mock(
-            status_code=204,
+            status_code=HTTPStatus.NO_CONTENT,
         ),
     )
     response = uploader.finalise_import_record(test_id)
     assert (
-        response.status_code == http_no_content_status
+        response.status_code == HTTPStatus.NO_CONTENT
     ), "Response status code should be 204 No Content"
 
 
@@ -171,7 +171,7 @@ def test_check_if_import_batch_completed_status_correct(
         uploader.session,
         "get",
         return_value=mocker.Mock(
-            status_code=200,
+            status_code=HTTPStatus.OK,
             json=lambda: mocked_response.model_dump(),
         ),
     )
@@ -205,13 +205,12 @@ def test_get_import_batch_summary(mocker, test_settings) -> None:
         },
         failure_details=None,
     )
-    http_ok_status = 200
 
     mocker.patch.object(
         uploader.session,
         "get",
         return_value=mocker.Mock(
-            status_code=http_ok_status, json=lambda: mock_summary_response.model_dump()
+            status_code=HTTPStatus.OK, json=lambda: mock_summary_response.model_dump()
         ),
     )
     response = uploader.get_import_batch_summary(test_import_batch_id)
@@ -237,7 +236,6 @@ def test_upload_blob_storage_contents_to_repository_success_single_blob(
     )
     test_import_record_id = uuid4()
     test_batch_id = uuid4()
-    http_no_content_status = 204
 
     mock_import_record = ImportRecordRead(
         id=test_import_record_id,
@@ -266,7 +264,7 @@ def test_upload_blob_storage_contents_to_repository_success_single_blob(
     )
     mock_finalise_import = mocker.patch(
         "refresh_requester.repository.DestinyRepositoryContentUploader.finalise_import_record",
-        return_value=mocker.Mock(status_code=http_no_content_status),
+        return_value=mocker.Mock(status_code=HTTPStatus.NO_CONTENT),
     )
 
     upload_blob_storage_contents_to_repository(
@@ -313,7 +311,6 @@ def test_upload_blob_storage_contents_to_repository_success_multiple_blobs(
     )
     test_import_record_id = uuid4()
     test_batch_ids = [uuid4(), uuid4()]
-    http_no_content_status = 204
 
     mock_import_record = ImportRecordRead(
         id=test_import_record_id,
@@ -351,7 +348,7 @@ def test_upload_blob_storage_contents_to_repository_success_multiple_blobs(
     )
     mock_finalise_import = mocker.patch(
         "refresh_requester.repository.DestinyRepositoryContentUploader.finalise_import_record",
-        return_value=mocker.Mock(status_code=http_no_content_status),
+        return_value=mocker.Mock(status_code=HTTPStatus.NO_CONTENT),
     )
 
     upload_blob_storage_contents_to_repository(test_settings)
@@ -424,11 +421,11 @@ def test_poll_import_batches_for_completion_retries_if_batch_incomplete(
         "get",
         side_effect=[
             mocker.Mock(
-                status_code=200,
+                status_code=HTTPStatus.OK,
                 json=lambda: started_status.model_dump(),
             ),
             mocker.Mock(
-                status_code=200,
+                status_code=HTTPStatus.OK,
                 json=lambda: completed_status.model_dump(),
             ),
         ],
