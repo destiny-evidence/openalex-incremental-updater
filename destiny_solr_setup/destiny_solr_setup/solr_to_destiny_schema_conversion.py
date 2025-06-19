@@ -64,7 +64,12 @@ def convert_solr_to_destiny(solr_document: dict) -> DestinyOpenAlexWork:
             logger.error(
                 f"Invalid PubMed ID: {pubmed_id_string} for DOI {doi}. Error: {invalid_pmid}"
             )
+            if isinstance(pubmed_id_string, str) and pubmed_id_string.startswith("PMC"):
+                # If it starts with 'PMC', treat it as a PubMed Central ID
+                pubmed_central_id = pubmed_id_string
+                pubmed_id = None
             pubmed_id = None
+
     else:
         pubmed_id = None
 
