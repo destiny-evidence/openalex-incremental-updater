@@ -16,9 +16,13 @@ In this early stage, remember to bump the version when you make changes to the c
 
 To run the application via either method detailed below, ensure you have a `.env` file in the root of the repository with the following environment variables populated:
 
-- `CORS_ORIGINS`
-- `USER_EMAIL`
-- `OPENALEX_API_KEY`
+- `CORS_ORIGINS`. This should be a comma-separated list of origins that are allowed to access the API. This can be set to `http://localhost:3000` for now. _To be deprecated in future versions._
+- `USER_EMAIL`. Email address of the user making the request against the OpenAlex API. Needed for the free tier, which we're not using. _To be deprecated in future versions._
+- `OPENALEX_API_KEY`. OpenAlex API key.
+- `AZURE_AUTH_ENVIRONMENT_ID`. The Application ID of the Azure environment in which the DESTINY repository is running. This will be different for `dev`, `staging` and `prod` environments, and must be obtained from the [destiny-repsository](https://github.com/destiny-evidence/destiny-repository) team.
+- `APP_REGISTRATION_APP_ID`. The Application (client) ID of the Azure Application Registration that has access to a deployment of the DESTINY repository API. See below for details on how to set this up.
+- `APP_REGISTRATION_SECRET`. The secret created for the Azure Application Registration that has access to a deployment of the DESTINY repository API. This is used to authenticate the application when requesting tokens for the DESTINY repository API.
+- `TENANT_ID`. The tenant ID of the Azure Active Directory in which the Application Registration was created. This should be the same tenant ID as the one used for the DESTINY repository API, and does not need to match the tenant ID for the `openalex-incremental-updater` service Azure Container App.
 
 (see `.env.example` for an example of how to format this file).
 
