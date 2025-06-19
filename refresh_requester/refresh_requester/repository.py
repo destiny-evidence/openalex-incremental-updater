@@ -18,7 +18,7 @@ from requests.exceptions import JSONDecodeError
 
 from refresh_requester.blob_storage import DestinyBlobStorageClient
 from refresh_requester.config import Settings, get_retry_session
-from refresh_requester.token import TokenRequestError, get_token
+from refresh_requester.token_utils import TokenRequestError, get_token
 
 
 class ImportSourceType(StrEnum):
