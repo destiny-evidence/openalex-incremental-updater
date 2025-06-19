@@ -4,7 +4,6 @@ import sys
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
-from dotenv import load_dotenv
 from loguru import logger
 
 from refresh_requester.blob_storage import BlobUploadError
@@ -72,5 +71,4 @@ def main(settings: Settings) -> None:
 
 
 if __name__ == "__main__":
-    load_dotenv(override=True)
     main(get_settings())
