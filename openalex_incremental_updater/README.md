@@ -38,13 +38,11 @@ By default, this will run on port 8000. Automatically generated API documentatio
 
 ### Containerisation
 
-A `Dockerfile` is provided to build a container image for the service. To build the image, run:
+A `Dockerfile` is provided to build a container image for the service. To build the image, run the build script provided in the root of the repository:
 
 ```bash
-docker build -t openalex-incremental-updater .
+./build_openalex_incremental_updater.sh
 ```
-
-in the root of the repository.
 
 Then run the built image within a container with:
 
@@ -52,7 +50,13 @@ Then run the built image within a container with:
 docker run -p 8000:8000 --name openalex-app --env-file .env openalex-incremental-updater
 ```
 
-referring to the `.env` file in the root of the repository mentioned above.
+referring to the `.env` file in openalex_incremental_updater/.env. This will run the service in a container, mapping port 8000 on the host to port 8000 in the container. You can change the port by modifying the `-p` flag in the command above.
+
+Alternatively, use the convenience script provided in the root of the repository:
+
+```bash
+./run_openalex_incremental_updater.sh
+```
 
 This is currently set up to run the service on port 8000, but this can be changed by modifying the `Dockerfile` and the `docker run` command. This may also be handled in future by container orchestration, along with secrets management.
 
@@ -61,8 +65,10 @@ This is currently set up to run the service on port 8000, but this can be change
 Tests are provided in the `tests` directory and use the [pytest](https://pypi.org/project/pytest/) library. To run the tests, ensure you have the `poetry` package installed, and run:
 
 ```bash
-poetry run pytest
+poetry run pytest --cov=openalex_incremental_updater
 ```
+
+from this directory.
 
 ## Azure Deployment
 
@@ -70,11 +76,19 @@ poetry run pytest
 - Create a client secret for the application and note it down.
 - Contact the [destiny-repository](https://github.com/destiny-evidence/destiny-repository) team to add the Application ID to the list of allowed applications.
 - This application can then be used to generate a token in the `openalex-incremental-updater` service (see [`openalex_incremental_updater/core/auth.py`](openalex_incremental_updater/core/auth.py)) to access the DESTINY repository API.
-- Create an Azure Container App:
+- Create an Azure Container App Environment if you don't already have one:
+
+```bash
+az containerapp env create --name openalex-incremental-updater-env --resource-group $RESOURCE_GROUP --location $LOCATION
+```
+
+- Create an Azure Container App within the previously created Container App Environment.
 
 ```bash
 az containerapp create --name openalex-incremental-updater-app --resource-group $RESOURCE_GROUP --environment $CONTAINER_APP_ENVIRONMENT --ingress internal --target-port 8000
 ```
+
+- Check that the app can only be accessed from within the Azure Container App Environment. This is important for security, as the service should not be publicly accessible.
 
 - You will need to add Azure Key Vault read access to the application, as well as Azure Container Registry pull access.
 - Add environment variables to the Azure Container App, matching those in the `.env` file. Missing environment variables will cause the container to crash on startup. The recommended workflow is to add secrets to an Azure Key Vault, and then reference those secrets in the Azure Container App environment variables. For example:
