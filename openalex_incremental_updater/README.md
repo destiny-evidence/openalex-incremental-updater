@@ -38,15 +38,7 @@ By default, this will run on port 8000. Automatically generated API documentatio
 
 ### Containerisation
 
-A `Dockerfile` is provided to build a container image for the service. To build the image, run:
-
-```bash
-docker build -t openalex-incremental-updater .
-```
-
-in the [openalex_incremental_updater](openalex_incremental_updater) directory. This will build the image with the tag `openalex-incremental-updater:latest`.
-
-Alternatively, use the build script provided in the root of the repository:
+A `Dockerfile` is provided to build a container image for the service. To build the image, run the build script provided in the root of the repository:
 
 ```bash
 ./build_openalex_incremental_updater.sh
@@ -84,11 +76,19 @@ from this directory.
 - Create a client secret for the application and note it down.
 - Contact the [destiny-repository](https://github.com/destiny-evidence/destiny-repository) team to add the Application ID to the list of allowed applications.
 - This application can then be used to generate a token in the `openalex-incremental-updater` service (see [`openalex_incremental_updater/core/auth.py`](openalex_incremental_updater/core/auth.py)) to access the DESTINY repository API.
-- Create an Azure Container App:
+- Create an Azure Container App Environment if you don't already have one:
+
+```bash
+az containerapp env create --name openalex-incremental-updater-env --resource-group $RESOURCE_GROUP --location $LOCATION
+```
+
+- Create an Azure Container App within the previously created Container App Environment.
 
 ```bash
 az containerapp create --name openalex-incremental-updater-app --resource-group $RESOURCE_GROUP --environment $CONTAINER_APP_ENVIRONMENT --ingress internal --target-port 8000
 ```
+
+- Check that the app can only be accessed from within the Azure Container App Environment. This is important for security, as the service should not be publicly accessible.
 
 - You will need to add Azure Key Vault read access to the application, as well as Azure Container Registry pull access.
 - Add environment variables to the Azure Container App, matching those in the `.env` file. Missing environment variables will cause the container to crash on startup. The recommended workflow is to add secrets to an Azure Key Vault, and then reference those secrets in the Azure Container App environment variables. For example:
