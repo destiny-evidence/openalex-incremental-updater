@@ -15,27 +15,27 @@ Authentication against the DESTINY repository API is performed by an OpenAlex In
 
 Diagrammatically, the architecture looks like this:
 
-                            ```mermaid
-                            sequenceDiagram
-                                participant RR as Refresh Requester
-                                participant OIU as OpenAlex Incremental Updater
-                                participant OA as OpenAlex API
-                                participant ABS as Azure Blob Storage
-                                participant DR as DESTINY Repository API
+```mermaid
+sequenceDiagram
+    participant RR as Refresh Requester
+    participant OIU as OpenAlex Incremental Updater
+    participant OA as OpenAlex API
+    participant ABS as Azure Blob Storage
+    participant DR as DESTINY Repository API
 
-                                RR->>OIU: Calls API
-                                OIU->>OA: Requests updates
-                                OA->>OIU: Returns updates
-                                OIU->>RR: Processes updates
-                                RR->>ABS: Stores updates
-                                RR->>OIU: Requests bearer token
-                                OIU->>DR: Authenticates against API
-                                DR->>OIU: Returns bearer token
-                                OIU->>RR: Returns bearer token
-                                RR->>ABS: Generates SAS
-                                RR->>DR: Registers ingestion
-                                RR->>ABS: Uploaders metadata associated with ingest
-                            ```
+    RR->>OIU: Calls API
+    OIU->>OA: Requests updates
+    OA->>OIU: Returns updates
+    OIU->>RR: Processes updates
+    RR->>ABS: Stores updates
+    RR->>OIU: Requests bearer token
+    OIU->>DR: Authenticates against API
+    DR->>OIU: Returns bearer token
+    OIU->>RR: Returns bearer token
+    RR->>ABS: Generates SAS
+    RR->>DR: Registers ingestion
+    RR->>ABS: Uploaders metadata associated with ingest
+```
 
 ## Developers
 
