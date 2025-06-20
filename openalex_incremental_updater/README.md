@@ -44,7 +44,13 @@ A `Dockerfile` is provided to build a container image for the service. To build 
 docker build -t openalex-incremental-updater .
 ```
 
-in the root of the repository.
+in the [openalex_incremental_updater](openalex_incremental_updater) directory. This will build the image with the tag `openalex-incremental-updater:latest`.
+
+Alternatively, use the build script provided in the root of the repository:
+
+```bash
+./build_openalex_incremental_updater.sh
+```
 
 Then run the built image within a container with:
 
@@ -52,7 +58,13 @@ Then run the built image within a container with:
 docker run -p 8000:8000 --name openalex-app --env-file .env openalex-incremental-updater
 ```
 
-referring to the `.env` file in the root of the repository mentioned above.
+referring to the `.env` file in openalex_incremental_updater/.env. This will run the service in a container, mapping port 8000 on the host to port 8000 in the container. You can change the port by modifying the `-p` flag in the command above.
+
+Alternatively, use the convenience script provided in the root of the repository:
+
+```bash
+./run_openalex_incremental_updater.sh
+```
 
 This is currently set up to run the service on port 8000, but this can be changed by modifying the `Dockerfile` and the `docker run` command. This may also be handled in future by container orchestration, along with secrets management.
 
@@ -61,8 +73,10 @@ This is currently set up to run the service on port 8000, but this can be change
 Tests are provided in the `tests` directory and use the [pytest](https://pypi.org/project/pytest/) library. To run the tests, ensure you have the `poetry` package installed, and run:
 
 ```bash
-poetry run pytest
+poetry run pytest --cov=openalex_incremental_updater
 ```
+
+from this directory.
 
 ## Azure Deployment
 
