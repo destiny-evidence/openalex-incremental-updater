@@ -22,7 +22,7 @@ pytest-cov = "^6.0.0"
 pytest-mock = "^3.14.0"
 python = "^3.12"
 requests = "^2.32.3"
-destiny-sdk = {git = "https://github.com/destiny-evidence/destiny-repository.git", subdirectory = "libs/sdk"}
+destiny-sdk = "^0.2.0"
 
 [tool.poetry.group.test.dependencies]
 freezegun = "^1.5.2"
