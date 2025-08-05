@@ -51,6 +51,7 @@ def setup_logging(log_level: str = "DEBUG") -> None:
         log_level (str, optional): Minimum log level to store. Defaults to "DEBUG".
 
     """
+    logger.remove()  # Remove default logger
     logger.add(
         sys.stderr,
         format="{time} {level} {message}",
