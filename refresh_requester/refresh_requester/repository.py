@@ -131,7 +131,7 @@ class DestinyRepositoryContentUploader:
             ImportRecordRead: The response from the DESTINY repository after registering the import.
 
         """
-        registration_url = f"{self.settings.REPOSITORY_ENDPOINT}imports/record/"
+        registration_url = f"{self.settings.REPOSITORY_ENDPOINT}imports/records/"
         payload = self.retrieve_payload_from_source_type(source_type)
 
         response = self.session.post(
@@ -160,7 +160,7 @@ class DestinyRepositoryContentUploader:
             ImportBatchRead: The response from the DESTINY repository after registering the import batch.
 
         """
-        registration_url = f"{self.settings.REPOSITORY_ENDPOINT}imports/record/{import_record.id}/batch/"
+        registration_url = f"{self.settings.REPOSITORY_ENDPOINT}imports/records/{import_record.id}/batches/"
         payload = ImportBatchIn(
             collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
             storage_url=str(sas_url),
@@ -194,16 +194,19 @@ class DestinyRepositoryContentUploader:
 
         """
         response = self.session.patch(
-            f"{self.settings.REPOSITORY_ENDPOINT}/imports/record/{import_record_id}/finalise/",
+            f"{self.settings.REPOSITORY_ENDPOINT}imports/records/{import_record_id}/finalise/",
         )
         response.raise_for_status()
         return response
 
-    def check_if_import_batch_completed(self, import_batch_id: UUID4) -> bool:
+    def check_if_import_batch_completed(
+        self, import_record_id: UUID4, import_batch_id: UUID4
+    ) -> bool:
         """
         Check if the import batch has completed.
 
         Args:
+            import_record_id (UUID4): The ID of the import record the batch belongs to.
             import_batch_id (UUID4): The ID of the import batch to check.
 
         Returns:
@@ -211,17 +214,20 @@ class DestinyRepositoryContentUploader:
 
         """
         response = self.session.get(
-            f"{self.settings.REPOSITORY_ENDPOINT}/imports/batch/{import_batch_id}/"
+            f"{self.settings.REPOSITORY_ENDPOINT}imports/records/{import_record_id}/batches/{import_batch_id}/"
         )
         response.raise_for_status()
         import_batch_status = ImportBatchRead.model_validate(response.json())
         return import_batch_status.status == "completed"
 
-    def get_import_batch_summary(self, import_batch_id: UUID4) -> ImportBatchSummary:
+    def get_import_batch_summary(
+        self, import_record_id: UUID4, import_batch_id: UUID4
+    ) -> ImportBatchSummary:
         """
         Get the summary of the import batch.
 
         Args:
+            import_record_id (UUID4): The ID of the import record the batch belongs to.
             import_batch_id (UUID4): The import batch ID.
 
         Returns:
@@ -229,13 +235,14 @@ class DestinyRepositoryContentUploader:
 
         """
         response = self.session.get(
-            f"{self.settings.REPOSITORY_ENDPOINT}/imports/batch/{import_batch_id}/summary/"
+            f"{self.settings.REPOSITORY_ENDPOINT}imports/records/{import_record_id}/batches/{import_batch_id}/summary/"
         )
         response.raise_for_status()
         return ImportBatchSummary.model_validate(response.json())
 
     def poll_import_batches_for_completion(
         self,
+        import_record_id: UUID4,
         import_batch_ids: list[UUID4],
         retry_time_seconds: int = 30,
         max_retries: int = 5,
@@ -247,6 +254,7 @@ class DestinyRepositoryContentUploader:
         or the maximum number of retries is reached.
 
         Args:
+            import_record_id (UUID4): The ID of the import record the batches belong to.
             import_batch_ids (list[UUID4]): List of import batch IDs to poll for completion.
             retry_time_seconds (int, optional): Time to wait between retries in seconds. Defaults to 30.
             max_retries (int, optional): The maximum number of retries for checking import
@@ -257,7 +265,9 @@ class DestinyRepositoryContentUploader:
             logger.info(f"Polling import batch {import_batch_id} for completion...")
 
             for attempt in range(max_retries):
-                completed_status = self.check_if_import_batch_completed(import_batch_id)
+                completed_status = self.check_if_import_batch_completed(
+                    import_record_id, import_batch_id
+                )
                 if completed_status:
                     logger.info(
                         f"Import batch {import_batch_id} completed successfully."
@@ -268,7 +278,7 @@ class DestinyRepositoryContentUploader:
                 )
                 logger.info(f"Waiting {retry_time_seconds} seconds before retrying...")
                 time.sleep(retry_time_seconds)
-            summary = self.get_import_batch_summary(import_batch_id)
+            summary = self.get_import_batch_summary(import_record_id, import_batch_id)
             logger.info(f"Import batch {import_batch_id} summary: {summary}")
 
 

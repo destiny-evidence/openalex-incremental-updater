@@ -27,7 +27,7 @@ requests = "^2.32.3"
 sqlalchemy = "^2.0.37"
 sqlmodel = "^0.0.22"
 msal = "^1.32.3"
-destiny-sdk = {git = "https://github.com/destiny-evidence/destiny-repository.git", subdirectory = "libs/sdk"}
+destiny-sdk = "^0.2.0"
 
 [tool.poetry.group.dev.dependencies]
 detect-secrets = "^1.5.0"

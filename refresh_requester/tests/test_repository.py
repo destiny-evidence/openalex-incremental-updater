@@ -159,11 +159,12 @@ def test_check_if_import_batch_completed_status_correct(
         return_value="test-token",
     )
     uploader = DestinyRepositoryContentUploader(test_settings)
-    test_id = uuid4()
+    test_batch_id = uuid4()
+    test_record_id = uuid4()
     mocked_response = ImportBatchRead(
-        id=test_id,
+        id=test_batch_id,
         storage_url="http://test-storage-url",
-        import_record_id=test_id,
+        import_record_id=test_record_id,
         status=test_status,
         collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
     )
@@ -176,7 +177,7 @@ def test_check_if_import_batch_completed_status_correct(
         ),
     )
 
-    result = uploader.check_if_import_batch_completed(test_id)
+    result = uploader.check_if_import_batch_completed(test_record_id, test_batch_id)
     assert (
         result is expected_result
     ), "Result should match the expected boolean value based on the import batch status"
@@ -190,6 +191,7 @@ def test_get_import_batch_summary(mocker, test_settings) -> None:
         return_value="test-token",
     )
     uploader = DestinyRepositoryContentUploader(test_settings)
+    test_import_record_id = uuid4()
     test_import_batch_id = uuid4()
     test_summary_id = uuid4()
 
@@ -213,7 +215,9 @@ def test_get_import_batch_summary(mocker, test_settings) -> None:
             status_code=HTTPStatus.OK, json=lambda: mock_summary_response.model_dump()
         ),
     )
-    response = uploader.get_import_batch_summary(test_import_batch_id)
+    response = uploader.get_import_batch_summary(
+        test_import_record_id, test_import_batch_id
+    )
     assert (
         response.import_batch_status == ImportBatchStatus.COMPLETED
     ), "Import batch status should be COMPLETED"
@@ -398,6 +402,7 @@ def test_poll_import_batches_for_completion_retries_if_batch_incomplete(
     test_import_batch_id = uuid4()
     test_number_of_retries = 2
 
+    import_record_id = uuid4()
     import_batch_id_one = uuid4()
     import_batch_id_two = uuid4()
     summary_id_one = uuid4()
@@ -405,14 +410,14 @@ def test_poll_import_batches_for_completion_retries_if_batch_incomplete(
     started_status = ImportBatchRead(
         id=test_import_batch_id,
         storage_url="http://test-storage-url",
-        import_record_id=import_batch_id_one,
+        import_record_id=import_record_id,
         status=ImportBatchStatus.STARTED,
         collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
     )
     completed_status = ImportBatchRead(
         id=test_import_batch_id,
         storage_url="http://test-storage-url",
-        import_record_id=import_batch_id_two,
+        import_record_id=import_record_id,
         status=ImportBatchStatus.COMPLETED,
         collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
     )
@@ -465,13 +470,13 @@ def test_poll_import_batches_for_completion_retries_if_batch_incomplete(
     mocker.patch("refresh_requester.repository.time.sleep", return_value=None)
 
     uploader.poll_import_batches_for_completion(
-        [test_import_batch_id], max_retries=test_number_of_retries
+        import_record_id, [test_import_batch_id], max_retries=test_number_of_retries
     )
 
     assert (
         uploader.session.get.call_count == test_number_of_retries
     ), "Should have made two GET requests to check batch status"
-    mock_get_summary.assert_called_once_with(test_import_batch_id)
+    mock_get_summary.assert_called_once_with(import_record_id, test_import_batch_id)
 
 
 def test_construct_payload(mocker, test_settings) -> None:
