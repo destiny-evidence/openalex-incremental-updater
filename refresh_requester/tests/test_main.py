@@ -67,7 +67,9 @@ def test_main_success_no_fetch_date_set(mocker, test_settings) -> None:
         "check_previous_file_dates should be called once",
     )
     (
-        run_refresh_job_mock.assert_called_once_with(test_latest_blob_date, limit=None),
+        run_refresh_job_mock.assert_called_once_with(
+            settings, test_latest_blob_date, limit=None
+        ),
         "run_refresh_job should be called with the correct date and no limit set",
     )
     (
@@ -146,7 +148,9 @@ def test_main_success_fetch_date_set_in_settings(mocker, test_settings) -> None:
         check_previous_file_dates_mock.call_count == 0
     ), "check_previous_file_dates should not be called when fetch_date is set in settings"
     (
-        run_refresh_job_mock.assert_called_once_with(date_yesterday, limit=None),
+        run_refresh_job_mock.assert_called_once_with(
+            settings, date_yesterday, limit=None
+        ),
         "run_refresh_job should be called with the correct date and no limit set",
     )
     (

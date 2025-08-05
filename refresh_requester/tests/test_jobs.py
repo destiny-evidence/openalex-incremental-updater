@@ -26,7 +26,9 @@ def test_run_refresh_job_success(mocker, test_settings):
     mocker.patch("requests.Session.get", return_value=mock_response)
 
     test_date = date(2025, 3, 1)
-    result = run_refresh_job(test_date, limit=len(mocked_api_return_value))
+    result = run_refresh_job(
+        test_settings, test_date, limit=len(mocked_api_return_value)
+    )
     assert result == expected_jsonl_response
 
 
@@ -42,7 +44,7 @@ def test_run_refresh_job_request_exception_failure(mocker, test_settings):
 
     test_date = date(2025, 3, 1)
     with pytest.raises(OpenAlexRefreshError) as error_info:
-        run_refresh_job(test_date, limit=None)
+        run_refresh_job(test_settings, test_date, limit=None)
     assert "HTTP exception: Internal Server Error" in str(
         error_info.value
     ), "Should see an HTTP exception error message"

@@ -6,11 +6,11 @@ from datetime import date
 from loguru import logger
 
 from refresh_requester.blob_storage import blob_upload
-from refresh_requester.config import get_settings
+from refresh_requester.config import Settings
 from refresh_requester.openalex_refresh import request_refresh
 
 
-def run_refresh_job(fetch_date: date, limit: int | None) -> str:
+def run_refresh_job(settings: Settings, fetch_date: date, limit: int | None) -> str:
     """
     Run the refresh requester job.
 
@@ -22,8 +22,6 @@ def run_refresh_job(fetch_date: date, limit: int | None) -> str:
         str: JSONL-ified response from the API.
 
     """
-    settings = get_settings()
-
     jsonl_response = request_refresh(settings, fetch_date, limit)
     logger.info(f"Refresh request successful for date {fetch_date}")
     return jsonl_response

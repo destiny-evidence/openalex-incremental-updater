@@ -30,7 +30,7 @@ def main(settings: Settings) -> None:
 
     logger.info(f"RUNNING JOB - Fetching data for date: {fetch_date}")
     try:
-        data = run_refresh_job(fetch_date, limit=settings.limit)
+        data = run_refresh_job(settings, fetch_date, limit=settings.limit)
     except OpenAlexRefreshError as refresh_error:
         error_message = f"Error when requesting refresh: {refresh_error}"
         logger.error(error_message)
