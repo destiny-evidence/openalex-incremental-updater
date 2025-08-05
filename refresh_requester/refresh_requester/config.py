@@ -67,7 +67,7 @@ class Settings(BaseSettings):
         HTTPStatus.SERVICE_UNAVAILABLE,
         HTTPStatus.GATEWAY_TIMEOUT,
     ]
-    request_timeout: int = 5 * 60
+    request_timeout: int = 5 * 60 * 60  # 5 hours in seconds
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 
