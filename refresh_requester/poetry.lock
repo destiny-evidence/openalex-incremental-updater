@@ -3,7 +3,7 @@
 [metadata]
 lock-version = "2.1"
 python-versions = "^3.12"
-content-hash = "7cc8aa3d88328cb64ed492d8c7731dd9d8cf1fdc5eb7719219509dfc0ad52921"
+content-hash = "8a4f1dda1636d4d75e00ece9ce11b580e6b97a4de2173b35083e1713a972b198"
 
 [[package]]
 name = "annotated-types"
