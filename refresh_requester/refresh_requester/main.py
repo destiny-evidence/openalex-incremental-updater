@@ -1,9 +1,12 @@
 """Main module for the refresh requester job."""
 
+import os
 import sys
+import threading
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
+from fastapi import FastAPI
 from loguru import logger
 
 from refresh_requester.blob_storage import BlobUploadError
@@ -20,9 +23,43 @@ from refresh_requester.repository import (
 )
 from refresh_requester.utils import get_fetch_date
 
+health_probe_app = FastAPI()
+
+
+@health_probe_app.get("/health")
+async def health_check() -> dict:
+    """
+    Check the health of the Container App Job.
+
+    Returns:
+        dict: A dictionary indicating the health status.
+
+    """
+    return {"status": "healthy"}
+
+
+def start_health_check_server() -> None:
+    """Start the health check server."""
+    import uvicorn
+
+    uvicorn.run(
+        health_probe_app,
+        host="127.0.0.1",
+        port=23045,
+        log_level="warning",
+        access_log=False,
+    )
+
 
 def main(settings: Settings) -> None:
     """Run the refresh requester job."""
+    if not os.environ.get("PYTEST_CURRENT_TEST"):
+        health_check_thread = threading.Thread(
+            target=start_health_check_server,
+            daemon=True,  # Ensure the thread exits when the main program exits
+        )
+        health_check_thread.start()
+
     fetch_date = get_fetch_date(settings)
 
     date_today = datetime.now(ZoneInfo("UTC")).date()
