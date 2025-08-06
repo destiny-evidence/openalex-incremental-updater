@@ -1,0 +1,25 @@
+services:
+  api:
+    build:
+      context: ./openalex_incremental_updater
+    ports:
+      - "8000:8000"
+    container_name: openalex-incremental-updater-api
+    env_file:
+      - openalex_incremental_updater/.env
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health-check"]
+      interval: 5s
+      timeout: 2s
+      retries: 5
+      start_period: 3s
+
+  job:
+    build:
+      context: ./refresh_requester
+    depends_on:
+      api:
+        condition: service_healthy
+    container_name: refresh-requester
+    env_file:
+      - refresh_requester/.env
