@@ -1,5 +1,7 @@
 """Retrieve data from OpenAlex API."""
 
+import uuid
+from asyncio import Lock
 from datetime import date
 
 import httpx
@@ -12,6 +14,8 @@ from openalex_incremental_updater.models.destiny import (
     DestinyOpenAlexWork,
     convert_openalex_to_destiny,
 )
+
+fetch_lock = Lock()
 
 
 class UpstreamOpenAlexError(Exception):
@@ -58,71 +62,81 @@ class OpenAlexDataFetcher:
             list[DestinyOpenAlexWork]: The retrieved works.
 
         """
-        aggregate_results = []
+        async with fetch_lock:
+            aggregate_results = []
 
-        # OpenAlex API limits the number of results per page to 200
-        per_page: str = str(
-            min(200, works_retrieved_limit) if works_retrieved_limit else 200
-        )
-
-        async with AsyncRetryClient(
-            retries=self.retries, backoff_factor=self.backoff_factor
-        ) as session:
-            headers = {
-                "api_key": self.settings.OPENALEX_API_KEY.get_secret_value(),
-            }
-            session.headers.update(headers)
-            cursor: str = "*"
-            logger.info(f"Requesting all works with filter {openalex_filter}")
-
-            base_works_url = f"{self.settings.OPENALEX_API_URL}/works"
-            query_string = (
-                f"{base_works_url}?filter={openalex_filter}"
-                if openalex_filter
-                else base_works_url
+            # OpenAlex API limits the number of results per page to 200
+            per_page: str = str(
+                min(200, works_retrieved_limit) if works_retrieved_limit else 200
             )
 
-            counter_works_retrieved = 0
-            last_known_cursor = None
-            while cursor:
-                filtered_works_url = (
-                    query_string + f"&cursor={cursor}&per-page={per_page}"
-                )
-                response = await session.get(filtered_works_url)
-
-                try:
-                    response.raise_for_status()
-                except httpx.HTTPStatusError as http_error:
-                    error_message = str(http_error)
-                    logger.error(f"OpenAlex API query failed: {error_message}")
-                    raise UpstreamOpenAlexError(error_message) from http_error
-
-                retrieved_works = response.json()
-
-                results = retrieved_works["results"]
-                aggregate_results.extend(results)
-
-                count_works_total = retrieved_works["meta"]["count"]
-                counter_works_retrieved += len(results)
+            async with AsyncRetryClient(
+                retries=self.retries, backoff_factor=self.backoff_factor
+            ) as session:
+                headers = {
+                    "api_key": self.settings.OPENALEX_API_KEY.get_secret_value(),
+                }
+                session.headers.update(headers)
+                cursor: str = "*"
+                instance_id = uuid.uuid4().hex[
+                    :8
+                ]  # Unique identifier for this method call
                 logger.info(
-                    f"Processed {counter_works_retrieved} results of {count_works_total}"
+                    f"[Instance {instance_id}] Requesting all works with filter {openalex_filter}"
                 )
-                cursor = retrieved_works["meta"]["next_cursor"]
-                logger.info(f"Next cursor: {cursor}")
 
-                if cursor:
-                    last_known_cursor = cursor
-                if (
-                    works_retrieved_limit
-                    and counter_works_retrieved >= works_retrieved_limit
-                ):
-                    logger.info(f"Reached the limit of {works_retrieved_limit} works.")
-                    return self.process_aggregate_results(aggregate_results)
+                base_works_url = f"{self.settings.OPENALEX_API_URL}/works"
+                query_string = (
+                    f"{base_works_url}?filter={openalex_filter}"
+                    if openalex_filter
+                    else base_works_url
+                )
 
-        logger.info(f"Last known cursor: {last_known_cursor}")
-        logger.info(f"Finished paging. Retrieved {counter_works_retrieved} results.")
+                counter_works_retrieved = 0
+                last_known_cursor = None
+                while cursor:
+                    filtered_works_url = (
+                        query_string + f"&cursor={cursor}&per-page={per_page}"
+                    )
+                    response = await session.get(filtered_works_url)
 
-        return self.process_aggregate_results(aggregate_results)
+                    try:
+                        response.raise_for_status()
+                    except httpx.HTTPStatusError as http_error:
+                        error_message = str(http_error)
+                        logger.error(f"OpenAlex API query failed: {error_message}")
+                        raise UpstreamOpenAlexError(error_message) from http_error
+
+                    retrieved_works = response.json()
+
+                    results = retrieved_works["results"]
+                    aggregate_results.extend(results)
+
+                    count_works_total = retrieved_works["meta"]["count"]
+                    counter_works_retrieved += len(results)
+                    logger.info(
+                        f"[Instance {instance_id}] Processed {counter_works_retrieved} results of {count_works_total}"
+                    )
+                    cursor = retrieved_works["meta"]["next_cursor"]
+                    logger.info(f"[Instance {instance_id}] Next cursor: {cursor}")
+
+                    if cursor:
+                        last_known_cursor = cursor
+                    if (
+                        works_retrieved_limit
+                        and counter_works_retrieved >= works_retrieved_limit
+                    ):
+                        logger.info(
+                            f"Reached the limit of {works_retrieved_limit} works."
+                        )
+                        return self.process_aggregate_results(aggregate_results)
+
+            logger.info(f"Last known cursor: {last_known_cursor}")
+            logger.info(
+                f"Finished paging. Retrieved {counter_works_retrieved} results."
+            )
+
+            return self.process_aggregate_results(aggregate_results)
 
     def process_aggregate_results(
         self, aggregate_results: list[dict]
