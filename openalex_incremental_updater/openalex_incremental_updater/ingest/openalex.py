@@ -64,7 +64,7 @@ class OpenAlexDataFetcher:
 
         """
         update_type = created_or_updated.value
-        return f"from_{update_type}_date:{start_date}&to_{update_type}_date:{end_date}"
+        return f"from_{update_type}_date:{start_date},to_{update_type}_date:{end_date}"
 
     @async_timer
     async def fetch_works_filter(

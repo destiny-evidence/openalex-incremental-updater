@@ -93,7 +93,7 @@ async def test_v1_openalex_works_ingest_date_range_success(
         "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.fetch_works_filter",
         return_value=[expected_response],
     )
-    test_openalex_query = f"from_{ingest_type.value}_date:{test_date}&to_{ingest_type.value}_date:{test_date}"
+    test_openalex_query = f"from_{ingest_type.value}_date:{test_date},to_{ingest_type.value}_date:{test_date}"
     response = await async_test_client.get(request_string)
     response_content = response.json()
     mocked_openalex_call.assert_called_once_with(
