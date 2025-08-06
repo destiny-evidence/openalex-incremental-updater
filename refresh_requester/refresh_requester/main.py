@@ -47,7 +47,7 @@ if __name__ == "__main__":
         )
         health_check_thread.start()
     logger.warning(
-        f"[DEBUG] Job started. Host: {socket.gethostname()}, Run ID: {uuid.uuid4()}"
+        f"[DEBUG] Job started. Host: {socket.gethostname()}, Run ID: {uuid.uuid4()}, PID: {os.getpid()}"
     )
 
     settings = get_settings()
