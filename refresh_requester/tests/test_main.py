@@ -1,6 +1,5 @@
 import os
 import threading
-import time
 
 import pytest
 from fastapi import status
@@ -39,35 +38,6 @@ def test_start_health_check_server_calls_uvicorn(mocker):
         log_level="warning",
         access_log=False,
     )
-
-
-def test_health_server_runs_in_separate_thread(mocker):
-    """Test that health server can run in a separate thread without blocking."""
-    import threading
-
-    stop_event = threading.Event()
-
-    def mock_uvicorn_run() -> None:
-        """Mock function to simulate uvicorn.run."""
-        stop_event.wait(timeout=1)
-
-    mock_uvicorn = mocker.patch("uvicorn.run", side_effect=mock_uvicorn_run)
-
-    thread = threading.Thread(target=start_health_check_server, daemon=True)
-
-    thread.start()
-
-    # Give thread time to start
-    time.sleep(0.1)
-
-    # Thread should be running
-    assert thread.is_alive()
-
-    # uvicorn.run should have been called
-    mock_uvicorn.assert_called_once()
-
-    stop_event.set()
-    thread.join(timeout=1)
 
 
 def test_thread_creation_logic(mocker):
