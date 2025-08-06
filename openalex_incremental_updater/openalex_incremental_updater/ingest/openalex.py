@@ -47,6 +47,25 @@ class OpenAlexDataFetcher:
         update_type = created_or_updated.value
         return f"from_{update_type}_date:{fetch_date}"
 
+    @staticmethod
+    def build_range_query(
+        start_date: date, end_date: date, created_or_updated: CreatedOrUpdated
+    ) -> str:
+        """
+        Build a query string to filter OpenAlex API data by date.
+
+        Args:
+            start_date (date): The start date to filter by.
+            end_date (date): The end date to filter by.
+            created_or_updated (CreatedOrUpdated): The type of date to filter by.
+
+        Returns:
+            str: The query string.
+
+        """
+        update_type = created_or_updated.value
+        return f"from_{update_type}_date:{start_date}&to_{update_type}_date:{end_date}"
+
     @async_timer
     async def fetch_works_filter(
         self, openalex_filter: str | None, works_retrieved_limit: int | None = None
