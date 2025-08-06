@@ -44,7 +44,7 @@ def start_health_check_server() -> None:
 
     uvicorn.run(
         health_probe_app,
-        host="127.0.0.1",
+        host="0.0.0.0",  # noqa: S104 Possible binding to all interfaces
         port=23045,
         log_level="warning",
         access_log=False,
