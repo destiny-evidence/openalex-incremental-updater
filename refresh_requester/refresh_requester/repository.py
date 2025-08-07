@@ -19,6 +19,7 @@ from requests.exceptions import JSONDecodeError
 from refresh_requester.blob_storage import DestinyBlobStorageClient
 from refresh_requester.config import Settings, get_retry_session
 from refresh_requester.token_utils import TokenRequestError, get_token
+from refresh_requester.utils import format_endpoint_url
 
 
 class ImportSourceType(StrEnum):
@@ -131,7 +132,8 @@ class DestinyRepositoryContentUploader:
             ImportRecordRead: The response from the DESTINY repository after registering the import.
 
         """
-        registration_url = f"{self.settings.REPOSITORY_ENDPOINT}imports/records/"
+        base_endpoint_url = format_endpoint_url(self.settings.REPOSITORY_ENDPOINT)
+        registration_url = f"{base_endpoint_url}/imports/records/"
         payload = self.retrieve_payload_from_source_type(source_type)
 
         response = self.session.post(
@@ -160,7 +162,11 @@ class DestinyRepositoryContentUploader:
             ImportBatchRead: The response from the DESTINY repository after registering the import batch.
 
         """
-        registration_url = f"{self.settings.REPOSITORY_ENDPOINT}imports/records/{import_record.id}/batches/"
+        base_endpoint_url = format_endpoint_url(self.settings.REPOSITORY_ENDPOINT)
+
+        registration_url = (
+            f"{base_endpoint_url}/imports/records/{import_record.id}/batches/"
+        )
         payload = ImportBatchIn(
             collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
             storage_url=str(sas_url),
@@ -193,8 +199,10 @@ class DestinyRepositoryContentUploader:
                 with a descriptive message.
 
         """
+        base_endpoint_url = format_endpoint_url(self.settings.REPOSITORY_ENDPOINT)
+
         response = self.session.patch(
-            f"{self.settings.REPOSITORY_ENDPOINT}imports/records/{import_record_id}/finalise/",
+            f"{base_endpoint_url}/imports/records/{import_record_id}/finalise/",
         )
         response.raise_for_status()
         return response
@@ -213,8 +221,10 @@ class DestinyRepositoryContentUploader:
             bool: True if the import batch has completed, False otherwise.
 
         """
+        base_endpoint_url = format_endpoint_url(self.settings.REPOSITORY_ENDPOINT)
+
         response = self.session.get(
-            f"{self.settings.REPOSITORY_ENDPOINT}imports/records/{import_record_id}/batches/{import_batch_id}/"
+            f"{base_endpoint_url}/imports/records/{import_record_id}/batches/{import_batch_id}/"
         )
         response.raise_for_status()
         import_batch_status = ImportBatchRead.model_validate(response.json())
@@ -234,8 +244,10 @@ class DestinyRepositoryContentUploader:
             ImportBatchSummary: The summary of the import batch.
 
         """
+        base_endpoint_url = format_endpoint_url(self.settings.REPOSITORY_ENDPOINT)
+
         response = self.session.get(
-            f"{self.settings.REPOSITORY_ENDPOINT}imports/records/{import_record_id}/batches/{import_batch_id}/summary/"
+            f"{base_endpoint_url}/imports/records/{import_record_id}/batches/{import_batch_id}/summary/"
         )
         response.raise_for_status()
         return ImportBatchSummary.model_validate(response.json())

@@ -2,6 +2,8 @@
 
 from datetime import date
 
+from pydantic import HttpUrl
+
 from refresh_requester.blob_storage import check_previous_file_dates
 from refresh_requester.config import Settings
 
@@ -22,3 +24,20 @@ def get_fetch_date(settings: Settings) -> date:
     if settings.fetch_date:
         return settings.fetch_date
     return check_previous_file_dates()
+
+
+def format_endpoint_url(url: HttpUrl) -> HttpUrl:
+    """
+    Format the endpoint URL to ensure it does not end with a slash.
+
+    Args:
+        url (HttpUrl): The URL to format.
+
+    Returns:
+        HttpUrl: The formatted URL without a trailing slash.
+
+    """
+    url_str = str(url)
+    if url_str.endswith("/"):
+        return HttpUrl(url_str[:-1])
+    return HttpUrl(url_str)

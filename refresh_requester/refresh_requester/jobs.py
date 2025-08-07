@@ -17,25 +17,28 @@ from refresh_requester.repository import (
 from refresh_requester.utils import get_fetch_date
 
 
-def run_refresh_job(settings: Settings, fetch_date: date, limit: int | None) -> str:
+def run_refresh_job(
+    settings: Settings, fetch_date: date, stop_date: date, limit: int | None
+) -> str:
     """
     Run the refresh requester job.
 
     Args:
-        fetch_date (date): The date to request a refresh from
+        fetch_date (date): The date to request a refresh from (inclusive)
+        stop_date (date): The date to request a refresh to (inclusive)
         limit (int | None): The maximum number of records to return
 
     Returns:
         str: JSONL-ified response from the API.
 
     """
-    jsonl_response = request_refresh(settings, fetch_date, limit)
+    jsonl_response = request_refresh(settings, fetch_date, stop_date, limit)
     logger.info(f"Refresh request successful for date {fetch_date}")
     return jsonl_response
 
 
 def run_openalex_refresh_blob_upload_job(
-    data: str, fetch_date: date, refresh_date: date
+    data: str, fetch_date: date, stop_date: date, refresh_date: date
 ) -> str:
     """
     Run the blob upload job.
@@ -43,18 +46,17 @@ def run_openalex_refresh_blob_upload_job(
     Args:
         data (str): The response from the API, converted to JSON-lines
         fetch_date (date): The date at which the data was fetched
+        stop_date (date): The date at which the data was fetched until (inclusive)
         refresh_date (date): The date at which the data was refreshed
 
     Returns:
         str: The filename of the uploaded blob
 
     """
-    blob_name = (
-        f"openalex_refresh_from_date_{fetch_date}_refreshed_on_{refresh_date}.jsonl"
-    )
+    blob_name = f"openalex_refresh_from_date_{fetch_date}_to_{stop_date}_refreshed_on_{refresh_date}.jsonl"
     uploaded_blob = blob_upload(data, blob_name)
     logger.info(
-        f"Data uploaded to blob storage for date: {fetch_date}, uploaded {refresh_date}"
+        f"Data uploaded to blob storage from {fetch_date} to {stop_date}, uploaded {refresh_date}"
     )
     logger.info(f"Uploaded blob: {uploaded_blob}")
     return uploaded_blob
@@ -90,13 +92,18 @@ def run_full_pipeline(settings: Settings) -> None:
 
     """
     fetch_date = get_fetch_date(settings)
+    stop_date = (
+        settings.stop_date
+        if settings.stop_date
+        else datetime.now(ZoneInfo("UTC")).date()
+    )
 
     date_today = datetime.now(ZoneInfo("UTC")).date()
     data_source = ImportSourceType.OPEN_ALEX.value
 
-    logger.info(f"RUNNING JOB - Fetching data for date: {fetch_date}")
+    logger.info(f"RUNNING JOB - Fetching data from {fetch_date} to {stop_date}")
     try:
-        data = run_refresh_job(settings, fetch_date, limit=settings.limit)
+        data = run_refresh_job(settings, fetch_date, stop_date, limit=settings.limit)
     except OpenAlexRefreshError as refresh_error:
         error_message = f"Error when requesting refresh: {refresh_error}"
         logger.error(error_message)
@@ -104,7 +111,7 @@ def run_full_pipeline(settings: Settings) -> None:
     logger.info("Data fetched successfully, preparing to upload to blob storage.")
     try:
         uploaded_blob = run_openalex_refresh_blob_upload_job(
-            data, fetch_date, date_today
+            data, fetch_date, stop_date, date_today
         )
     except BlobUploadError as upload_error:
         logger.error(f"Error uploading data to blob storage: {upload_error}")
@@ -114,8 +121,9 @@ def run_full_pipeline(settings: Settings) -> None:
     ingestion_metadata = upload_blob_storage_contents_to_repository(
         settings, blob_to_upload=uploaded_blob
     )
+    number_of_blobs = len(ingestion_metadata.get("import_batch_ids"))
     logger.info(
-        f"Data ingestion for {fetch_date} started for {len(ingestion_metadata.get("import_batch_ids"))} blobs."
+        f"Data ingestion from {fetch_date} to {stop_date} started for {number_of_blobs} blobs."
     )
 
     metadata_output = {

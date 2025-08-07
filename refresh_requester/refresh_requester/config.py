@@ -58,6 +58,7 @@ class Settings(BaseSettings):
     )
     limit: int | None = None
     fetch_date: date | None = None
+    stop_date: date | None = None
     retry_total: int = 3
     retry_backoff_factor: float = 0.3
     # See https://docs.python.org/3/library/http.html#http-status-codes
