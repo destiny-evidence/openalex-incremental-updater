@@ -136,6 +136,7 @@ def run_full_pipeline(settings: Settings) -> None:
         if ingestion_metadata.get("import_batch_ids")
         else None,
     }
+    logger.info("Uploading ingestion metadata to blob storage.")
     uploaded_path = run_ingestion_metadata_blob_upload_job(
         metadata_output, data_source, fetch_date, stop_date
     )

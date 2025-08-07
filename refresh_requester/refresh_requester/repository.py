@@ -314,7 +314,13 @@ def upload_blob_storage_contents_to_repository(
     """
     blob_client = DestinyBlobStorageClient()
     blob_url_pairs = blob_client.get_all_blob_url_pairs(blob_to_upload)
+    logger.info(
+        f"Retrieved {len(blob_url_pairs)} blob URLs to upload to the DESTINY repository."
+    )
     uploader = DestinyRepositoryContentUploader(settings)
+    logger.info(
+        f"Registering new import record for source type: {blob_content_source.value}"
+    )
     import_record = uploader.register_new_import(source_type=blob_content_source)
 
     import_batch_ids = []  # type: list[UUID4]
@@ -326,7 +332,11 @@ def upload_blob_storage_contents_to_repository(
             blob_name, sas_url, import_record
         )
         import_batch_ids.append(import_batch.id)
-
+    logger.info(
+        f"Registered {len(import_batch_ids)} import batches for import record {import_record.id}."
+    )
     uploader.finalise_import_record(import_record.id)
-
+    logger.info(
+        f"Finalised import record {import_record.id} with {len(import_batch_ids)} batches."
+    )
     return {"import_record": import_record, "import_batch_ids": import_batch_ids}
