@@ -5,7 +5,10 @@ from http import HTTPStatus
 import pytest
 import requests
 
-from refresh_requester.jobs import run_refresh_job
+from refresh_requester.jobs import (
+    run_ingestion_metadata_blob_upload_job,
+    run_refresh_job,
+)
 from refresh_requester.openalex_refresh import OpenAlexRefreshError
 
 
@@ -48,3 +51,26 @@ def test_run_refresh_job_request_exception_failure(mocker, test_settings):
     assert "HTTP exception: Internal Server Error" in str(
         error_info.value
     ), "Should see an HTTP exception error message"
+
+
+def test_run_ingestion_metadata_blob_upload_job(mocker, test_settings):
+    """Test the ingestion metadata blob upload job."""
+    fetch_date = date(2025, 3, 1)
+    stop_date = date(2025, 3, 31)
+    data_source = "openalex"
+    expected_blob_name = (
+        "ingestion_metadata/destiny_repository_"
+        f"{data_source}_ingestion_batch_from_{fetch_date}_to_{stop_date}.jsonl"
+    )
+
+    mock_blob_upload = mocker.patch(
+        "refresh_requester.jobs.blob_upload", return_value=expected_blob_name
+    )
+    metadata = {"key": "value"}
+
+    result = run_ingestion_metadata_blob_upload_job(
+        metadata, data_source, fetch_date, stop_date
+    )
+
+    mock_blob_upload.assert_called_once_with(json.dumps(metadata), expected_blob_name)
+    assert result == mock_blob_upload.return_value

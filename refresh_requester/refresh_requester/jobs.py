@@ -14,7 +14,7 @@ from refresh_requester.repository import (
     ImportSourceType,
     upload_blob_storage_contents_to_repository,
 )
-from refresh_requester.utils import get_fetch_date
+from refresh_requester.utils import format_metadata_blob_name, get_fetch_date
 
 
 def run_refresh_job(
@@ -63,7 +63,7 @@ def run_openalex_refresh_blob_upload_job(
 
 
 def run_ingestion_metadata_blob_upload_job(
-    metadata: dict, data_source: str, refresh_date: date
+    metadata: dict, data_source: str, fetch_date: date, stop_date: date | None = None
 ) -> str:
     """
     Run the metadata blob upload job.
@@ -71,13 +71,14 @@ def run_ingestion_metadata_blob_upload_job(
     Args:
         metadata (dict): The metadata to upload, including:
         data_source (str): The source of the metadata, e.g., "openalex", "solr"
-        refresh_date (date): The date at which the data was refreshed
+        fetch_date (date): The from_created_date of the metadata
+        stop_date (date | None): The to_created_date of the metadata, if applicable
 
     Returns:
         str: The path of the uploaded blob
 
     """
-    blob_name = f"ingestion_metadata/destiny_repository_{data_source}_ingestion_batch_{refresh_date}.jsonl"
+    blob_name = format_metadata_blob_name(data_source, fetch_date, stop_date)
     uploaded_blob = blob_upload(json.dumps(metadata), blob_name)
     logger.info(f"Uploaded destiny repository ingestion metadata: {uploaded_blob}")
     return uploaded_blob
@@ -136,7 +137,7 @@ def run_full_pipeline(settings: Settings) -> None:
         else None,
     }
     uploaded_path = run_ingestion_metadata_blob_upload_job(
-        metadata_output, data_source, fetch_date
+        metadata_output, data_source, fetch_date, stop_date
     )
 
     logger.success(
