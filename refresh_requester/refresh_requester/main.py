@@ -27,9 +27,13 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         AsyncIterator[None]: An asynchronous iterator for the lifespan context.
 
     """
-    logger.warning(
-        f"[DEBUG] Job started. Host: {socket.gethostname()}, Run ID: {uuid.uuid4()}, PID: {os.getpid()}"
+    logger.debug(
+        "Job started. Host: {}, Run ID: {}, PID: {}",
+        socket.gethostname(),
+        uuid.uuid4(),
+        os.getpid(),
     )
+
     settings = get_settings()
     task = asyncio.create_task(asyncio.to_thread(run_full_pipeline, settings))
     try:
