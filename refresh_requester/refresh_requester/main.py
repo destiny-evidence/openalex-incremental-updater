@@ -3,6 +3,7 @@
 import asyncio
 import os
 import socket
+import sys
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -40,6 +41,8 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         yield
     finally:
         await task
+        logger.success("Job completed. Exiting container.")
+        sys.exit(0)
 
 
 app = FastAPI(
