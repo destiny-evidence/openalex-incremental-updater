@@ -44,7 +44,7 @@ def format_endpoint_url(url: HttpUrl) -> HttpUrl:
 
 
 def format_metadata_blob_name(
-    data_source: str, fetch_date: date, stop_date: date
+    data_source: str, fetch_date: date, stop_date: date | None
 ) -> str:
     """
     Format the metadata blob name.
@@ -52,7 +52,7 @@ def format_metadata_blob_name(
     Args:
         data_source (str): The data source for the metadata.
         fetch_date (date): The fetch date for the metadata.
-        stop_date (date): The stop date for the metadata.
+        stop_date (date | None): The stop date for the metadata.
 
     Returns:
         str: The formatted metadata blob name.
