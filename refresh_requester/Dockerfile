@@ -26,4 +26,6 @@ COPY refresh_requester /app/refresh_requester
 RUN poetry config virtualenvs.create false && \
     poetry install --no-interaction --no-ansi
 
-CMD ["python", "refresh_requester/main.py"]
+EXPOSE 8080
+
+CMD ["poetry", "run", "uvicorn", "refresh_requester.main:app", "--host", "0.0.0.0", "--port", "8080"]

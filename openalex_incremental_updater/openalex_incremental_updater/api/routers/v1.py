@@ -64,6 +64,57 @@ async def get_openalex_works_ingest_from_date(
         return results
 
 
+@router.get("/openalex_works_ingest_date_range")
+async def get_openalex_works_ingest_date_range(
+    start_date: Annotated[
+        date,
+        Query(description="Date to fetch data from. Must be in ISO format YYYY-MM-DD."),
+    ],
+    end_date: Annotated[
+        date,
+        Query(description="Date to fetch data to. Must be in ISO format YYYY-MM-DD."),
+    ],
+    ingest_type: Annotated[
+        CreatedOrUpdated,
+        Query(
+            description="Method of determining ingest data. Must be one of 'created' or 'updated'."
+        ),
+    ],
+    limit: Annotated[
+        int | None, Query(description="Maximum number of records to ingest.")
+    ] = None,
+) -> list[DestinyOpenAlexWork]:
+    """
+    Fetch Works from the OpenAlex API with a date range filter and ingest them into the repository.
+
+    Args:
+        start_date (date): Start date to fetch data from. Must be in the format YYYY-MM-DD.
+        end_date (date): End date to fetch data to. Must be in the format YYYY-MM-DD.
+        ingest_type (CreatedOrUpdated): Method of determining ingest data. Must be one of "created" or "updated".
+        limit (int): Maximum number of records to ingest.
+
+    Returns:
+        list[DestinyOpenAlexWork]: List of DestinyOpenAlexWork objects.
+
+    """
+    openalex_query = OpenAlexDataFetcher.build_range_query(
+        start_date, end_date, ingest_type
+    )
+    fetcher = OpenAlexDataFetcher()
+    try:
+        results = await fetcher.fetch_works_filter(
+            openalex_filter=openalex_query,
+            works_retrieved_limit=limit,
+        )
+    except UpstreamOpenAlexError as error:
+        error_message = str(error)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=error_message
+        ) from error
+    else:
+        return results
+
+
 @router.get("/openalex_works_open_filter")
 async def get_openalex_works_ingest_open_filter(
     openalex_query_string: Annotated[

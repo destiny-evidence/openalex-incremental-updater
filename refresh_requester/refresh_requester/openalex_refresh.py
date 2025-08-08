@@ -15,14 +15,18 @@ class OpenAlexRefreshError(Exception):
 
 
 def request_refresh(
-    settings: Settings, created_from_date: date, limit: int | None = None
+    settings: Settings,
+    created_from_date: date,
+    stop_date: date,
+    limit: int | None = None,
 ) -> str:
     """
     Request a refresh from the OpenAlex Incremental Ingestion API.
 
     Args:
         settings (Settings): Pydantic settings
-        created_from_date (date): The date to request a refresh from
+        created_from_date (date): The date to request a refresh from (inclusive)
+        stop_date (date): The date to request a refresh to (inclusive)
         limit (int | None): The maximum number of records to return
     Raises:
         OpenAlexRefreshError: A descriptive error message
@@ -35,7 +39,7 @@ def request_refresh(
         session = get_retry_session()
         url = (
             str(settings.API_ENDPOINT)
-            + f"?fetch_date={created_from_date}&ingest_type=created"
+            + f"?start_date={created_from_date}&end_date={stop_date}&ingest_type=created"
         )
         if limit:
             url += f"&limit={limit}"

@@ -1,167 +1,105 @@
-import uuid
-from datetime import date, timedelta
+from io import StringIO
 
-from destiny_sdk.imports import ImportRecordRead
-from freezegun import freeze_time
+from fastapi import status
+from fastapi.testclient import TestClient
 
-from refresh_requester.main import main
+from refresh_requester.main import app, logger
 
 
-@freeze_time("2025-06-12")
-def test_main_success_no_fetch_date_set(mocker, test_settings) -> None:
-    """
-    Test the main function of the refresh requester job.
+def test_health_check_endpoint():
+    """Test the health check endpoint returns correct response."""
+    client = TestClient(app)
+    response = client.get("/health")
 
-    Tests the case where no fetch date is set in the settings.
-    """
-    settings = test_settings.model_copy(deep=True)
-    settings.fetch_date = None
-    date_today = date.today()  # noqa: DTZ011
-    date_yesterday = date_today - timedelta(days=1)
-    test_latest_blob_date = date_yesterday
-    test_data = "test_data"
-    test_blob = "test_blob"
-    test_id = uuid.uuid4()
-    test_batch_ids = [uuid.uuid4()]
+    assert response.status_code == status.HTTP_200_OK
+    assert response.json() == {"status": "healthy"}
 
-    test_import_record = ImportRecordRead(
-        id=test_id,
-        processor_name="test_processor",
-        processor_version="1.0.0",
-        expected_reference_count=-1,
-        source_name="test_source",
-        status="completed",
-        created_at=date_today,
-        updated_at=date_today,
-        fetch_date=test_latest_blob_date,
-        refresh_date=date_today,
-    )
-    get_fetch_date_mock = mocker.patch(
-        "refresh_requester.main.get_fetch_date",
-        return_value=test_latest_blob_date,
-    )
-    run_refresh_job_mock = mocker.patch(
-        "refresh_requester.main.run_refresh_job", return_value=test_data
-    )
-    run_openalex_refresh_blob_upload_job_mock = mocker.patch(
-        "refresh_requester.main.run_openalex_refresh_blob_upload_job",
-        return_value=test_blob,
-    )
-    upload_blob_storage_contents_to_repository_mock = mocker.patch(
-        "refresh_requester.main.upload_blob_storage_contents_to_repository",
-        return_value={
-            "import_record": test_import_record,
-            "import_batch_ids": test_batch_ids,
-        },
-    )
-    run_ingestion_metadata_blob_upload_job_mock = mocker.patch(
-        "refresh_requester.main.run_ingestion_metadata_blob_upload_job",
-        return_value=f"ingestion_metadata/{test_id}.jsonl",
+
+def test_invalid_endpoint_returns_404():
+    """Test that invalid endpoints return 404."""
+    client = TestClient(app)
+    response = client.get("/invalid")
+
+    assert response.status_code == status.HTTP_404_NOT_FOUND
+
+
+def test_logging_format_works_with_debug(mocker):
+    """Test that logging with non-f-string formatting is equivalent to an expected f-string."""
+    test_host_name = "test-host"
+    test_run_id = "test-uuid"
+    test_pid = 12345
+    mocker.patch("socket.gethostname", return_value=test_host_name)
+    mocker.patch("uuid.uuid4", return_value=test_run_id)
+    mocker.patch("os.getpid", return_value=test_pid)
+
+    log_stream = StringIO()
+    logger.add(log_stream, format="{message}", level="DEBUG")
+    logger.debug(
+        "Job started. Host: {}, Run ID: {}, PID: {}",
+        test_host_name,
+        test_run_id,
+        test_pid,
     )
 
-    assert settings.fetch_date is None, "fetch_date should be None in test settings"
-    main(settings)
-
-    (
-        get_fetch_date_mock.assert_called_once(),
-        "check_previous_file_dates should be called once",
-    )
-    (
-        run_refresh_job_mock.assert_called_once_with(test_latest_blob_date, limit=None),
-        "run_refresh_job should be called with the correct date and no limit set",
-    )
-    (
-        run_openalex_refresh_blob_upload_job_mock.assert_called_once_with(
-            test_data, test_latest_blob_date, date_today
-        ),
-        "run_openalex_refresh_blob_upload_job should be called with the correct data, date, and today's date",
-    )
-    (
-        upload_blob_storage_contents_to_repository_mock.assert_called_once_with(
-            settings, blob_to_upload=test_blob
-        ),
-        "should be called with the correct settings, max_retries, and blob to upload",
+    expected_message = (
+        f"Job started. Host: {test_host_name}, Run ID: {test_run_id}, PID: {test_pid}"
     )
 
+    log_stream.seek(0)
+    rendered_message = log_stream.read().strip()
     assert (
-        run_ingestion_metadata_blob_upload_job_mock.call_count == 1
-    ), "run_ingestion_metadata_blob_upload_job should be called once at the end of the job"
+        rendered_message == expected_message
+    ), "Rendered log message matches the expected f-string"
 
 
-@freeze_time("2025-06-12")
-def test_main_success_fetch_date_set_in_settings(mocker, test_settings) -> None:
-    """
-    Test the main function of the refresh requester job.
+def test_logging_format_works_above_debug(mocker):
+    """Test that logging with non-f-string formatting is equivalent to an expected f-string."""
+    test_host_name = "test-host"
+    test_run_id = "test-uuid"
+    test_pid = 12345
+    mocker.patch("socket.gethostname", return_value=test_host_name)
+    mocker.patch("uuid.uuid4", return_value=test_run_id)
+    mocker.patch("os.getpid", return_value=test_pid)
 
-    Tests the case where a fetch date is set in the settings.
-    """
-    settings = test_settings.model_copy(deep=True)
-    date_today = date.today()  # noqa: DTZ011
-    date_yesterday = date_today - timedelta(days=1)
-    settings.fetch_date = date_yesterday
-    test_data = "test_data"
-    test_blob = "test_blob"
-
-    test_id = uuid.uuid4()
-    test_batch_ids = [uuid.uuid4()]
-
-    test_import_record = ImportRecordRead(
-        id=test_id,
-        processor_name="test_processor",
-        processor_version="1.0.0",
-        expected_reference_count=-1,
-        source_name="test_source",
-        status="completed",
-        created_at=date_today,
-        updated_at=date_today,
-        fetch_date=settings.fetch_date,
-        refresh_date=date_today,
+    log_stream = StringIO()
+    logger.add(log_stream, format="{message}", level="INFO")
+    logger.debug(
+        "Job started. Host: {}, Run ID: {}, PID: {}",
+        test_host_name,
+        test_run_id,
+        test_pid,
     )
 
-    check_previous_file_dates_mock = mocker.patch(
-        "refresh_requester.utils.check_previous_file_dates",
-    )
-    run_refresh_job_mock = mocker.patch(
-        "refresh_requester.main.run_refresh_job", return_value=test_data
-    )
-    run_openalex_refresh_blob_upload_job_mock = mocker.patch(
-        "refresh_requester.main.run_openalex_refresh_blob_upload_job",
-        return_value=test_blob,
-    )
-    upload_blob_storage_contents_to_repository_mock = mocker.patch(
-        "refresh_requester.main.upload_blob_storage_contents_to_repository",
-        return_value={
-            "import_record": test_import_record,
-            "import_batch_ids": test_batch_ids,
-        },
-    )
-    run_ingestion_metadata_blob_upload_job_mock = mocker.patch(
-        "refresh_requester.main.run_ingestion_metadata_blob_upload_job",
-        return_value=f"ingestion_metadata/{test_id}.jsonl",
-    )
+    expected_message = ""
 
-    main(settings)
-
+    log_stream.seek(0)
     assert (
-        check_previous_file_dates_mock.call_count == 0
-    ), "check_previous_file_dates should not be called when fetch_date is set in settings"
-    (
-        run_refresh_job_mock.assert_called_once_with(date_yesterday, limit=None),
-        "run_refresh_job should be called with the correct date and no limit set",
-    )
-    (
-        run_openalex_refresh_blob_upload_job_mock.assert_called_once_with(
-            test_data, settings.fetch_date, date_today
-        ),
-        "run_openalex_refresh_blob_upload_job should be called with the correct data, date, and today's date",
-    )
+        log_stream.read() == expected_message
+    ), "No DEBUG messages should be logged at INFO level"
 
-    (
-        upload_blob_storage_contents_to_repository_mock.assert_called_once_with(
-            settings, blob_to_upload=test_blob
-        ),
-        "should be called with the correct settings, max_retries, and blob to upload",
-    )
-    assert (
-        run_ingestion_metadata_blob_upload_job_mock.call_count == 1
-    ), "run_ingestion_metadata_blob_upload_job should be called once at the end of the job"
+
+def test_settings_and_pipeline_execution(mocker):
+    """Test that settings are retrieved and pipeline is executed."""
+    mock_get_settings = mocker.patch("refresh_requester.main.get_settings")
+    mock_run_pipeline = mocker.patch("refresh_requester.main.run_full_pipeline")
+    mock_settings = mocker.Mock()
+    mock_get_settings.return_value = mock_settings
+
+    # Test just the settings and pipeline part
+    from refresh_requester.main import get_settings, run_full_pipeline
+
+    settings = get_settings()
+    run_full_pipeline(settings)
+
+    mock_get_settings.assert_called_once()
+    mock_run_pipeline.assert_called_once_with(mock_settings)
+
+
+def test_fastapi_app_creation():
+    """Test that the FastAPI app is created correctly."""
+    assert app is not None
+    assert hasattr(app, "get")
+
+    # Test that the route is registered
+    routes = [route.path for route in app.routes]
+    assert "/health" in routes

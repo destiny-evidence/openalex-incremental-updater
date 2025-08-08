@@ -25,9 +25,8 @@ def custom_generate_unique_id(route: APIRoute) -> str:
     return f"{route.tags[0]}-{route.name}"
 
 
-setup_logging(log_level="DEBUG")
-
 settings = get_settings()
+setup_logging(log_level=settings.log_level)
 
 app = FastAPI(
     title=settings.PROJECT_NAME,
