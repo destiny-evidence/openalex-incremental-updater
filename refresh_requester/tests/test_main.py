@@ -1,9 +1,9 @@
-import os
+from io import StringIO
 
 from fastapi import status
 from fastapi.testclient import TestClient
 
-from refresh_requester.main import app
+from refresh_requester.main import app, logger
 
 
 def test_health_check_endpoint():
@@ -23,25 +23,59 @@ def test_invalid_endpoint_returns_404():
     assert response.status_code == status.HTTP_404_NOT_FOUND
 
 
-def test_logging_format(mocker):
-    """Test that logging produces correct format."""
-    mock_logger = mocker.patch("refresh_requester.main.logger")
-
-    # Test the logging directly by importing the modules
-    import socket
-    import uuid
-
+def test_logging_format_works_with_debug(mocker):
+    """Test that logging with non-f-string formatting is equivalent to an expected f-string."""
     test_host_name = "test-host"
     test_run_id = "test-uuid"
     test_pid = 12345
     mocker.patch("socket.gethostname", return_value=test_host_name)
     mocker.patch("uuid.uuid4", return_value=test_run_id)
     mocker.patch("os.getpid", return_value=test_pid)
-    log_message = f"[DEBUG] Job started. Host: {socket.gethostname()}, Run ID: {uuid.uuid4()}, PID: {os.getpid()}"
-    mock_logger.warning(log_message)
 
-    expected_log = f"[DEBUG] Job started. Host: {test_host_name}, Run ID: {test_run_id}, PID: {test_pid}"
-    mock_logger.warning.assert_called_once_with(expected_log)
+    log_stream = StringIO()
+    logger.add(log_stream, format="{message}", level="DEBUG")
+    logger.debug(
+        "Job started. Host: {}, Run ID: {}, PID: {}",
+        test_host_name,
+        test_run_id,
+        test_pid,
+    )
+
+    expected_message = (
+        f"Job started. Host: {test_host_name}, Run ID: {test_run_id}, PID: {test_pid}"
+    )
+
+    log_stream.seek(0)
+    rendered_message = log_stream.read().strip()
+    assert (
+        rendered_message == expected_message
+    ), "Rendered log message matches the expected f-string"
+
+
+def test_logging_format_works_above_debug(mocker):
+    """Test that logging with non-f-string formatting is equivalent to an expected f-string."""
+    test_host_name = "test-host"
+    test_run_id = "test-uuid"
+    test_pid = 12345
+    mocker.patch("socket.gethostname", return_value=test_host_name)
+    mocker.patch("uuid.uuid4", return_value=test_run_id)
+    mocker.patch("os.getpid", return_value=test_pid)
+
+    log_stream = StringIO()
+    logger.add(log_stream, format="{message}", level="INFO")
+    logger.debug(
+        "Job started. Host: {}, Run ID: {}, PID: {}",
+        test_host_name,
+        test_run_id,
+        test_pid,
+    )
+
+    expected_message = ""
+
+    log_stream.seek(0)
+    assert (
+        log_stream.read() == expected_message
+    ), "No DEBUG messages should be logged at INFO level"
 
 
 def test_settings_and_pipeline_execution(mocker):
