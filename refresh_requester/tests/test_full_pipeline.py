@@ -21,7 +21,7 @@ def test_run_full_pipeline_success_no_fetch_date_set_no_stop_date_set(
     date_today = date.today()  # noqa: DTZ011
     date_yesterday = date_today - timedelta(days=1)
     test_latest_blob_date = date_yesterday
-    test_stop_date = date_today
+    test_stop_date = date_yesterday
     test_data = "test_data"
     test_blob = "test_blob"
     test_id = uuid.uuid4()
@@ -106,7 +106,7 @@ def test_run_full_pipeline_success_fetch_date_set_stop_date_unset(
     date_today = date.today()  # noqa: DTZ011
     date_yesterday = date_today - timedelta(days=1)
     settings.fetch_date = date_yesterday
-    test_stop_date = date_today
+    test_stop_date = date_yesterday
     test_data = "test_data"
     test_blob = "test_blob"
 
