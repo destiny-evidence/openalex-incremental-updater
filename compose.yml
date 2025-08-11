@@ -21,5 +21,9 @@ services:
       api:
         condition: service_healthy
     container_name: refresh-requester
+    environment:
+      AZURE_CONFIG_DIR: /azcfg
+    volumes:
+      - "${HOME}/.azure:/azcfg:rw"
     env_file:
       - refresh_requester/.env
