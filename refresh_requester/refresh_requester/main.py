@@ -3,7 +3,6 @@
 import asyncio
 import os
 import socket
-import sys
 import uuid
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
@@ -17,7 +16,7 @@ from refresh_requester.jobs import run_full_pipeline
 
 
 @asynccontextmanager
-async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     """
     Context manager for the lifespan of the FastAPI application.
 
@@ -34,15 +33,33 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         uuid.uuid4(),
         os.getpid(),
     )
-
     settings = get_settings()
-    task = asyncio.create_task(asyncio.to_thread(run_full_pipeline, settings))
+    app.state.exit_code = 0
+
+    async def run_and_request_shutdown() -> None:
+        """Run the full pipeline and request shutdown."""
+        try:
+            await asyncio.to_thread(run_full_pipeline, settings)
+            logger.success("Job completed.")
+        except Exception:  # noqa: BLE001 Ignoring as this is a catch-all for Azure Container App Job failures
+            # and we need to ensure the job terminates immediately.
+            app.state.exit_code = 1
+            logger.exception("Job failed.")
+        finally:
+            loop = asyncio.get_event_loop()
+            loop.stop()
+
+    task = asyncio.create_task(run_and_request_shutdown())
+
     try:
         yield
     finally:
-        await task
-        logger.success("Job completed. Exiting container.")
-        sys.exit(0)
+        try:
+            await task
+        except Exception:  # noqa: BLE001 # Terminate the App Job if any exception occurs
+            app.state.exit_code = 1
+        logger.success("Exiting container.")
+        os._exit(app.state.exit_code)
 
 
 app = FastAPI(

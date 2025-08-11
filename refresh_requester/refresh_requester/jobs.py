@@ -93,11 +93,7 @@ def run_full_pipeline(settings: Settings) -> None:
 
     """
     fetch_date = get_fetch_date(settings)
-    stop_date = (
-        settings.stop_date
-        if settings.stop_date
-        else datetime.now(ZoneInfo("UTC")).date()
-    )
+    stop_date = settings.stop_date if settings.stop_date else fetch_date
 
     date_today = datetime.now(ZoneInfo("UTC")).date()
     data_source = ImportSourceType.OPEN_ALEX.value
