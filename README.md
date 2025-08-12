@@ -41,7 +41,15 @@ sequenceDiagram
 
 Dependency management is handled by [Poetry](https://python-poetry.org/). To install Poetry, follow the instructions on the [Poetry installation page](https://python-poetry.org/docs/#installation). Ensure you install poetry version 2.1.2 or later, as this is the version used in the Dockerfiles and Poetry will shout at you about lock file version mismatches if you use an earlier version.
 
-See the documentation within the [openalex_incremental_updater](openalex_incremental_updater) and [refresh_requester(refresh_requester) packages for details on how to install and run the service.
+See the documentation within the [openalex_incremental_updater](openalex_incremental_updater) and [refresh_requester](refresh_requester) packages for details on how to install and run the service.
+
+Ensure you install the pre-commit hooks by running:
+
+```bash
+poetry run pre-commit install
+```
+
+after installing dependencies. This will ensure that code is automatically formatted and linted before committing changes.
 
 ### Running locally
 
@@ -81,3 +89,19 @@ Then run the built images with the convenience scripts:
 ```
 
 Environment variables should be set in the respective `.env` files in the `openalex_incremental_updater` and `refresh_requester` directories. These files should not be committed to version control, as they may contain sensitive information such as API keys or database connection strings.
+
+A `compose.yml` file is provided to run both services together in a Docker Compose environment. To start the services, run:
+
+```bash
+docker compose up --build
+```
+
+Which will successfully network the two services together, allowing the Refresh Requester to call the OpenAlex Incremental Updater API.
+
+### Testing
+
+To run the tests for the OpenAlex Incremental Updater and Refresh Requester services, use the following commands in their respective directories:
+
+```bash
+    poetry run pytest
+```
