@@ -1,5 +1,4 @@
-name: Deploy staging openalex-incremental-updater to Azure Container Apps on successful PR merge.
-
+name: Deploy staging refresh-requester to Azure Container Apps on successful PR merge.
 on:
   pull_request:
     types: [closed]
@@ -7,13 +6,12 @@ on:
       - main
 
 jobs:
-  staging-openalex-incremental-updater-deploy:
-    if: github.event.pull_request.merged == true
+  staging-refresh-requester-deploy:
     runs-on: ubuntu-latest
     environment: staging
 
     env:
-      IMAGE_NAME: openalex-incremental-updater
+      IMAGE_NAME: refresh-requester
 
     steps:
       - name: Checkout code
@@ -24,7 +22,7 @@ jobs:
         with:
           creds: ${{ secrets.AZURE_CREDENTIALS }}
 
-      - name: Build and push Docker image
+      - name: Build and push Docker image to Azure Container Registry
         uses: docker/login-action@v3
         with:
           registry: ${{ secrets.REGISTRY_LOGIN_SERVER }}
@@ -34,12 +32,13 @@ jobs:
           DOCKER_BUILDKIT: 1
       - run: |
           export TAG=${{ github.sha }}
-          docker build -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${TAG} openalex_incremental_updater/
+          docker build -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${TAG} refresh_requester/
           docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${TAG}
-      - name: Deploy to Azure Container App (Staging)
+
+      - name: Deploy to Azure Container App Jobs
         run: |
           export TAG=${{ github.sha }}
-          az containerapp update \
-            --name ${{ secrets.CONTAINER_APP_NAME_STAGING }}
-            --resource-group ${{ secrets.RESOURCE_GROUP }}
+          az containerapp job update \
+            --name ${{ secrets.CONTAINER_APP_JOB_NAME_STAGING }} \
+            --resource-group ${{ secrets.RESOURCE_GROUP }} \
             --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:$TAG
