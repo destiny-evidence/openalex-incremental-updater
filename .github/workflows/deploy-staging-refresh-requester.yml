@@ -31,13 +31,13 @@ jobs:
         env:
           DOCKER_BUILDKIT: 1
       - run: |
-          export TAG=${{ github.sha }}
+          export TAG=$(git rev-parse --short HEAD)
           docker build -t ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${TAG} refresh_requester/
           docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${TAG}
 
       - name: Deploy to Azure Container App Jobs
         run: |
-          export TAG=${{ github.sha }}
+          export TAG=$(git rev-parse --short HEAD)
           az containerapp job update \
             --name ${{ secrets.CONTAINER_APP_JOB_NAME_STAGING }} \
             --resource-group ${{ secrets.RESOURCE_GROUP }} \
