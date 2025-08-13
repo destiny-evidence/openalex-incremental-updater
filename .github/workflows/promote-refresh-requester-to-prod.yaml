@@ -49,7 +49,7 @@ jobs:
         id: tag-image
       - name: Save unique tag for deployment
         id: save-tag
-        run: echo "::set-output name=unique_tag::${{ env.UNIQUE_TAG }}"
+        run: echo "unique_tag=${{ env.UNIQUE_TAG }}" >> $GITHUB_OUTPUT
 
   deploy-to-production:
     if: github.ref == 'refs/heads/main'
