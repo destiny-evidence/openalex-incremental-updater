@@ -1,12 +1,12 @@
 name: Deploy staging refresh-requester to Azure Container Apps on successful PR merge.
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches:
       - main
 
 jobs:
   staging-refresh-requester-deploy:
+    name: Deploy refresh-requester to staging
     runs-on: ubuntu-latest
     environment: staging
 
