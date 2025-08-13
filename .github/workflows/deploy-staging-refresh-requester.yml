@@ -6,7 +6,7 @@ on:
 
 jobs:
   staging-refresh-requester-deploy:
-    name: Deploy to Staging
+    name: Deploy refresh-requester to staging
     runs-on: ubuntu-latest
     environment: staging
 

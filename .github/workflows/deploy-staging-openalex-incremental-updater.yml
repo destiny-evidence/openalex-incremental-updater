@@ -7,7 +7,7 @@ on:
 
 jobs:
   staging-openalex-incremental-updater-deploy:
-    name: Deploy to Staging
+    name: Deploy openalex-incremental-updater to staging
     runs-on: ubuntu-latest
     environment: staging
 
