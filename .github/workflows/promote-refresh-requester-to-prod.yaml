@@ -18,6 +18,9 @@ jobs:
     runs-on: ubuntu-latest
     environment: production
 
+    outputs:
+      unique_tag: ${{ steps.save-tag.outputs.unique_tag }}
+
     steps:
       - uses: actions/checkout@v4
         with:
@@ -42,9 +45,11 @@ jobs:
           docker pull ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${sha_short}
           docker tag ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${sha_short} ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${unique_tag}
           docker push ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${unique_tag}
-
+          echo "UNIQUE_TAG=${unique_tag}" >> $GITHUB_ENV
+        id: tag-image
       - name: Save unique tag for deployment
-        run: echo "UNIQUE_TAG=${unique_tag}" >> $GITHUB_ENV
+        id: save-tag
+        run: echo "::set-output name=unique_tag::${{ env.UNIQUE_TAG }}"
 
   deploy-to-production:
     if: github.ref == 'refs/heads/main'
@@ -72,4 +77,4 @@ jobs:
           az containerapp job update \
             --name ${{ secrets.CONTAINER_APP_JOB_NAME_PRODUCTION }} \
             --resource-group ${{ secrets.RESOURCE_GROUP }} \
-            --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ env.UNIQUE_TAG }}
+            --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:${{ needs.tag-image-for-prod.outputs.unique_tag }}
