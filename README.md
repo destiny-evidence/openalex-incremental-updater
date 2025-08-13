@@ -39,14 +39,14 @@ sequenceDiagram
 
 ## Developers
 
-Dependency management is handled by [Poetry](https://python-poetry.org/). To install Poetry, follow the instructions on the [Poetry installation page](https://python-poetry.org/docs/#installation). Ensure you install poetry version 2.1.2 or later, as this is the version used in the Dockerfiles and Poetry will shout at you about lock file version mismatches if you use an earlier version.
+Dependency management is handled by [uv](https://docs.astral.sh/uv/).
 
 See the documentation within the [openalex_incremental_updater](openalex_incremental_updater) and [refresh_requester](refresh_requester) packages for details on how to install and run the service.
 
 Ensure you install the pre-commit hooks by running:
 
 ```bash
-poetry run pre-commit install
+uv run pre-commit install
 ```
 
 after installing dependencies. This will ensure that code is automatically formatted and linted before committing changes.
@@ -109,7 +109,13 @@ docker compose down
 To run the tests for the OpenAlex Incremental Updater and Refresh Requester services, use the following commands in their respective directories:
 
 ```bash
-    poetry run pytest
+    uv run pytest
+```
+
+Pass the `--cov` flag to generate a coverage report, e.g.:
+
+```bash
+    uv run pytest --cov=openalex_incremental_updater
 ```
 
 ## Deployment
