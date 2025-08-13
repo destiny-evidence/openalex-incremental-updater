@@ -1,14 +1,13 @@
 name: Deploy staging openalex-incremental-updater to Azure Container Apps on successful PR merge.
 
 on:
-  pull_request:
-    types: [closed]
+  push:
     branches:
       - main
 
 jobs:
   staging-openalex-incremental-updater-deploy:
-    if: github.event.pull_request.merged == true
+    name: Deploy to Staging
     runs-on: ubuntu-latest
     environment: staging
 
