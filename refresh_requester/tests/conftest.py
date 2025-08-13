@@ -8,7 +8,7 @@ from refresh_requester.config import Settings, get_settings
 @pytest.fixture
 def set_test_environment_variables(
     monkeypatch: pytest.MonkeyPatch,
-) -> Generator[None, None, None]:
+) -> Generator[None]:
     """Set test environment variables."""
     monkeypatch.setenv("API_ENDPOINT", "http://test-host")
     monkeypatch.setenv("STORAGE_BLOB_ACCOUNT", "Test account name")

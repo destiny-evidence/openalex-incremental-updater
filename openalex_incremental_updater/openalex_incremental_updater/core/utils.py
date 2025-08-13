@@ -2,8 +2,8 @@
 
 import functools
 import time
-from collections.abc import Awaitable
-from typing import Callable, ParamSpec, TypeVar
+from collections.abc import Awaitable, Callable
+from typing import ParamSpec, TypeVar
 
 from loguru import logger
 

@@ -33,7 +33,7 @@ def get_app() -> FastAPI:
 @pytest.fixture
 def set_test_environment_variables(
     monkeypatch: pytest.MonkeyPatch,
-) -> Generator[None, None, None]:
+) -> Generator[None]:
     """Set test environment variables."""
     monkeypatch.setenv("CORS_ORIGINS", '["http://test-host"]')
     monkeypatch.setenv("USER_EMAIL", "test@test")
@@ -58,8 +58,8 @@ def set_test_environment_variables(
 
 @pytest.fixture
 def sync_test_client(
-    set_test_environment_variables: Generator[None, None, None],
-) -> Generator[TestClient, None, None]:
+    set_test_environment_variables: Generator[None],
+) -> Generator[TestClient]:
     """Create a test client for synchronous tests."""
     client = TestClient(get_app())
     yield client
@@ -74,7 +74,7 @@ def anyio_backend() -> tuple[str, dict[str, Any]]:
 
 @pytest.fixture
 async def async_test_client(
-    set_test_environment_variables: Generator[None, None, None],
+    set_test_environment_variables: Generator[None],
 ) -> AsyncIterator[AsyncClient]:
     """Create a test client for synchronous tests."""
     app_instance = get_app()

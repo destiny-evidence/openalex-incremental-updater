@@ -23,7 +23,7 @@ The architecture of the Refresh Requester service is designed to interact with t
 Install the package with development and testing dependencies with:
 
 ```bash
-poetry install --all-groups
+uv sync --all-extras
 ```
 
 This will allow you to use development- and test-time dependencies, as well as the main package dependencies.
@@ -71,10 +71,10 @@ or, alternatively, use the convenience script provided in the root of the reposi
 
 ## Testing
 
-Tests are provided in the `tests` directory and use the [pytest](https://pypi.org/project/pytest/) library. To run the tests, ensure you have the `poetry` package installed, and run:
+Tests are provided in the `tests` directory and use the [pytest](https://pypi.org/project/pytest/) library. To run the tests, ensure you have the `uv` package installed, and run:
 
 ```bash
-poetry run pytest --cov=refresh_requester
+uv run pytest --cov=refresh_requester
 ```
 
 from this directory.

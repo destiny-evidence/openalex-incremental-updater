@@ -7,12 +7,12 @@ A service to offer incremental updates from the OpenAlex API.
 Install the package with development and testing dependencies with:
 
 ```bash
-poetry install --all-groups
+uv sync --all-groups
 ```
 
 This will allow you to use development- and test-time dependencies, as well as the main package dependencies.
 
-In this early stage, remember to bump the version when you make changes to the code. See the [poetry versioning docs](https://python-poetry.org/docs/cli#version) to see how this is done for `MINOR`, `MAJOR`, `PATCH` (etc) changes _before_ you push your changes, or at least before they're merged into the main branch!
+In this early stage, remember to bump the version when you make changes to the code. See the [semantic versioning docs](https://semver.org/) to see how this is done for `MINOR`, `MAJOR`, `PATCH` (etc) changes _before_ you push your changes, or at least before they're merged into the main branch!
 
 To run the application via either method detailed below, ensure you have a `.env` file in the root of the repository with the following environment variables populated:
 
@@ -62,10 +62,10 @@ This is currently set up to run the service on port 8000, but this can be change
 
 ### Testing
 
-Tests are provided in the `tests` directory and use the [pytest](https://pypi.org/project/pytest/) library. To run the tests, ensure you have the `poetry` package installed, and run:
+Tests are provided in the `tests` directory and use the [pytest](https://pypi.org/project/pytest/) library. To run the tests, ensure you have the `uv` package installed, and run:
 
 ```bash
-poetry run pytest --cov=openalex_incremental_updater
+uv run pytest --cov=openalex_incremental_updater
 ```
 
 from this directory.
