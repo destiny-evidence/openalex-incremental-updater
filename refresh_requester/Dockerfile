@@ -40,4 +40,4 @@ RUN uv sync --locked
 
 EXPOSE 8080
 
-CMD ["uvicorn", "refresh_requester.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uv", "run", "uvicorn", "refresh_requester.main:app", "--host", "0.0.0.0", "--port", "8080"]

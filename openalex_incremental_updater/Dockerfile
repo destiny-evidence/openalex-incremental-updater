@@ -30,4 +30,4 @@ COPY openalex_incremental_updater /app/openalex_incremental_updater
 
 RUN uv sync --locked
 
-CMD ["uvicorn", "openalex_incremental_updater.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["uv", "run", "uvicorn", "openalex_incremental_updater.main:app", "--host", "0.0.0.0", "--port", "8000"]

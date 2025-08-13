@@ -8,7 +8,7 @@ services:
     env_file:
       - openalex_incremental_updater/.env
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:8000/health-check"]
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health-check/"]
       interval: 5s
       timeout: 2s
       retries: 5
@@ -23,6 +23,7 @@ services:
     container_name: refresh-requester
     environment:
       AZURE_CONFIG_DIR: /azcfg
+      AZURE_LOG_LEVEL: DEBUG
     volumes:
       - "${HOME}/.azure:/azcfg:rw"
     env_file:
