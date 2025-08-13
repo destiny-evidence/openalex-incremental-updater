@@ -7,7 +7,7 @@ A service to offer incremental updates from the OpenAlex API.
 Install the package with development and testing dependencies with:
 
 ```bash
-uv sync --all-extras
+uv sync --all-groups
 ```
 
 This will allow you to use development- and test-time dependencies, as well as the main package dependencies.

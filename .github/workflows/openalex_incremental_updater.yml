@@ -52,7 +52,7 @@ jobs:
 
       - name: Install the project
         working-directory: openalex_incremental_updater
-        run: uv sync --locked --all-extras --dev
+        run: uv sync --locked --all-groups --all-extras --dev
 
       - name: Run test with pytest via uv
         working-directory: openalex_incremental_updater
