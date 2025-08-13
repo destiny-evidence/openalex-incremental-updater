@@ -98,6 +98,12 @@ docker compose up --build
 
 Which will successfully network the two services together, allowing the Refresh Requester to call the OpenAlex Incremental Updater API.
 
+To bring the services down, run:
+
+```bash
+docker compose down
+```
+
 ### Testing
 
 To run the tests for the OpenAlex Incremental Updater and Refresh Requester services, use the following commands in their respective directories:
