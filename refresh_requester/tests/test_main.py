@@ -110,8 +110,6 @@ def test_fastapi_app_creation():
 @pytest.mark.asyncio
 async def test_lifespan(mocker, test_settings, caplog):
     """Test the lifespan context manager."""
-    future = asyncio.Future()
-    future.set_result("done")
     mocker.patch(
         "refresh_requester.main.asyncio.to_thread", new_callable=mocker.AsyncMock
     )
@@ -120,14 +118,17 @@ async def test_lifespan(mocker, test_settings, caplog):
         "refresh_requester.main.asyncio.get_running_loop", return_value=mocked_loop
     )
 
-    mock_create_task = mocker.patch("asyncio.create_task", return_value=future)
+    mock_create_task = mocker.patch(
+        "refresh_requester.main.asyncio.create_task",
+        wraps=asyncio.create_task,
+    )
     mock_run_and_request_shutdown = mocker.patch(
         "refresh_requester.main.run_and_request_shutdown", new_callable=mocker.AsyncMock
     )
     mocker.patch("refresh_requester.main.get_settings", return_value=test_settings)
     mock_os_exit = mocker.patch(
         "refresh_requester.main.os._exit",
-        side_effect=lambda code: (_ for _ in ()).throw(SystemExit(code)),
+        side_effect=SystemExit(0),
     )
     app = FastAPI()
 
@@ -152,8 +153,6 @@ async def test_lifespan(mocker, test_settings, caplog):
 @pytest.mark.asyncio
 async def test_lifespan_fails_on_exception(mocker, test_settings, caplog):
     """Test the lifespan context manager."""
-    future = asyncio.Future()
-    future.set_exception(RuntimeError("A test error."))
     mocker.patch(
         "refresh_requester.main.asyncio.to_thread", new_callable=mocker.AsyncMock
     )
@@ -161,10 +160,14 @@ async def test_lifespan_fails_on_exception(mocker, test_settings, caplog):
     mocker.patch(
         "refresh_requester.main.asyncio.get_running_loop", return_value=mocked_loop
     )
-
-    mock_create_task = mocker.patch("asyncio.create_task", return_value=future)
+    mock_create_task = mocker.patch(
+        "refresh_requester.main.asyncio.create_task",
+        wraps=asyncio.create_task,
+    )
     mock_run_and_request_shutdown = mocker.patch(
-        "refresh_requester.main.run_and_request_shutdown", new_callable=mocker.AsyncMock
+        "refresh_requester.main.run_and_request_shutdown",
+        new_callable=mocker.AsyncMock,
+        side_effect=RuntimeError("A test error."),
     )
     mocker.patch("refresh_requester.main.get_settings", return_value=test_settings)
     mock_os_exit = mocker.patch(

@@ -101,7 +101,7 @@ def run_full_pipeline(settings: Settings) -> None:
             logger.error(error_message)
             sys.exit(1)
         elif job_status_json.get("status").upper() == "CANCELLED":
-            logger.warning(f"Job was cancelled: {job_status_json.get('error_message')}")
+            logger.warning("Job was cancelled.")
             sys.exit(1)
         time.sleep(polling_interval)
     uploaded_blob = job_status_json.get("result")
