@@ -1,9 +1,11 @@
 import json
 from datetime import date
 from http import HTTPStatus
+from uuid import uuid4
 
 import pytest
 import requests
+from freezegun import freeze_time
 
 from refresh_requester.jobs import (
     run_ingestion_metadata_blob_upload_job,
@@ -12,17 +14,18 @@ from refresh_requester.jobs import (
 from refresh_requester.openalex_refresh import OpenAlexRefreshError
 
 
+@freeze_time("2025-08-18")
 def test_run_refresh_job_success(mocker, test_settings):
     """Test a successful job run."""
+    test_id = uuid4()
+    mocked_api_return_value = {
+        "job_id": str(test_id),
+        "status_url": f"/jobs/{test_id}",
+        "start_date": date.today().isoformat(),
+        "end_date": date.today().isoformat(),
+    }
     mock_response = mocker.Mock()
-    mock_response.status_code = HTTPStatus.OK
-    mocked_api_return_value = [
-        {"key1": "value1", "key2": "value2"},
-        {"key3": "value3", "key4": "value4"},
-    ]
-    expected_jsonl_response = "\n".join(
-        [json.dumps(record) for record in mocked_api_return_value]
-    )
+    mock_response.status_code = HTTPStatus.ACCEPTED
 
     mock_response.json.return_value = mocked_api_return_value
 
@@ -32,7 +35,7 @@ def test_run_refresh_job_success(mocker, test_settings):
     result = run_refresh_job(
         test_settings, test_date, test_date, limit=len(mocked_api_return_value)
     )
-    assert result == expected_jsonl_response
+    assert result == mocked_api_return_value
 
 
 def test_run_refresh_job_request_exception_failure(mocker, test_settings):

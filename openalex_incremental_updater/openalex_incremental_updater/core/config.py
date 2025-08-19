@@ -36,6 +36,14 @@ class Settings(BaseSettings):
         ...,
         description="User email address sent to OpenAlex API to join the polite pool",
     )
+    STORAGE_BLOB_ACCOUNT: str = Field(
+        ...,
+        description="Azure Storage Blob account name",
+    )
+    STORAGE_BLOB_CONTAINER: str = Field(
+        ...,
+        description="Azure Storage Blob container name",
+    )
     cors_origins: list[HttpUrl] | str = Field(..., description="CORS allowed origins")
     allow_credentials: bool = True
     allow_methods: list[str] = ["*"]

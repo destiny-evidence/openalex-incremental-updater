@@ -12,7 +12,7 @@ def test_get_fetch_date_no_date_set(mocker, test_settings) -> None:
 
     It should call check_previous_file_dates to determine the fetch date.
     """
-    test_datetime = date.today()  # noqa: DTZ011
+    test_datetime = date.today()
     test_settings.fetch_date = None
     check_previous_file_dates_mock = mocker.patch(
         "refresh_requester.utils.check_previous_file_dates",
@@ -36,7 +36,7 @@ def test_get_fetch_date_date_set_in_settings(mocker, test_settings) -> None:
 
     It should call check_previous_file_dates to determine the fetch date.
     """
-    test_datetime = date.today()  # noqa: DTZ011
+    test_datetime = date.today()
     test_settings.fetch_date = test_datetime
     check_previous_file_dates_mock = mocker.patch(
         "refresh_requester.utils.check_previous_file_dates",

@@ -50,7 +50,7 @@ def test_check_previous_file_dates_success_files_found(mocker):
 @freezegun.freeze_time("2025-06-12")
 def test_check_previous_file_dates_success_no_files_found_return_yesterday(mocker):
     """Test check_previous_file_dates function returns the previous days date if no files are found."""
-    test_date_today = date.today()  # noqa: DTZ011
+    test_date_today = date.today()
     test_date_yesterday = test_date_today - timedelta(days=1)
     mocker.patch(
         "refresh_requester.blob_storage.list_blobs_in_storage", return_value=[]

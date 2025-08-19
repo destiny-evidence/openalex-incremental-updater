@@ -11,8 +11,13 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health-check/"]
       interval: 5s
       timeout: 2s
-      retries: 5
-      start_period: 3s
+      retries: 10
+      start_period: 10s
+    environment:
+      AZURE_CONFIG_DIR: /azcfg
+      AZURE_LOG_LEVEL: DEBUG
+    volumes:
+      - "${HOME}/.azure:/azcfg:rw"
 
   job:
     build:

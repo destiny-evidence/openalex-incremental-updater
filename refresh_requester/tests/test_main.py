@@ -1,9 +1,11 @@
+import asyncio
 from io import StringIO
 
-from fastapi import status
+import pytest
+from fastapi import FastAPI, status
 from fastapi.testclient import TestClient
 
-from refresh_requester.main import app, logger
+from refresh_requester.main import app, lifespan, logger
 
 
 def test_health_check_endpoint():
@@ -103,3 +105,95 @@ def test_fastapi_app_creation():
     # Test that the route is registered
     routes = [route.path for route in app.routes]
     assert "/health" in routes
+
+
+@pytest.mark.asyncio
+async def test_lifespan(mocker, test_settings, caplog):
+    """Test the lifespan context manager."""
+    mocker.patch(
+        "refresh_requester.main.asyncio.to_thread", new_callable=mocker.AsyncMock
+    )
+    mocked_loop = mocker.Mock()
+    mocker.patch(
+        "refresh_requester.main.asyncio.get_running_loop", return_value=mocked_loop
+    )
+
+    mock_create_task = mocker.patch(
+        "refresh_requester.main.asyncio.create_task",
+        wraps=asyncio.create_task,
+    )
+    mock_run_and_request_shutdown = mocker.patch(
+        "refresh_requester.main.run_and_request_shutdown", new_callable=mocker.AsyncMock
+    )
+    mocker.patch("refresh_requester.main.get_settings", return_value=test_settings)
+    mock_os_exit = mocker.patch(
+        "refresh_requester.main.os._exit",
+        side_effect=SystemExit(0),
+    )
+    app = FastAPI()
+
+    with caplog.at_level("DEBUG"):
+        with pytest.raises(SystemExit):
+            async with lifespan(app):
+                mock_run_and_request_shutdown.assert_called_once_with(
+                    app, test_settings
+                )
+                mock_create_task.assert_called_once()
+                assert app.state.exit_code == 0, "Exit code should be initialized to 0"
+
+        assert "Exiting container" in caplog.text, "Exit message should be logged"
+
+    (
+        mock_os_exit.assert_called_once_with(0),
+        "OS exit should be called with status code 0",
+    )
+    assert app.state.exit_code == 0, "Exit code should remain 0 if no exception occurs"
+
+
+@pytest.mark.asyncio
+async def test_lifespan_fails_on_exception(mocker, test_settings, caplog):
+    """Test the lifespan context manager."""
+    mocker.patch(
+        "refresh_requester.main.asyncio.to_thread", new_callable=mocker.AsyncMock
+    )
+    mocked_loop = mocker.Mock()
+    mocker.patch(
+        "refresh_requester.main.asyncio.get_running_loop", return_value=mocked_loop
+    )
+    mock_create_task = mocker.patch(
+        "refresh_requester.main.asyncio.create_task",
+        wraps=asyncio.create_task,
+    )
+    mock_run_and_request_shutdown = mocker.patch(
+        "refresh_requester.main.run_and_request_shutdown",
+        new_callable=mocker.AsyncMock,
+        side_effect=RuntimeError("A test error."),
+    )
+    mocker.patch("refresh_requester.main.get_settings", return_value=test_settings)
+    mock_os_exit = mocker.patch(
+        "refresh_requester.main.os._exit", side_effect=SystemExit(1)
+    )
+    app = FastAPI()
+
+    with caplog.at_level("DEBUG"):
+        with pytest.raises(SystemExit):
+            async with lifespan(app):
+                mock_run_and_request_shutdown.assert_called_once_with(
+                    app, test_settings
+                )
+                mock_create_task.assert_called_once()
+                assert (
+                    app.state.exit_code == 0
+                ), "Exit code should be 0 at this point, the task should not have been awaited."
+
+        assert (
+            "An error occurred: A test error." in caplog.text
+        ), "Exit message should be logged"
+
+    (
+        mock_os_exit.assert_called_once_with(1),
+        "OS exit should be called with status code 1 as an exception _has_ occured.",
+    )
+    assert (
+        app.state.exit_code == 1
+    ), "Exit code should change to 1 if an exception occurs"
