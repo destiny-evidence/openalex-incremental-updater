@@ -87,7 +87,7 @@ class OpenAlexDataFetcher:
 
         """
         if report:
-            report({"status": JobState.PENDING, "progress": "0/0"})
+            report(status=JobState.PENDING, progress="0/0")
         async with fetch_lock:
             aggregate_results = []
 
@@ -147,10 +147,8 @@ class OpenAlexDataFetcher:
 
                     if report:
                         report(
-                            {
-                                "status": JobState.RUNNING,
-                                "progress": f"{counter_works_retrieved}/{count_works_total}",
-                            }
+                            status=JobState.RUNNING,
+                            progress=f"{counter_works_retrieved}/{count_works_total}",
                         )
                     if cursor:
                         last_known_cursor = cursor
@@ -168,7 +166,7 @@ class OpenAlexDataFetcher:
                 f"Finished paging. Retrieved {counter_works_retrieved} results."
             )
             if report:
-                report({"status": JobState.DOWNLOADED})
+                report(status=JobState.DOWNLOADED)
 
             return self.process_aggregate_results(aggregate_results)
 

@@ -34,7 +34,7 @@ async def run_background_openalex_ingest_job(
 
     Args:
         job_id (str): The unique ID for the job.
-        report (Callable): A callback function to report progress.
+        report_status (Callable): A callback function to report progress.
         start_date (date): Start date to fetch data from.
         end_date (date): End date to fetch data to.
         ingest_type (CreatedOrUpdated): Method of determining ingest data. Must be one of "created" or "updated".
