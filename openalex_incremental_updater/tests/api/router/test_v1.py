@@ -1,11 +1,13 @@
 """Tests for the v1 API router of the OpenAlex Incremental Updater."""
 
 import asyncio
+from collections.abc import Generator
 from datetime import date
 from uuid import uuid4
 
 import pytest
 from fastapi import status
+from fastapi.testclient import TestClient
 from freezegun import freeze_time
 from httpx import AsyncClient
 from pytest_mock import MockerFixture
@@ -262,3 +264,189 @@ async def test_run_with_tracking_async_cancelled_job(
         job_manager.get(job_id)["status"] == JobState.CANCELLED
     ), "Job state should be CANCELLED"
     assert mock_cancel.call_count == 1, "JobManager.cancel should be called once"
+
+
+@pytest.mark.anyio
+async def test_run_with_tracking_async_exception_raised(
+    async_test_client: AsyncClient,
+    mocker: MockerFixture,
+) -> None:
+    """Test the _run_with_tracking_async function with a cancelled job."""
+    from openalex_incremental_updater.api.routers.v1 import _run_with_tracking_async
+
+    job_manager = JobManager()
+    test_date = date.today()
+    job_id = job_manager.create(
+        meta={
+            "start_date": test_date,
+            "end_date": test_date,
+            "ingest_type": "test",
+            "limit": 999,
+        }
+    )
+
+    async def mock_coro():
+        raise Exception("Test exception")
+
+    mock_fail = mocker.patch.object(job_manager, "fail", wraps=job_manager.fail)
+    mocker.patch("openalex_incremental_updater.api.routers.v1.job_manager", job_manager)
+
+    await _run_with_tracking_async(job_id, mock_coro())
+
+    assert (
+        job_manager.get(job_id)["status"] == JobState.FAILED
+    ), "Job state should be FAILED"
+    assert mock_fail.call_count == 1, "JobManager.fail should be called once"
+
+
+def test_report_status(set_test_environment_variables: Generator):
+    from openalex_incremental_updater.api.routers.v1 import report_status
+
+    expected_progress_fields = {"status": "test", "progress": 100}
+    job_manager = JobManager()
+    job_id = job_manager.create(meta={})
+    report_status(job_manager, job_id, expected_progress_fields)
+    assert job_manager.get(job_id).get("progress") == expected_progress_fields
+
+
+@pytest.mark.anyio
+async def test_v1_get_job_running_success(
+    mocker: MockerFixture, sync_test_client: TestClient
+) -> None:
+    from openalex_incremental_updater.api.routers.v1 import job_manager
+
+    # patch global job_manager
+    job_id = job_manager.create()
+    job_manager.start(job_id)
+    expected_response = {
+        "job_id": job_id,
+        "status": "running",
+    }
+    response = sync_test_client.get(f"/api/v1/jobs/{job_id}")
+    assert (
+        response.status_code == status.HTTP_202_ACCEPTED
+    ), "Expected HTTP 202 ACCEPTED response"
+    response_data = response.json()
+    assert response_data["job_id"] == expected_response["job_id"]
+    assert response_data["status"] == expected_response["status"]
+
+
+@pytest.mark.anyio
+async def test_v1_get_job_cancelled_success(
+    mocker: MockerFixture, sync_test_client: TestClient
+) -> None:
+    from openalex_incremental_updater.api.routers.v1 import job_manager
+
+    # patch global job_manager
+    job_id = job_manager.create()
+    job_manager.cancel(job_id)
+    expected_response = {
+        "job_id": job_id,
+        "status": "cancelled",
+    }
+    response = sync_test_client.get(f"/api/v1/jobs/{job_id}")
+    assert response.status_code == status.HTTP_200_OK, "Expected HTTP 200 OK response"
+    response_data = response.json()
+    assert response_data["job_id"] == expected_response["job_id"]
+    assert response_data["status"] == expected_response["status"]
+
+
+@pytest.mark.anyio
+async def test_v1_get_job_failed_success(
+    mocker: MockerFixture, sync_test_client: TestClient
+) -> None:
+    from openalex_incremental_updater.api.routers.v1 import job_manager
+
+    # patch global job_manager
+    job_id = job_manager.create()
+    test_error_message = "Test failure."
+    job_manager.fail(job_id, Exception(test_error_message))
+    expected_response = {
+        "job_id": job_id,
+        "status": "failed",
+        "error": f"Exception: {test_error_message}",
+    }
+    response = sync_test_client.get(f"/api/v1/jobs/{job_id}")
+    assert response.status_code == status.HTTP_200_OK, "Expected HTTP 200 OK response"
+    response_data = response.json()
+    assert response_data["job_id"] == expected_response["job_id"]
+    assert response_data["status"] == expected_response["status"]
+    assert (
+        response_data["error"] == expected_response["error"]
+    ), "Error message should match"
+
+
+@pytest.mark.anyio
+async def test_v1_get_job_succeeded_success(
+    mocker: MockerFixture, sync_test_client: TestClient
+) -> None:
+    from openalex_incremental_updater.api.routers.v1 import job_manager
+
+    # patch global job_manager
+    job_id = job_manager.create()
+    job_manager.succeed(job_id)
+    expected_response = {
+        "job_id": job_id,
+        "status": "succeeded",
+    }
+    response = sync_test_client.get(f"/api/v1/jobs/{job_id}")
+    assert response.status_code == status.HTTP_200_OK, "Expected HTTP 200 OK response"
+    response_data = response.json()
+    assert response_data["job_id"] == expected_response["job_id"]
+    assert response_data["status"] == expected_response["status"]
+
+
+@pytest.mark.anyio
+async def test_v1_get_job_returns_404_job_not_found(
+    mocker: MockerFixture, sync_test_client: TestClient
+) -> None:
+    # patch global job_manager
+    job_id = "a-fake-test-id"
+    expected_response_detail = "Job not found"
+    response = sync_test_client.get(f"/api/v1/jobs/{job_id}")
+    assert (
+        response.status_code == status.HTTP_404_NOT_FOUND
+    ), "Expected HTTP 404 NOT FOUND response"
+    response_data = response.json()
+    assert response_data["detail"] == expected_response_detail
+
+
+@pytest.mark.anyio
+async def test_v1_cancel_job_success(
+    mocker: MockerFixture, sync_test_client: TestClient
+) -> None:
+    from openalex_incremental_updater.api.routers.v1 import (
+        _run_with_tracking_async,
+        job_manager,
+    )
+
+    # patch global job_manager
+    job_id = job_manager.create()
+
+    async def mock_coro():
+        pass
+
+    tasks_mock = mocker.patch(
+        "openalex_incremental_updater.api.routers.v1.TASKS",
+        new_callable=mocker.MagicMock(),
+    )
+    tasks_mock.get.return_value = asyncio.create_task(
+        _run_with_tracking_async(job_id, mock_coro)
+    )
+    response = sync_test_client.delete(f"/api/v1/jobs/{job_id}")
+    assert (
+        response.status_code == status.HTTP_204_NO_CONTENT
+    ), "Expected HTTP 204 NO CONTENT response"
+    assert response.json() == {"ok": True}
+
+
+@pytest.mark.anyio
+async def test_v1_cancel_job_fails_job_not_found(
+    mocker: MockerFixture, sync_test_client: TestClient
+) -> None:
+    job_id = "a-fake-test-id"
+    response = sync_test_client.delete(f"/api/v1/jobs/{job_id}")
+    assert (
+        response.status_code == status.HTTP_404_NOT_FOUND
+    ), "Expected HTTP 404 NOT FOUND when job not found"
+    assert response.json() == {"detail": "Job not found"}, "Expect response to match."

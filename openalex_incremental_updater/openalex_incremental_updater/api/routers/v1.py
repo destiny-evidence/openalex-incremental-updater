@@ -87,6 +87,19 @@ async def get_openalex_works_ingest_from_date(
     return await openalex_works_ingest_from_date(fetch_date, ingest_type, limit)
 
 
+def report_status(job_manager: JobManager, job_id: str, fields: dict) -> None:
+    """
+    Report the status of the job.
+
+    Args:
+        job_manager (JobManager): The job manager instance.
+        job_id (str): The ID of the job to report status for.
+        fields (dict): Fields to update in the job status.
+
+    """
+    job_manager.set_progress(job_id, **fields)
+
+
 @router.get("/openalex_works_ingest_date_range")
 async def openalex_ingest_processing(
     start_date: Annotated[
@@ -128,16 +141,6 @@ async def openalex_ingest_processing(
             "limit": limit,
         }
     )
-
-    def report_status(fields: dict) -> None:
-        """
-        Report the status of the job.
-
-        Args:
-            fields (dict): Fields to update in the job status.
-
-        """
-        job_manager.set_progress(job_id, **fields)
 
     coroutine = run_background_openalex_ingest_job(
         job_manager, job_id, report_status, start_date, end_date, ingest_type, limit
