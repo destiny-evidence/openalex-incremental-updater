@@ -11,8 +11,28 @@ from importlib.metadata import version
 from fastapi import FastAPI
 from loguru import logger
 
-from refresh_requester.config import get_settings
+from refresh_requester.config import Settings, get_settings
 from refresh_requester.jobs import run_full_pipeline
+
+
+async def run_and_request_shutdown(app: FastAPI, settings: Settings) -> None:
+    """
+    Run the full pipeline and request shutdown.
+
+    Args:
+        settings (Settings): The settings to use for the pipeline.
+
+    """
+    try:
+        await asyncio.to_thread(run_full_pipeline, settings)
+        logger.success("Job completed.")
+    except Exception:  # noqa: BLE001 Ignoring as this is a catch-all for Azure Container App Job failures
+        # and we need to ensure the job terminates immediately.
+        app.state.exit_code = 1
+        logger.exception("Job failed.")
+    finally:
+        loop = asyncio.get_running_loop()
+        loop.stop()
 
 
 @asynccontextmanager
@@ -36,28 +56,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     settings = get_settings()
     app.state.exit_code = 0
 
-    async def run_and_request_shutdown() -> None:
-        """Run the full pipeline and request shutdown."""
-        try:
-            await asyncio.to_thread(run_full_pipeline, settings)
-            logger.success("Job completed.")
-        except Exception:  # noqa: BLE001 Ignoring as this is a catch-all for Azure Container App Job failures
-            # and we need to ensure the job terminates immediately.
-            app.state.exit_code = 1
-            logger.exception("Job failed.")
-        finally:
-            loop = asyncio.get_event_loop()
-            loop.stop()
-
-    task = asyncio.create_task(run_and_request_shutdown())
+    task = asyncio.create_task(run_and_request_shutdown(app, settings))
 
     try:
         yield
     finally:
         try:
             await task
-        except Exception:  # noqa: BLE001 # Terminate the App Job if any exception occurs
+        except Exception as error:  # noqa: BLE001 # Terminate the App Job if any exception occurs
             app.state.exit_code = 1
+            error_message = f"An error occurred: {error}"
+            logger.error(error_message)
+            os._exit(app.state.exit_code)
         logger.success("Exiting container.")
         os._exit(app.state.exit_code)
 

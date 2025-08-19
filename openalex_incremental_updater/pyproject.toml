@@ -85,6 +85,7 @@ lint.per-file-ignores = {"openalex_incremental_updater/openalex_incremental_upda
   "DTZ011", # datetime.date.today() used
   "INP001", # File is part of an implicit namespace package.
   "PLR0913", # Too many arguments in function definition
+  "PT012", # pytest.raises() block should contain a single simple statement
   "S101" # Use of `assert` detected
 ], "openalex_incremental_updater/tests*" = [
   "ARG001", # Unused function argument

@@ -1,8 +1,21 @@
+import logging
 from collections.abc import Generator
 
 import pytest
+from loguru import logger
 
 from refresh_requester.config import Settings, get_settings
+
+
+@pytest.fixture
+def caplog(caplog):
+    class PropogateHandler(logging.Handler):
+        def emit(self, record) -> None:
+            logging.getLogger(record.name).handle(record)
+
+    handler_id = logger.add(PropogateHandler(), format="{message}")
+    yield caplog
+    logger.remove(handler_id)
 
 
 @pytest.fixture

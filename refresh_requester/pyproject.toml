@@ -50,6 +50,7 @@ lint.per-file-ignores = {"tests*" = [
   "DTZ007", # Naive datetime constructed using `datetime.datetime.strptime()` without %z
   "DTZ011", # datetime.date.today() used
   "INP001", # File is part of an implicit namespace package.
+  "PT012", # pytest.raises() block should contain a single simple statement
   "S101" # Use of `assert` detected
 ]}
 lint.select = [

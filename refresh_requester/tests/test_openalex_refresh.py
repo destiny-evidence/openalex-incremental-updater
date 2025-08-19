@@ -1,6 +1,7 @@
 import json
 from datetime import date
 from http import HTTPStatus
+from json.decoder import JSONDecodeError
 from uuid import uuid4
 
 import pytest
@@ -8,7 +9,11 @@ import requests
 from freezegun import freeze_time
 
 from refresh_requester.config import get_settings
-from refresh_requester.openalex_refresh import OpenAlexRefreshError, request_refresh
+from refresh_requester.openalex_refresh import (
+    OpenAlexRefreshError,
+    poll_job_status,
+    request_refresh,
+)
 
 
 @freeze_time("2025-08-18")
@@ -64,3 +69,46 @@ def test_refresh_request_invalid_json_response_failure(mocker, test_settings):
     with pytest.raises(OpenAlexRefreshError) as error:
         request_refresh(settings, fetch_date, stop_date)
     assert "Response was not valid JSON - error decoding" in str(error.value)
+
+
+def test_poll_job_status_succeeded(mocker, test_settings):
+    """Test polling job status."""
+    settings = test_settings.model_copy(deep=True)
+    job_id = uuid4()
+    mocker.patch(
+        "requests.Session.get",
+        return_value=mocker.Mock(
+            status_code=HTTPStatus.OK, json=lambda: {"status": "succeeded"}
+        ),
+    )
+
+    result = poll_job_status(settings, job_id)
+    assert result == {"status": "succeeded"}
+
+
+def test_poll_job_status_failed_request_exception(mocker, test_settings):
+    """Test polling job status."""
+    settings = test_settings.model_copy(deep=True)
+    job_id = uuid4()
+    mocker.patch(
+        "requests.Session.get",
+        side_effect=requests.RequestException("HTTP error occurred"),
+    )
+
+    with pytest.raises(OpenAlexRefreshError) as error:
+        poll_job_status(settings, job_id)
+    assert "HTTP error occurred" in str(error.value)
+
+
+def test_poll_job_status_failed_json_decode_error(mocker, test_settings):
+    """Test polling job status."""
+    settings = test_settings.model_copy(deep=True)
+    job_id = uuid4()
+    mocker.patch(
+        "requests.Session.get",
+        side_effect=JSONDecodeError("JSON Decode Error", "invalid_json", 0),
+    )
+
+    with pytest.raises(OpenAlexRefreshError) as error:
+        poll_job_status(settings, job_id)
+    assert "Response was not valid JSON" in str(error.value)
