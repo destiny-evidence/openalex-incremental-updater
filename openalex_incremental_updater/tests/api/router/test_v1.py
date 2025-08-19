@@ -305,7 +305,8 @@ def test_report_status(set_test_environment_variables: Generator):
     expected_progress_fields = {"status": "test", "progress": 100}
     job_manager = JobManager()
     job_id = job_manager.create(meta={})
-    report_status(job_manager, job_id, expected_progress_fields)
+    report = report_status(job_manager, job_id)
+    report(**expected_progress_fields)
     assert job_manager.get(job_id).get("progress") == expected_progress_fields
 
 
