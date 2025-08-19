@@ -45,6 +45,8 @@ def set_test_environment_variables(
         "APP_REGISTRATION_SECRET", "a-fake-secret"
     )  # pragma: allowlist secret
     monkeypatch.setenv("TENANT_ID", "a-fake-id")
+    monkeypatch.setenv("STORAGE_BLOB_ACCOUNT", "a-fake-blob-account")
+    monkeypatch.setenv("STORAGE_BLOB_CONTAINER", "a-fake-blob-container")
     yield
     monkeypatch.delenv("CORS_ORIGINS")
     monkeypatch.delenv("USER_EMAIL")
@@ -54,6 +56,8 @@ def set_test_environment_variables(
     monkeypatch.delenv("APP_REGISTRATION_APP_ID")
     monkeypatch.delenv("APP_REGISTRATION_SECRET")
     monkeypatch.delenv("TENANT_ID")
+    monkeypatch.delenv("STORAGE_BLOB_ACCOUNT")
+    monkeypatch.delenv("STORAGE_BLOB_CONTAINER")
 
 
 @pytest.fixture

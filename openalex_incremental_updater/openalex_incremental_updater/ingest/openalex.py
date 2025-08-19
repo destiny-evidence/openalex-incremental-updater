@@ -2,12 +2,14 @@
 
 import uuid
 from asyncio import Lock
+from collections.abc import Callable
 from datetime import date
 
 import httpx
 from loguru import logger
 
 from openalex_incremental_updater.core.config import get_settings
+from openalex_incremental_updater.core.job_state import JobState
 from openalex_incremental_updater.core.utils import async_timer
 from openalex_incremental_updater.ingest import AsyncRetryClient, CreatedOrUpdated
 from openalex_incremental_updater.models.destiny import (
@@ -68,7 +70,10 @@ class OpenAlexDataFetcher:
 
     @async_timer
     async def fetch_works_filter(
-        self, openalex_filter: str | None, works_retrieved_limit: int | None = None
+        self,
+        openalex_filter: str | None,
+        works_retrieved_limit: int | None = None,
+        report: Callable | None = None,
     ) -> list[DestinyOpenAlexWork]:
         """
         Fetch data from the OpenAlex API using a custom filter.
@@ -81,6 +86,8 @@ class OpenAlexDataFetcher:
             list[DestinyOpenAlexWork]: The retrieved works.
 
         """
+        if report:
+            report({"status": JobState.PENDING, "progress": "0/0"})
         async with fetch_lock:
             aggregate_results = []
 
@@ -97,9 +104,7 @@ class OpenAlexDataFetcher:
                 }
                 session.headers.update(headers)
                 cursor: str = "*"
-                instance_id = uuid.uuid4().hex[
-                    :8
-                ]  # Unique identifier for this method call
+                instance_id = uuid.uuid4().hex[:8]
                 logger.info(
                     f"[Instance {instance_id}] Requesting all works with filter {openalex_filter}"
                 )
@@ -113,6 +118,7 @@ class OpenAlexDataFetcher:
 
                 counter_works_retrieved = 0
                 last_known_cursor = None
+
                 while cursor:
                     filtered_works_url = (
                         query_string + f"&cursor={cursor}&per-page={per_page}"
@@ -139,6 +145,13 @@ class OpenAlexDataFetcher:
                     cursor = retrieved_works["meta"]["next_cursor"]
                     logger.info(f"[Instance {instance_id}] Next cursor: {cursor}")
 
+                    if report:
+                        report(
+                            {
+                                "status": JobState.RUNNING,
+                                "progress": f"{counter_works_retrieved}/{count_works_total}",
+                            }
+                        )
                     if cursor:
                         last_known_cursor = cursor
                     if (
@@ -154,6 +167,8 @@ class OpenAlexDataFetcher:
             logger.info(
                 f"Finished paging. Retrieved {counter_works_retrieved} results."
             )
+            if report:
+                report({"status": JobState.DOWNLOADED})
 
             return self.process_aggregate_results(aggregate_results)
 

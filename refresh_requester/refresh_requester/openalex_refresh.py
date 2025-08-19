@@ -7,11 +7,40 @@ from loguru import logger
 from requests.exceptions import RequestException
 
 from refresh_requester.config import Settings, get_retry_session
-from refresh_requester.data import convert_json_to_jsonl
 
 
 class OpenAlexRefreshError(Exception):
     """OpenAlex Refresh Error."""
+
+
+def poll_job_status(settings: Settings, job_submission_id: str) -> None:
+    """
+    Poll the status of the refresh job.
+
+    Args:
+        settings (Settings): The settings to use for the job.
+        job_submission_id (str): The ID of the job submission to poll.
+
+    """
+    try:
+        session = get_retry_session()
+        url = str(settings.API_ENDPOINT) + f"/api/v1/jobs/{job_submission_id}"
+
+        response = session.get(url, timeout=settings.request_timeout)
+        response.raise_for_status()
+        response_json = response.json()
+    except RequestException as http_exception:
+        error_message = f"HTTP exception: {http_exception}"
+        logger.error(error_message)
+        raise OpenAlexRefreshError(error_message) from http_exception
+    except JSONDecodeError as json_decode_error:
+        error_message = (
+            f"Response was not valid JSON - error decoding: {json_decode_error}"
+        )
+        logger.error(error_message)
+        raise OpenAlexRefreshError(error_message) from json_decode_error
+    else:
+        return response_json
 
 
 def request_refresh(
@@ -19,7 +48,7 @@ def request_refresh(
     created_from_date: date,
     stop_date: date,
     limit: int | None = None,
-) -> str:
+) -> dict:
     """
     Request a refresh from the OpenAlex Incremental Ingestion API.
 
@@ -32,13 +61,14 @@ def request_refresh(
         OpenAlexRefreshError: A descriptive error message
 
     Returns:
-        list[dict]: The response from the API
+        dict: The response from the API
 
     """
     try:
         session = get_retry_session()
         url = (
             str(settings.API_ENDPOINT)
+            + "/api/v1/openalex_works_ingest_date_range"
             + f"?start_date={created_from_date}&end_date={stop_date}&ingest_type=created"
         )
         if limit:
@@ -57,4 +87,4 @@ def request_refresh(
         logger.error(error_message)
         raise OpenAlexRefreshError(error_message) from json_decode_error
     else:
-        return convert_json_to_jsonl(response_json)
+        return response_json
