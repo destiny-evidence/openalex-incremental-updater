@@ -90,7 +90,6 @@ def run_full_pipeline(settings: Settings) -> None:
         sys.exit(1)
     job_submission_id = job_submission.get("job_id")
     job_complete = False
-    job_status_json = poll_job_status(settings, job_submission_id)
     while not job_complete:
         job_status_json = poll_job_status(settings, job_submission_id)
         logger.info(f"Job Progress: {job_status_json.get('progress')}")

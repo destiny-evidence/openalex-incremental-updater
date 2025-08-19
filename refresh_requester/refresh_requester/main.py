@@ -26,10 +26,11 @@ async def run_and_request_shutdown(app: FastAPI, settings: Settings) -> None:
     try:
         await asyncio.to_thread(run_full_pipeline, settings)
         logger.success("Job completed.")
-    except Exception:  # noqa: BLE001 Ignoring as this is a catch-all for Azure Container App Job failures
+    except Exception as error:  # noqa: BLE001 Ignoring as this is a catch-all for Azure Container App Job failures
         # and we need to ensure the job terminates immediately.
         app.state.exit_code = 1
-        logger.exception("Job failed.")
+        error_message = f"An error occurred: {error}"
+        logger.error(error_message)
     finally:
         loop = asyncio.get_running_loop()
         loop.stop()

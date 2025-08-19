@@ -326,7 +326,6 @@ def test_run_full_pipeline_fails_well_job_failed_status(mocker, caplog, test_set
     Tests the case where the job status is 'failed'.
     """
     settings = test_settings.model_copy(deep=True)
-    settings = test_settings.model_copy(deep=True)
     settings.polling_interval = 0.001
     date_today = date.today()
     date_yesterday = date_today - timedelta(days=1)
@@ -380,7 +379,6 @@ def test_run_full_pipeline_fails_well_job_cancelled_status(
     Tests the case where the job status is 'cancelled'.
     """
     settings = test_settings.model_copy(deep=True)
-    settings = test_settings.model_copy(deep=True)
     settings.polling_interval = 0.001
     date_today = date.today()
     date_yesterday = date_today - timedelta(days=1)
@@ -433,7 +431,6 @@ def test_run_full_pipeline_fails_well_no_uploaded_blob_returned(
 
     Tests the case where no uploaded blob is returned.
     """
-    settings = test_settings.model_copy(deep=True)
     settings = test_settings.model_copy(deep=True)
     settings.polling_interval = 0.001
     date_today = date.today()

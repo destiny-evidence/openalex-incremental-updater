@@ -137,7 +137,7 @@ async def openalex_ingest_processing(
             fields (dict): Fields to update in the job status.
 
         """
-        job_manager.set_progress(job_id, fields)
+        job_manager.set_progress(job_id, **fields)
 
     coroutine = run_background_openalex_ingest_job(
         job_manager, job_id, report_status, start_date, end_date, ingest_type, limit
