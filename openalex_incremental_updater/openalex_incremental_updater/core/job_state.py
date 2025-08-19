@@ -84,13 +84,13 @@ class JobManager:
         job["status"] = JobState.RUNNING
         job["started_at"] = time.time()
 
-    def succeed(self, job_id: str, **extra: dict[str, Any]) -> None:
+    def succeed(self, job_id: str, **extra: str) -> None:
         """
         Mark a job as succeeded.
 
         Args:
             job_id (str): The ID of the job to mark as succeeded.
-            extra (dict[str, Any]): Additional information to store with the job.
+            extra (str): Additional information to store with the job.
 
         """
         job = self._jobs[job_id]
@@ -122,12 +122,13 @@ class JobManager:
         job["error"] = f"{type(exc).__name__}: {exc}"
         job["traceback"] = traceback.format_exc()
 
-    def set_progress(self, job_id: str, fields: dict) -> None:
+    def set_progress(self, job_id: str, **fields: str) -> None:
         """
         Update the progress of a job.
 
         Args:
             job_id (str): The ID of the job to update.
+            fields (str): Key-value pairs representing progress updates.
 
         """
         self._jobs[job_id]["progress"].update(**fields)

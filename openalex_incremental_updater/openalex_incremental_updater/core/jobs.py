@@ -41,14 +41,26 @@ async def run_background_openalex_ingest_job(
         limit (int | None, optional): Maximum number of records to ingest. Defaults to None.
 
     """
-    job_result = await openalex_works_ingest_date_range(
-        report, start_date, end_date, ingest_type, limit
-    )
+    logger.info("Starting background OpenAlex ingest job")
+    try:
+        job_result = await openalex_works_ingest_date_range(
+            report, start_date, end_date, ingest_type, limit
+        )
+    except UpstreamOpenAlexError as error:
+        error_message = str(error)
+        logger.error("Ingest job failed: {}", error_message)
+        job_manager.set_progress(job_id, status="failed", progress="failed")
+        job_manager.fail(job_id, error)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST, detail=error_message
+        ) from error
+    logger.info("Ingest job completed successfully. Uploading to blob storage...")
     job_manager.set_progress(job_id, status="uploading", progress="uploading")
     date_today = datetime.now(ZoneInfo("UTC")).date()
     uploaded_blob_name = await run_openalex_refresh_blob_upload_job(
         job_result, start_date, end_date, date_today
     )
+    logger.info("Blob upload completed successfully.")
     job_manager.set_progress(job_id, status="succeeded", progress="upload complete")
     job_manager.succeed(job_id, result=uploaded_blob_name)
 
@@ -87,9 +99,8 @@ async def openalex_works_ingest_date_range(
         )
     except UpstreamOpenAlexError as error:
         error_message = str(error)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=error_message
-        ) from error
+        logger.error("Error fetching OpenAlex works: {}", error_message)
+        raise error from error
     else:
         return convert_destinyworks_to_jsonl_string(results)
 

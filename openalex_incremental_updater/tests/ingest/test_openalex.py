@@ -1,7 +1,11 @@
+from collections.abc import Generator
+from datetime import date
+
 import httpx
 import pytest
 import respx
 from fastapi import status
+from freezegun import freeze_time
 
 from openalex_incremental_updater.ingest import CreatedOrUpdated
 from openalex_incremental_updater.ingest.openalex import (
@@ -168,3 +172,34 @@ async def test_fetch_works_filter_from_date_call_openalex_error(
         assert str(test_error_status_code) in str(
             invalid_url_error.value
         ), "Check that the error message contains the expected status code."
+
+
+@freeze_time("2025-08-19")
+@pytest.mark.parametrize(
+    "ingest_type", [CreatedOrUpdated("created"), CreatedOrUpdated("updated")]
+)
+def test_build_query(
+    ingest_type: CreatedOrUpdated, set_test_environment_variables: Generator
+):
+    test_date = date.today()
+    fetcher = OpenAlexDataFetcher()
+    expected_output = f"from_{ingest_type.value}_date:{test_date.isoformat()}"
+    query = fetcher.build_query(test_date, ingest_type)
+
+    assert query == expected_output
+
+
+@freeze_time("2025-08-19")
+@pytest.mark.parametrize(
+    "ingest_type", [CreatedOrUpdated("created"), CreatedOrUpdated("updated")]
+)
+def test_build_range_query(
+    ingest_type: CreatedOrUpdated, set_test_environment_variables: Generator
+):
+    test_start_date = date.today()
+    test_end_date = test_start_date
+    fetcher = OpenAlexDataFetcher()
+    expected_output = f"from_{ingest_type.value}_date:{test_start_date.isoformat()},to_{ingest_type.value}_date:{test_end_date.isoformat()}"
+    query = fetcher.build_range_query(test_start_date, test_end_date, ingest_type)
+
+    assert query == expected_output
