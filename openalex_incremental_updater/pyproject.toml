@@ -82,6 +82,7 @@ lint.per-file-ignores = {"openalex_incremental_updater/openalex_incremental_upda
   "D103", # Missing docstring in public function
   "D107", # Missing docstring in __init__
   "DTZ007", # Naive datetime constructed using `datetime.datetime.strptime()` without %z
+  "DTZ011", # datetime.date.today() used
   "INP001", # File is part of an implicit namespace package.
   "PLR0913", # Too many arguments in function definition
   "S101" # Use of `assert` detected

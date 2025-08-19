@@ -72,7 +72,7 @@ def run_full_pipeline(settings: Settings) -> None:
         settings (Settings): The settings to use for the job.
 
     """
-    polling_interval = 5
+    polling_interval = settings.polling_interval
     fetch_date = get_fetch_date(settings)
     stop_date = settings.stop_date if settings.stop_date else fetch_date
 

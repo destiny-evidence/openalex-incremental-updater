@@ -18,13 +18,20 @@ def test_run_full_pipeline_success_no_fetch_date_set_no_stop_date_set(
     """
     settings = test_settings.model_copy(deep=True)
     settings.fetch_date = None
-    date_today = date.today()  # noqa: DTZ011
+    settings.polling_interval = 0.001
+    date_today = date.today()
     date_yesterday = date_today - timedelta(days=1)
     test_latest_blob_date = date_yesterday
     test_stop_date = date_yesterday
-    test_data = "test_data"
+
     test_blob = "test_blob"
     test_id = uuid.uuid4()
+    test_response = {
+        "job_id": str(test_id),
+        "status_url": f"/jobs/{test_id}",
+        "start_date": date.today().isoformat(),
+        "end_date": date.today().isoformat(),
+    }
     test_batch_ids = [uuid.uuid4()]
 
     test_import_record = ImportRecordRead(
@@ -44,11 +51,17 @@ def test_run_full_pipeline_success_no_fetch_date_set_no_stop_date_set(
         return_value=test_latest_blob_date,
     )
     run_refresh_job_mock = mocker.patch(
-        "refresh_requester.jobs.run_refresh_job", return_value=test_data
+        "refresh_requester.jobs.run_refresh_job", return_value=test_response
     )
-    run_openalex_refresh_blob_upload_job_mock = mocker.patch(
-        "refresh_requester.jobs.run_openalex_refresh_blob_upload_job",
-        return_value=test_blob,
+    poll_job_status_mocked_results = [
+        {"status": "running", "progress": 0},
+        {"status": "running", "progress": 50},
+        {"status": "running", "progress": 75},
+        {"status": "succeeded", "result": test_blob},
+    ]
+    poll_job_status_mock = mocker.patch(
+        "refresh_requester.jobs.poll_job_status",
+        side_effect=poll_job_status_mocked_results,
     )
     upload_blob_storage_contents_to_repository_mock = mocker.patch(
         "refresh_requester.jobs.upload_blob_storage_contents_to_repository",
@@ -75,12 +88,9 @@ def test_run_full_pipeline_success_no_fetch_date_set_no_stop_date_set(
         ),
         "run_refresh_job should be called with the correct date and no limit set",
     )
-    (
-        run_openalex_refresh_blob_upload_job_mock.assert_called_once_with(
-            test_data, test_latest_blob_date, test_stop_date, date_today
-        ),
-        "run_openalex_refresh_blob_upload_job should be called with the correct data, date, and today's date",
-    )
+    assert poll_job_status_mock.call_count == len(
+        poll_job_status_mocked_results
+    ), "poll_job_status should be called the same number of times as the mocked results"
     (
         upload_blob_storage_contents_to_repository_mock.assert_called_once_with(
             settings, blob_to_upload=test_blob
@@ -103,16 +113,22 @@ def test_run_full_pipeline_success_fetch_date_set_stop_date_unset(
     Tests the case where a fetch date is set in the settings.
     """
     settings = test_settings.model_copy(deep=True)
-    date_today = date.today()  # noqa: DTZ011
+    settings.polling_interval = 0.001
+    date_today = date.today()
     date_yesterday = date_today - timedelta(days=1)
     settings.fetch_date = date_yesterday
     test_stop_date = date_yesterday
-    test_data = "test_data"
     test_blob = "test_blob"
 
     test_id = uuid.uuid4()
     test_batch_ids = [uuid.uuid4()]
 
+    test_response = {
+        "job_id": str(test_id),
+        "status_url": f"/jobs/{test_id}",
+        "start_date": date.today().isoformat(),
+        "end_date": date.today().isoformat(),
+    }
     test_import_record = ImportRecordRead(
         id=test_id,
         processor_name="test_processor",
@@ -130,11 +146,17 @@ def test_run_full_pipeline_success_fetch_date_set_stop_date_unset(
         "refresh_requester.utils.check_previous_file_dates",
     )
     run_refresh_job_mock = mocker.patch(
-        "refresh_requester.jobs.run_refresh_job", return_value=test_data
+        "refresh_requester.jobs.run_refresh_job", return_value=test_response
     )
-    run_openalex_refresh_blob_upload_job_mock = mocker.patch(
-        "refresh_requester.jobs.run_openalex_refresh_blob_upload_job",
-        return_value=test_blob,
+    poll_job_status_mocked_results = [
+        {"status": "running", "progress": 0},
+        {"status": "running", "progress": 50},
+        {"status": "running", "progress": 75},
+        {"status": "succeeded", "result": test_blob},
+    ]
+    poll_job_status_mock = mocker.patch(
+        "refresh_requester.jobs.poll_job_status",
+        side_effect=poll_job_status_mocked_results,
     )
     upload_blob_storage_contents_to_repository_mock = mocker.patch(
         "refresh_requester.jobs.upload_blob_storage_contents_to_repository",
@@ -159,13 +181,9 @@ def test_run_full_pipeline_success_fetch_date_set_stop_date_unset(
         ),
         "run_refresh_job should be called with the correct date and no limit set",
     )
-    (
-        run_openalex_refresh_blob_upload_job_mock.assert_called_once_with(
-            test_data, settings.fetch_date, test_stop_date, date_today
-        ),
-        "run_openalex_refresh_blob_upload_job should be called with the correct data, date, and today's date",
-    )
-
+    assert poll_job_status_mock.call_count == len(
+        poll_job_status_mocked_results
+    ), "poll_job_status should be called the same number of times as the mocked results"
     (
         upload_blob_storage_contents_to_repository_mock.assert_called_once_with(
             settings, blob_to_upload=test_blob
@@ -187,16 +205,21 @@ def test_run_full_pipeline_success_fetch_date_set_stop_date_set(
     Tests the case where a fetch date is set in the settings.
     """
     settings = test_settings.model_copy(deep=True)
-    date_today = date.today()  # noqa: DTZ011
+    settings.polling_interval = 0.001
+    date_today = date.today()
     date_yesterday = date_today - timedelta(days=1)
     settings.stop_date = date_yesterday
     settings.fetch_date = date_yesterday
-    test_data = "test_data"
     test_blob = "test_blob"
 
     test_id = uuid.uuid4()
     test_batch_ids = [uuid.uuid4()]
-
+    test_response = {
+        "job_id": str(test_id),
+        "status_url": f"/jobs/{test_id}",
+        "start_date": date.today().isoformat(),
+        "end_date": date.today().isoformat(),
+    }
     test_import_record = ImportRecordRead(
         id=test_id,
         processor_name="test_processor",
@@ -214,11 +237,17 @@ def test_run_full_pipeline_success_fetch_date_set_stop_date_set(
         "refresh_requester.utils.check_previous_file_dates",
     )
     run_refresh_job_mock = mocker.patch(
-        "refresh_requester.jobs.run_refresh_job", return_value=test_data
+        "refresh_requester.jobs.run_refresh_job", return_value=test_response
     )
-    run_openalex_refresh_blob_upload_job_mock = mocker.patch(
-        "refresh_requester.jobs.run_openalex_refresh_blob_upload_job",
-        return_value=test_blob,
+    poll_job_status_mocked_results = [
+        {"status": "running", "progress": 0},
+        {"status": "running", "progress": 50},
+        {"status": "running", "progress": 75},
+        {"status": "succeeded", "result": test_blob},
+    ]
+    poll_job_status_mock = mocker.patch(
+        "refresh_requester.jobs.poll_job_status",
+        side_effect=poll_job_status_mocked_results,
     )
     upload_blob_storage_contents_to_repository_mock = mocker.patch(
         "refresh_requester.jobs.upload_blob_storage_contents_to_repository",
@@ -243,13 +272,9 @@ def test_run_full_pipeline_success_fetch_date_set_stop_date_set(
         ),
         "run_refresh_job should be called with the correct date and no limit set",
     )
-    (
-        run_openalex_refresh_blob_upload_job_mock.assert_called_once_with(
-            test_data, settings.fetch_date, settings.stop_date, date_today
-        ),
-        "run_openalex_refresh_blob_upload_job should be called with the correct data, date, and today's date",
-    )
-
+    assert poll_job_status_mock.call_count == len(
+        poll_job_status_mocked_results
+    ), "poll_job_status should be called the same number of times as the mocked results"
     (
         upload_blob_storage_contents_to_repository_mock.assert_called_once_with(
             settings, blob_to_upload=test_blob

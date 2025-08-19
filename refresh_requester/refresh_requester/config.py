@@ -69,6 +69,7 @@ class Settings(BaseSettings):
         HTTPStatus.GATEWAY_TIMEOUT,
     ]
     request_timeout: int = 5 * 60 * 60  # 5 hours in seconds
+    polling_interval: float = 5.0
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
 

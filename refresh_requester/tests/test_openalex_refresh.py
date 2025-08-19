@@ -1,21 +1,29 @@
 import json
 from datetime import date
 from http import HTTPStatus
+from uuid import uuid4
 
 import pytest
 import requests
+from freezegun import freeze_time
 
 from refresh_requester.config import get_settings
 from refresh_requester.openalex_refresh import OpenAlexRefreshError, request_refresh
 
 
+@freeze_time("2025-08-18")
 def test_request_refresh_success(mocker, test_settings):
     """Test successful request refresh."""
-    mocked_api_return_value = [{"key1": "value1", "key2": "value2"}]
-    expected_jsonl_response = '{"key1": "value1", "key2": "value2"}'
+    test_id = uuid4()
+    mocked_api_return_value = {
+        "job_id": str(test_id),
+        "status_url": f"/jobs/{test_id}",
+        "start_date": date.today().isoformat(),
+        "end_date": date.today().isoformat(),
+    }
 
     mock_response = mocker.Mock()
-    mock_response.status_code = HTTPStatus.OK
+    mock_response.status_code = HTTPStatus.ACCEPTED
     mock_response.json.return_value = mocked_api_return_value
     mocker.patch("requests.Session.get", return_value=mock_response)
 
@@ -24,7 +32,7 @@ def test_request_refresh_success(mocker, test_settings):
     result = request_refresh(
         test_settings, fetch_date, stop_date, limit=len(mocked_api_return_value)
     )
-    assert result == expected_jsonl_response
+    assert result == mocked_api_return_value
 
 
 def test_refresh_request_http_error_failure(mocker, test_settings):
