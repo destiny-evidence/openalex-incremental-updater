@@ -1,9 +1,19 @@
 """Define API settings."""
 
 import json
+from enum import StrEnum
 
 from pydantic import Field, HttpUrl, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+
+class DeploymentEnvironment(StrEnum):
+    """Define a deployment environment model to cover valid types."""
+
+    DEVELOPMENT = "development"
+    STAGING = "staging"
+    PRODUCTION = "production"
+    TESTING = "testing"
 
 
 class Settings(BaseSettings):
@@ -43,6 +53,10 @@ class Settings(BaseSettings):
     STORAGE_BLOB_CONTAINER: str = Field(
         ...,
         description="Azure Storage Blob container name",
+    )
+    DEPLOYMENT_ENVIRONMENT: DeploymentEnvironment = Field(
+        ...,
+        description="Deployment environment",
     )
     cors_origins: list[HttpUrl] | str = Field(..., description="CORS allowed origins")
     allow_credentials: bool = True

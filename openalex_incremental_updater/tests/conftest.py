@@ -47,6 +47,7 @@ def set_test_environment_variables(
     monkeypatch.setenv("TENANT_ID", "a-fake-id")
     monkeypatch.setenv("STORAGE_BLOB_ACCOUNT", "a-fake-blob-account")
     monkeypatch.setenv("STORAGE_BLOB_CONTAINER", "a-fake-blob-container")
+    monkeypatch.setenv("DEPLOYMENT_ENVIRONMENT", "testing")
     yield
     monkeypatch.delenv("CORS_ORIGINS")
     monkeypatch.delenv("USER_EMAIL")
@@ -58,6 +59,7 @@ def set_test_environment_variables(
     monkeypatch.delenv("TENANT_ID")
     monkeypatch.delenv("STORAGE_BLOB_ACCOUNT")
     monkeypatch.delenv("STORAGE_BLOB_CONTAINER")
+    monkeypatch.delenv("DEPLOYMENT_ENVIRONMENT")
 
 
 @pytest.fixture

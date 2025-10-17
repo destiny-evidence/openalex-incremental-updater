@@ -5,6 +5,12 @@ import sys
 
 from loguru import logger
 
+from openalex_incremental_updater.core.config import (
+    DeploymentEnvironment,
+    Settings,
+    get_settings,
+)
+
 loglevel_mapping = {
     50: "CRITICAL",
     40: "ERROR",
@@ -51,12 +57,21 @@ def setup_logging(log_level: str = "DEBUG") -> None:
         log_level (str, optional): Minimum log level to store. Defaults to "DEBUG".
 
     """
+    settings: Settings = get_settings()
+
     logger.remove()  # Remove default logger
-    logger.add(
-        sys.stderr,
-        format="{time} {level} {message}",
-        level=log_level,
-    )
+    if settings.DEPLOYMENT_ENVIRONMENT == DeploymentEnvironment.PRODUCTION:
+        # force production log level to at least INFO and serialise.
+        logger.add(sys.stdout, level="INFO", serialize=True)
+        logger.add(
+            sys.stderr, format="{time} {level} {message}", level="INFO", serialize=True
+        )
+    else:
+        logger.add(
+            sys.stderr,
+            format="{time} {level} {message}",
+            level=log_level,
+        )
 
     logging.basicConfig(handlers=[InterceptHandler()], level=0)
     for uvi_logger in ("uvicorn", "uvicorn.error", "uvicorn.access"):
