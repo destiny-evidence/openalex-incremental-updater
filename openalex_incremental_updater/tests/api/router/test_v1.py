@@ -38,7 +38,7 @@ async def test_v1_openalex_works_ingest_from_date_success(
     test_date = next(
         item["content"]["created_date"]
         for item in expected_response.get("enhancements", [])
-        if item["enhancement_type"] == "bibliographic"
+        if item["content"]["enhancement_type"] == "bibliographic"
     )
 
     base_api_url = "/api/v1/openalex_works_ingest_from_date?"
@@ -141,7 +141,7 @@ async def test_v1_openalex_works_ingest_open_filter(
     test_date = next(
         item["content"]["created_date"]
         for item in expected_response.get("enhancements", [])
-        if item["enhancement_type"] == "bibliographic"
+        if item["content"]["enhancement_type"] == "bibliographic"
     )
 
     test_filter_string = f"from_created_date:{test_date}"

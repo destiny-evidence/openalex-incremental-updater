@@ -377,7 +377,6 @@ def create_core_destiny_openalex_work(
                 if metadata.is_retracted
                 else Visibility.PUBLIC.value,
                 "processor_version": metadata.processor_version,
-                "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
                 "content": {
                     "enhancement_type": EnhancementType.BIBLIOGRAPHIC.value,
                     "title": source_document.get("title"),
@@ -599,7 +598,6 @@ def get_destiny_openalex_work(
                 if metadata.is_retracted
                 else Visibility.PUBLIC.value,
                 "processor_version": metadata.processor_version,
-                "enhancement_type": EnhancementType.ABSTRACT.value,
                 "content": destiny_work_abstract,
             }
         )
@@ -612,7 +610,6 @@ def get_destiny_openalex_work(
                 if metadata.is_retracted
                 else Visibility.PUBLIC.value,
                 "processor_version": metadata.processor_version,
-                "enhancement_type": EnhancementType.LOCATION.value,
                 "content": {
                     "enhancement_type": EnhancementType.LOCATION.value,
                     "locations": destiny_work_locations,
@@ -628,7 +625,6 @@ def get_destiny_openalex_work(
                 if metadata.is_retracted
                 else Visibility.PUBLIC.value,
                 "processor_version": metadata.processor_version,
-                "enhancement_type": EnhancementType.ANNOTATION.value,
                 "content": {
                     "enhancement_type": EnhancementType.ANNOTATION.value,
                     "annotations": destiny_work_annotations,

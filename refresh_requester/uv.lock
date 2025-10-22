@@ -236,7 +236,7 @@ wheels = [
 
 [[package]]
 name = "destiny-sdk"
-version = "0.2.0.post0"
+version = "0.5.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cachetools" },
@@ -248,9 +248,9 @@ dependencies = [
     { name = "pytest-httpx" },
     { name = "python-jose" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/f3/73/87ffcb8e60aa39cb52010a97cd8ddfbab55c80d502c1208ebd9e4d43afe7/destiny_sdk-0.2.0.post0.tar.gz", hash = "sha256:27354f6d6f0ee789a13a15f5c86a333165aceef04efee86cc50d4e5b93a2a4b1", size = 17445, upload-time = "2025-07-30T04:00:37.534Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/36/d2/77c1e47c4fd2bd1ef5c72cdd332ff0d811cf32fa02ada419682c55f76ab1/destiny_sdk-0.5.0.tar.gz", hash = "sha256:c9094998cbff091013542ecec25a96341d7ebee5eb1dc5ef0d4e1bfb20f2cafb", size = 47378, upload-time = "2025-10-22T04:33:34.007Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/0b/e1/8cc72fad671d78ac7fee206f9fb3aa77e4a18062b0342aa2c7ba6cacb54f/destiny_sdk-0.2.0.post0-py3-none-any.whl", hash = "sha256:619f690e29ffb114ce89bec394f7d3c67a36a263cadd46c1106affffe86af7a0", size = 21199, upload-time = "2025-07-30T04:00:36.665Z" },
+    { url = "https://files.pythonhosted.org/packages/25/2b/aa2b88e0ca5bcda3764c01f2e3419e3584debaaa4e6dde547fed301f9932/destiny_sdk-0.5.0-py3-none-any.whl", hash = "sha256:901a9926116182edfcfae5c1b97dfab6727126b3e1d35e0ad9d45fe1ba79aa01", size = 22418, upload-time = "2025-10-22T04:33:33.118Z" },
 ]
 
 [[package]]
@@ -734,7 +734,7 @@ requires-dist = [
     { name = "azure-core", specifier = ">=1.32.0,<2" },
     { name = "azure-identity", specifier = ">=1.20.0,<2" },
     { name = "azure-storage-blob", specifier = ">=12.24.1,<13" },
-    { name = "destiny-sdk", specifier = ">=0.2.0,<0.3" },
+    { name = "destiny-sdk", specifier = "~=0.5" },
     { name = "fastapi", specifier = ">=0.115.14,<0.116" },
     { name = "jsonlines", specifier = ">=4.0.0,<5" },
     { name = "loguru", specifier = ">=0.7.3,<0.8" },

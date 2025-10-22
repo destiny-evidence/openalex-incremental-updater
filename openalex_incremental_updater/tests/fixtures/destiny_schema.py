@@ -16,7 +16,6 @@ def destiny_work_dict(set_test_environment_variables: None) -> dict:
                 "source": "openalex",
                 "visibility": "public",
                 "processor_version": "1.0.0",
-                "enhancement_type": "bibliographic",
                 "content": {
                     "enhancement_type": "bibliographic",
                     "authorship": [
@@ -48,7 +47,7 @@ def single_destiny_openalex_work_jsonl_string() -> str:
         '{"visibility":"public","identifiers":[{"identifier_type":"open_alex",'
         '"identifier":"TEST_ID"},{"identifier_type":"doi","identifier":"https://doi.org/'
         'test_doi"}],"enhancements":[{"source":"openalex","visibility":"public",'
-        '"processor_version":"initial_openalex_import","enhancement_type":"bibliographic",'
+        '"processor_version":"initial_openalex_import",'
         '"content":{"enhancement_type":"bibliographic","title":"Test Title",'
         '"cited_by_count":null,"created_date":"2025-01-01","publication_date":'
         '"2025-01-01","publication_year":2025,"publisher":null,"authorship":[{'

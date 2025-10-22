@@ -41,22 +41,23 @@ def test_destiny_openalex_work_valid_from_valid_openalex_work_dict(
     abstract = next(
         item["content"]["abstract"]
         for item in destiny_work.enhancements
-        if item["enhancement_type"] == "abstract"
+        if item["content"]["enhancement_type"] == "abstract"
     )
     publication_year = next(
         item["content"]["publication_year"]
         for item in destiny_work.enhancements
-        if item["enhancement_type"] == "bibliographic"
+        if item["content"]["enhancement_type"] == "bibliographic"
     )
     created_date = next(
         item["content"]["created_date"]
         for item in destiny_work.enhancements
-        if item["enhancement_type"] == "bibliographic"
+        if item["content"]["enhancement_type"] == "bibliographic"
     )
 
     assert (
         openalex_id == expected_openalex_id
     ), "Expect that the test ID is set correctly"
+
     assert (
         abstract == expected_abstract
     ), "Expect that the test abstract is set correctly"
@@ -197,7 +198,7 @@ def test_get_destiny_openalex_work_success(
     abstract_dict = next(
         enhancement_dict
         for enhancement_dict in work.enhancements
-        if "abstract" in enhancement_dict["enhancement_type"]
+        if "abstract" in enhancement_dict["content"]["enhancement_type"]
     )
 
     assert (
@@ -286,13 +287,13 @@ def test_get_destiny_openalex_work_blank_abstract_from_openalex_input_with_incor
     work_annotations = next(
         enhancement.get("content").get("annotations")
         for enhancement in work.enhancements
-        if enhancement.get("enhancement_type") == "annotation"
+        if enhancement.get("content", {}).get("enhancement_type") == "annotation"
     )
 
     work_locations = next(
         enhancement.get("content").get("locations")
         for enhancement in work.enhancements
-        if enhancement.get("enhancement_type") == "location"
+        if enhancement.get("content", {}).get("enhancement_type") == "location"
     )
 
     assert isinstance(
@@ -310,7 +311,8 @@ def test_get_destiny_openalex_work_blank_abstract_from_openalex_input_with_incor
     ), "Expect that the locations are still set correctly in the case of no abstract"
 
     assert "abstract" not in [
-        enhancement_dict["enhancement_type"] for enhancement_dict in work.enhancements
+        enhancement_dict["content"]["enhancement_type"]
+        for enhancement_dict in work.enhancements
     ], "Expect that the abstract is not set in the enhancements"
 
 

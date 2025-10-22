@@ -5,7 +5,6 @@ from uuid import uuid4
 import freezegun
 import pytest
 from destiny_sdk.imports import (
-    CollisionStrategy,
     ImportBatchRead,
     ImportBatchStatus,
     ImportBatchSummary,
@@ -90,7 +89,6 @@ def test_register_import_batch_for_single_blob(mocker, test_settings) -> None:
         storage_url="http://test-storage-url",
         import_record_id=test_record_id,
         status=test_import_record.status,
-        collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
     )
     mocker.patch.object(
         uploader.session,
@@ -143,7 +141,6 @@ def test_finalise_import_record(mocker, test_settings) -> None:
         (ImportBatchStatus.COMPLETED, True),
         (ImportBatchStatus.STARTED, False),
         (ImportBatchStatus.FAILED, False),
-        (ImportBatchStatus.CANCELLED, False),
     ],
 )
 def test_check_if_import_batch_completed_status_correct(
@@ -166,7 +163,6 @@ def test_check_if_import_batch_completed_status_correct(
         storage_url="http://test-storage-url",
         import_record_id=test_record_id,
         status=test_status,
-        collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
     )
     mocker.patch.object(
         uploader.session,
@@ -200,7 +196,6 @@ def test_get_import_batch_summary(mocker, test_settings) -> None:
         id=test_summary_id,
         import_batch_id=test_import_batch_id,
         import_batch_status=ImportBatchStatus.COMPLETED,
-        collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
         results={
             ImportResultStatus.COMPLETED.value: 10,
             ImportResultStatus.FAILED.value: 0,
@@ -255,7 +250,6 @@ def test_upload_blob_storage_contents_to_repository_success_single_blob(
         storage_url="http://test-storage-url",
         import_record_id=test_import_record_id,
         status=ImportBatchStatus.CREATED,
-        collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
     )
 
     mock_register_new_import = mocker.patch(
@@ -331,14 +325,12 @@ def test_upload_blob_storage_contents_to_repository_success_multiple_blobs(
             storage_url="http://test-storage-url-1",
             import_record_id=test_import_record_id,
             status=ImportBatchStatus.CREATED,
-            collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
         ),
         ImportBatchRead(
             id=test_batch_ids[1],
             storage_url="http://test-storage-url-2",
             import_record_id=test_import_record_id,
             status=ImportBatchStatus.CREATED,
-            collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
         ),
     ]
 
@@ -412,14 +404,12 @@ def test_poll_import_batches_for_completion_retries_if_batch_incomplete(
         storage_url="http://test-storage-url",
         import_record_id=import_record_id,
         status=ImportBatchStatus.STARTED,
-        collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
     )
     completed_status = ImportBatchRead(
         id=test_import_batch_id,
         storage_url="http://test-storage-url",
         import_record_id=import_record_id,
         status=ImportBatchStatus.COMPLETED,
-        collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
     )
     mocker.patch.object(
         uploader.session,
@@ -442,7 +432,6 @@ def test_poll_import_batches_for_completion_retries_if_batch_incomplete(
             id=summary_id_one,
             import_batch_id=import_batch_id_one,
             import_batch_status=ImportBatchStatus.COMPLETED,
-            collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
             results={
                 ImportResultStatus.COMPLETED.value: 5,
                 ImportResultStatus.FAILED.value: 0,
@@ -454,7 +443,6 @@ def test_poll_import_batches_for_completion_retries_if_batch_incomplete(
             id=summary_id_two,
             import_batch_id=import_batch_id_two,
             import_batch_status=ImportBatchStatus.COMPLETED,
-            collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
             results={
                 ImportResultStatus.COMPLETED.value: 7,
                 ImportResultStatus.FAILED.value: 0,
