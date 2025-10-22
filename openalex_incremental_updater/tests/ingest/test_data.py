@@ -17,7 +17,7 @@ def test_convert_destinyworks_to_jsonl_string_valid_json(destiny_work_dict: dict
     expected_jsonl = '{"visibility":"public","identifiers":[{"identifier_type":"doi",\
 "identifier":"10.1234/sampledoi"},{"identifier_type":"openalex","identifier":\
 "W1234567890"}],"enhancements":[{"source":"openalex","visibility":"public",\
-"processor_version":"1.0.0","enhancement_type":"bibliographic","content":\
+"processor_version":"1.0.0","content":\
 {"enhancement_type":"bibliographic","authorship":[{"display_name":\
 "Alice Example","orcid":"0000-0001-2345-6789","position":"first"}],\
 "cited_by_count":10,"created_date":"2020-05-01","publication_date":\
@@ -25,7 +25,7 @@ def test_convert_destinyworks_to_jsonl_string_valid_json(destiny_work_dict: dict
 {"visibility":"public","identifiers":[{"identifier_type":"doi","identifier":\
 "10.1234/sampledoi"},{"identifier_type":"openalex","identifier":"W1234567890"}],\
 "enhancements":[{"source":"openalex","visibility":"public","processor_version":\
-"1.0.0","enhancement_type":"bibliographic","content":{"enhancement_type":\
+"1.0.0","content":{"enhancement_type":\
 "bibliographic","authorship":[{"display_name":"Alice Example","orcid":\
 "0000-0001-2345-6789","position":"first"}],"cited_by_count":10,"created_date":\
 "2020-05-01","publication_date":"2020-04-01","publication_year":2020,\

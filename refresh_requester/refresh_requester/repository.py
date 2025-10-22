@@ -4,7 +4,6 @@ import time
 from enum import StrEnum
 
 from destiny_sdk.imports import (
-    CollisionStrategy,
     ImportBatchIn,
     ImportBatchRead,
     ImportBatchSummary,
@@ -168,9 +167,7 @@ class DestinyRepositoryContentUploader:
             f"{base_endpoint_url}/imports/records/{import_record.id}/batches/"
         )
         payload = ImportBatchIn(
-            collision_strategy=CollisionStrategy.MERGE_AGGRESSIVE,
             storage_url=str(sas_url),
-            callback_url=None,
         )
         response = self.session.post(
             registration_url,
