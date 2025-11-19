@@ -169,7 +169,10 @@ class OpenAlexDataFetcher:
                 f"Finished paging. Retrieved {counter_works_retrieved} results."
             )
             if report:
-                report(status=JobState.DOWNLOADED)
+                report(
+                    status=JobState.DOWNLOADED,
+                    progress=f"{counter_works_retrieved} works retrieved",
+                )
 
             return self.process_aggregate_results(aggregate_results)
 
