@@ -13,13 +13,16 @@ class OpenAlexRefreshError(Exception):
     """OpenAlex Refresh Error."""
 
 
-def poll_job_status(settings: Settings, job_submission_id: str) -> None:
+def poll_job_status(settings: Settings, job_submission_id: str) -> dict:
     """
     Poll the status of the refresh job.
 
     Args:
         settings (Settings): The settings to use for the job.
         job_submission_id (str): The ID of the job submission to poll.
+
+    Returns:
+        dict: The JSON response from the API containg job status.
 
     """
     try:

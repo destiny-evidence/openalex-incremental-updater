@@ -43,13 +43,10 @@ async def run_background_openalex_ingest_job(
 
     """
     logger.info("Starting background OpenAlex ingest job")
+    total_ingested = 0
     try:
         job_result = await openalex_works_ingest_date_range(
             report, start_date, end_date, ingest_type, limit
-        )
-        job_progress = job_manager.get(job_id)
-        logger.info(
-            f"Ingest job progress: {job_progress.get('progress', 'no progress reported')}"
         )
 
     except UpstreamOpenAlexError as error:
@@ -61,13 +58,21 @@ async def run_background_openalex_ingest_job(
             status_code=status.HTTP_400_BAD_REQUEST, detail=error_message
         ) from error
     logger.info("Ingest job completed successfully. Uploading to blob storage...")
-    job_manager.set_progress(job_id, status="uploading", progress="uploading")
+    job_progress = job_manager.get(job_id).get("progress", {})
+    total_ingested = job_progress.get("total_works", 0)
+    logger.info(f"Data downloaded. {job_progress=}, {total_ingested=}")
+    job_manager.set_progress(job_id, status="uploading", total_works=total_ingested)
     date_today = datetime.now(ZoneInfo("UTC")).date()
     uploaded_blob_name = await run_openalex_refresh_blob_upload_job(
         job_result, start_date, end_date, date_today
     )
     logger.info("Blob upload completed successfully.")
-    job_manager.set_progress(job_id, status="succeeded", progress="upload complete")
+    job_manager.set_progress(
+        job_id,
+        status="succeeded",
+        progress="upload complete",
+        total_works=total_ingested,
+    )
     job_manager.succeed(job_id, result=uploaded_blob_name)
 
 
@@ -103,7 +108,12 @@ async def openalex_works_ingest_date_range(
             works_retrieved_limit=limit,
             report=report,
         )
-        report(status=JobState.INGESTING, progress=f"ingesting {len(results)} records")
+        total_ingested = len(results)
+        report(
+            status=JobState.INGESTING,
+            progress=f"{total_ingested} works ingested",
+            total_works=total_ingested,
+        )
     except UpstreamOpenAlexError as error:
         error_message = str(error)
         logger.error("Error fetching OpenAlex works: {}", error_message)

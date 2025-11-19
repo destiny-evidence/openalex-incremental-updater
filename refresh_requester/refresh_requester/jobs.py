@@ -92,7 +92,7 @@ def run_full_pipeline(settings: Settings) -> None:
     job_complete = False
     while not job_complete:
         job_status_json = poll_job_status(settings, job_submission_id)
-        logger.info(f"Job Progress: {job_status_json.get('progress')}")
+        logger.info(f"Job Progress: {job_status_json}")
         if job_status_json.get("status").upper() == "SUCCEEDED":
             job_complete = True
         elif job_status_json.get("status").upper() == "FAILED":
@@ -104,6 +104,8 @@ def run_full_pipeline(settings: Settings) -> None:
             sys.exit(1)
         time.sleep(polling_interval)
     uploaded_blob = job_status_json.get("result")
+    total_downloaded_items = job_status_json.get("progress").get("total_works", 0)
+    logger.info(f"Total items to ingest: {total_downloaded_items}")
     if not uploaded_blob:
         logger.error("No data returned from job.")
         sys.exit(1)

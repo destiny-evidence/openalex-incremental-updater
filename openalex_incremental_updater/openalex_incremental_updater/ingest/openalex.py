@@ -123,7 +123,7 @@ class OpenAlexDataFetcher:
                     filtered_works_url = (
                         query_string + f"&cursor={cursor}&per-page={per_page}"
                     )
-                    logger.info(
+                    logger.debug(
                         f"[Instance {instance_id}] Fetching URL: {filtered_works_url}"
                     )
                     response = await session.get(filtered_works_url)
