@@ -1,9 +1,10 @@
-name: Deploy staging openalex-incremental-updater to Azure Container Apps on successful PR merge.
+name: Deploy staging openalex-incremental-updater to Azure Container Apps.
 
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 jobs:
   staging-openalex-incremental-updater-deploy:
