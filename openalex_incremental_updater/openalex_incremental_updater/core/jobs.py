@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, status
 
-from openalex_incremental_updater.core.job_state import JobManager
+from openalex_incremental_updater.core.job_state import JobManager, JobState
 from openalex_incremental_updater.core.logger import logger
 from openalex_incremental_updater.ingest.blob_storage import blob_upload
 from openalex_incremental_updater.ingest.data import (
@@ -33,8 +33,9 @@ async def run_background_openalex_ingest_job(
     Run a background job to ingest OpenAlex works.
 
     Args:
+        job_manager (JobManager): The job manager to track job state.
         job_id (str): The unique ID for the job.
-        report_status (Callable): A callback function to report progress.
+        report (Callable): A callback function to report progress.
         start_date (date): Start date to fetch data from.
         end_date (date): End date to fetch data to.
         ingest_type (CreatedOrUpdated): Method of determining ingest data. Must be one of "created" or "updated".
@@ -46,6 +47,11 @@ async def run_background_openalex_ingest_job(
         job_result = await openalex_works_ingest_date_range(
             report, start_date, end_date, ingest_type, limit
         )
+        job_progress = job_manager.get(job_id)
+        logger.info(
+            f"Ingest job progress: {job_progress.get('progress', 'no progress reported')}"
+        )
+
     except UpstreamOpenAlexError as error:
         error_message = str(error)
         logger.error("Ingest job failed: {}", error_message)
@@ -97,6 +103,7 @@ async def openalex_works_ingest_date_range(
             works_retrieved_limit=limit,
             report=report,
         )
+        report(status=JobState.INGESTING, progress=f"ingesting {len(results)} records")
     except UpstreamOpenAlexError as error:
         error_message = str(error)
         logger.error("Error fetching OpenAlex works: {}", error_message)

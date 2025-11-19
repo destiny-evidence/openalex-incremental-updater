@@ -19,6 +19,7 @@ class JobState(StrEnum):
     PENDING = "pending"
     RUNNING = "running"
     DOWNLOADED = "downloaded"
+    INGESTING = "ingesting"
     SUCCEEDED = "succeeded"
     FAILED = "failed"
     CANCELLED = "cancelled"
