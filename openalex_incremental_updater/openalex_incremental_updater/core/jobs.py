@@ -6,7 +6,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, status
 
-from openalex_incremental_updater.core.job_state import JobManager, JobState
+from openalex_incremental_updater.core.job_state import JobManager
 from openalex_incremental_updater.core.logger import logger
 from openalex_incremental_updater.ingest.blob_storage import blob_upload
 from openalex_incremental_updater.ingest.data import (
@@ -107,12 +107,6 @@ async def openalex_works_ingest_date_range(
             openalex_filter=openalex_query,
             works_retrieved_limit=limit,
             report=report,
-        )
-        total_ingested = len(results)
-        report(
-            status=JobState.INGESTING,
-            progress=f"{total_ingested} works ingested",
-            total_works=total_ingested,
         )
     except UpstreamOpenAlexError as error:
         error_message = str(error)
