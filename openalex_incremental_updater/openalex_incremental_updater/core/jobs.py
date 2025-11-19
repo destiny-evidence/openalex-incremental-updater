@@ -60,7 +60,8 @@ async def run_background_openalex_ingest_job(
     logger.info("Ingest job completed successfully. Uploading to blob storage...")
     job_progress = job_manager.get(job_id).get("progress", {})
     total_ingested = job_progress.get("total_works", 0)
-    logger.info(f"Data downloaded. {job_progress=}, {total_ingested=}")
+    logger.info(f"Data downloaded. {job_progress=}")
+    logger.info(f"{total_ingested=}")
     job_manager.set_progress(job_id, status="uploading", total_works=total_ingested)
     date_today = datetime.now(ZoneInfo("UTC")).date()
     uploaded_blob_name = await run_openalex_refresh_blob_upload_job(
