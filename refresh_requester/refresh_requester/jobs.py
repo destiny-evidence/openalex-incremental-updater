@@ -108,7 +108,7 @@ def run_full_pipeline(settings: Settings) -> None:
         time.sleep(polling_interval)
     uploaded_blob = job_status_json.get("result")
     job_progress_info = job_status_json.get("progress", {})
-    total_downloaded_items = job_progress_info.get("total_items", 0)
+    total_downloaded_items = job_progress_info.get("total_works", 0)
     logger.info(f"Items to ingest: {total_downloaded_items}")
     if not uploaded_blob:
         logger.error("No data returned from job.")
