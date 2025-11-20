@@ -87,7 +87,7 @@ class OpenAlexDataFetcher:
 
         """
         if report:
-            report(status=JobState.PENDING, progress="0/0")
+            report(status=JobState.PENDING, progress="Starting fetch job")
         async with fetch_lock:
             aggregate_results = []
 
@@ -118,7 +118,7 @@ class OpenAlexDataFetcher:
 
                 counter_works_retrieved = 0
                 last_known_cursor = None
-
+                total_works_to_download = 0
                 while cursor:
                     filtered_works_url = (
                         query_string + f"&cursor={cursor}&per-page={per_page}"
@@ -141,6 +141,7 @@ class OpenAlexDataFetcher:
                     aggregate_results.extend(results)
 
                     count_works_total = retrieved_works["meta"]["count"]
+                    total_works_to_download = count_works_total
                     counter_works_retrieved += len(results)
                     logger.info(
                         f"[Instance {instance_id}] Processed {counter_works_retrieved} results of {count_works_total}"
@@ -152,6 +153,7 @@ class OpenAlexDataFetcher:
                         report(
                             status=JobState.RUNNING,
                             progress=f"{counter_works_retrieved}/{count_works_total}",
+                            total_works=count_works_total,
                         )
                     if cursor:
                         last_known_cursor = cursor
@@ -172,6 +174,7 @@ class OpenAlexDataFetcher:
                 report(
                     status=JobState.DOWNLOADED,
                     progress=f"{counter_works_retrieved} works retrieved",
+                    total_works=total_works_to_download,
                 )
 
             return self.process_aggregate_results(aggregate_results)
