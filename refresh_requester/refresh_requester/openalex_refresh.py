@@ -22,7 +22,7 @@ def poll_job_status(settings: Settings, job_submission_id: str) -> dict:
         job_submission_id (str): The ID of the job submission to poll.
 
     Returns:
-        dict: The JSON response from the API containg job status.
+        dict: The JSON response from the API containing job status.
 
     """
     try:
