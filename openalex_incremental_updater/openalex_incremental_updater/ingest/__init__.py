@@ -57,29 +57,28 @@ class RetryTransport(httpx.AsyncHTTPTransport):
                 logger.warning(
                     f"Attempt {attempt+1}: Failed to fetch data from OpenAlex API: {error}"
                 )
-                error_has_response = bool(
-                    hasattr(error, "response") and error.response is not None
+                error_status_code_exists = (
+                    error.response is not None
+                    and error.response.status_code is not None
                 )
-                error_response_has_status_code = (
-                    hasattr(error.response, "status_code")
-                    if error_has_response
-                    else False
-                )
-
-                if error_has_response and error_response_has_status_code:
-                    if error.response.status_code == status.HTTP_404_NOT_FOUND:
-                        return httpx.Response(
-                            status_code=status.HTTP_404_NOT_FOUND,
-                            content=str(error),
-                        )
-                    if attempt == self.retries:
-                        logger.error(
-                            f"Failed to fetch data from OpenAlex API after {self.retries} attempts."
-                        )
-                        return httpx.Response(
-                            status_code=response.status_code,
-                            content=str(error),
-                        )
+                if (
+                    error_status_code_exists
+                    and error.response.status_code == status.HTTP_404_NOT_FOUND
+                ):
+                    return httpx.Response(
+                        status_code=status.HTTP_404_NOT_FOUND,
+                        content=str(error),
+                    )
+                if attempt == self.retries:
+                    logger.error(
+                        f"Failed to fetch data from OpenAlex API after {self.retries} attempts."
+                    )
+                    return httpx.Response(
+                        status_code=error.response.status_code
+                        if error_status_code_exists
+                        else 500,
+                        content=str(error),
+                    )
                 await asyncio.sleep(self.backoff_factor * 2**attempt)
                 attempt += 1
             else:
