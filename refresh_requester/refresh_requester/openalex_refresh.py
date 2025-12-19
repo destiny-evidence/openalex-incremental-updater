@@ -19,7 +19,7 @@ def create_composite_url(base_url: str, url_path: str) -> str:
     Generate a composite URL from a base URL and a URL path.
 
     Removes duplicate slashes except for the "://" part of the URL.
-    URLs are verified by pydantic HttpUrl before recast to str.
+    The composite URL is validated by pydantic HttpUrl before being recast to str.
 
     Args:
         base_url (str): The base URL.
