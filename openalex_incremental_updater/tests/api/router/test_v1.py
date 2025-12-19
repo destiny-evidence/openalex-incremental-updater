@@ -302,7 +302,10 @@ async def test_run_with_tracking_async_exception_raised(
 def test_report_status(set_test_environment_variables: Generator):
     from openalex_incremental_updater.api.routers.v1 import report_status
 
-    expected_progress_fields = {"status": "test", "progress": 100}
+    expected_progress_fields = {
+        "status": "test",
+        "progress": {"progress": 100, "total_works": 1000},
+    }
     job_manager = JobManager()
     job_id = job_manager.create(meta={})
     report = report_status(job_manager, job_id)
