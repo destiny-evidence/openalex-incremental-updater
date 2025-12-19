@@ -1,5 +1,6 @@
 """Module for requesting a refresh from the OpenAlex Incremental Ingestion API."""
 
+import re
 from datetime import date
 from json.decoder import JSONDecodeError
 
@@ -30,12 +31,7 @@ def create_composite_url(base_url: str, url_path: str) -> str:
 
     """
     url = base_url + "/" + url_path
-    while "//" in url.replace("://", "___TEMP___"):
-        url = (
-            url.replace("://", "___TEMP___")
-            .replace("//", "/")
-            .replace("___TEMP___", "://")
-        )
+    url = re.sub(r"(?<!:)//+", "/", url)
     return str(HttpUrl(url))
 
 
