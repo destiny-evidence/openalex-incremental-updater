@@ -11,6 +11,7 @@ from freezegun import freeze_time
 from refresh_requester.config import get_settings
 from refresh_requester.openalex_refresh import (
     OpenAlexRefreshError,
+    create_composite_url,
     poll_job_status,
     request_refresh,
 )
@@ -52,6 +53,15 @@ def test_refresh_request_http_error_failure(mocker, test_settings):
     with pytest.raises(OpenAlexRefreshError) as error:
         request_refresh(settings, fetch_date, stop_date)
     assert "HTTP exception" in str(error.value)
+
+
+def test_create_composite_url():
+    """Test create_composite_url function."""
+    base_url = "https://api.example.com/"
+    url_path = "/api/v1/resource"
+    expected_url = "https://api.example.com/api/v1/resource"
+    result = create_composite_url(base_url, url_path)
+    assert result == expected_url
 
 
 def test_refresh_request_invalid_json_response_failure(mocker, test_settings):

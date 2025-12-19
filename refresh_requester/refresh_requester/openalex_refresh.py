@@ -4,6 +4,7 @@ from datetime import date
 from json.decoder import JSONDecodeError
 
 from loguru import logger
+from pydantic import HttpUrl
 from requests.exceptions import RequestException
 
 from refresh_requester.config import Settings, get_retry_session
@@ -13,7 +14,26 @@ class OpenAlexRefreshError(Exception):
     """OpenAlex Refresh Error."""
 
 
-def poll_job_status(settings: Settings, job_submission_id: str) -> dict:
+def create_composite_url(base_url: str, url_path: str) -> str:
+    """
+    Generate a composite URL from a base URL and a URL path.
+
+    Removes duplicate slashes except for the "://" part of the URL.
+    URLs are verified by pydantic HttpUrl before recast to str.
+
+    Args:
+        base_url (str): The base URL.
+        url_path (str): The URL path to append.
+
+    Returns:
+        str: The composite URL.
+
+    """
+    url = base_url + url_path
+    return str(HttpUrl("/".join(url.rsplit("//", 1))))
+
+
+def poll_job_status(settings: Settings, job_submission_id: str) -> None:
     """
     Poll the status of the refresh job.
 
@@ -27,7 +47,10 @@ def poll_job_status(settings: Settings, job_submission_id: str) -> dict:
     """
     try:
         session = get_retry_session()
-        url = str(settings.API_ENDPOINT) + f"/api/v1/jobs/{job_submission_id}"
+        base_url = str(settings.API_ENDPOINT)
+        url_path = f"/api/v1/jobs/{job_submission_id}"
+
+        url = create_composite_url(base_url, url_path)
 
         response = session.get(url, timeout=settings.request_timeout)
         response.raise_for_status()
