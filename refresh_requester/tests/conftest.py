@@ -9,11 +9,11 @@ from refresh_requester.config import Settings, get_settings
 
 @pytest.fixture
 def caplog(caplog):
-    class PropogateHandler(logging.Handler):
+    class PropagateHandler(logging.Handler):
         def emit(self, record) -> None:
             logging.getLogger(record.name).handle(record)
 
-    handler_id = logger.add(PropogateHandler(), format="{message}")
+    handler_id = logger.add(PropagateHandler(), format="{message}")
     yield caplog
     logger.remove(handler_id)
 
