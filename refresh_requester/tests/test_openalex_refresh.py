@@ -11,6 +11,7 @@ from freezegun import freeze_time
 from refresh_requester.config import get_settings
 from refresh_requester.openalex_refresh import (
     OpenAlexRefreshError,
+    create_composite_url,
     poll_job_status,
     request_refresh,
 )
@@ -54,6 +55,37 @@ def test_refresh_request_http_error_failure(mocker, test_settings):
     assert "HTTP exception" in str(error.value)
 
 
+@pytest.mark.parametrize(
+    ("base_url", "url_path", "expected_url"),
+    [
+        (
+            "https://api.example.com/",
+            "/api//v1/resource",
+            "https://api.example.com/api/v1/resource",
+        ),
+        (
+            "https://api.example.com",
+            "api/v1/resource",
+            "https://api.example.com/api/v1/resource",
+        ),
+        (
+            "https://api.example.com////",
+            "///api/v1/resource",
+            "https://api.example.com/api/v1/resource",
+        ),
+        (
+            "https://api.example.com////",
+            "/////api//v1//resource",
+            "https://api.example.com/api/v1/resource",
+        ),
+    ],
+)
+def test_create_composite_url(base_url, url_path, expected_url):
+    """Test create_composite_url function."""
+    result = create_composite_url(base_url, url_path)
+    assert result == expected_url
+
+
 def test_refresh_request_invalid_json_response_failure(mocker, test_settings):
     """Test failed request refresh due to HTTP error."""
     settings = get_settings()
@@ -84,6 +116,26 @@ def test_poll_job_status_succeeded(mocker, test_settings):
 
     result = poll_job_status(settings, job_id)
     assert result == {"status": "succeeded"}
+
+
+@pytest.mark.parametrize(
+    ("base_url"),
+    [
+        ("ht!tp://invalid-url"),
+        ("https: //api.example.com"),
+        ("httpsapi.example.com"),
+        ("foo"),
+        ("foo://bar"),
+    ],
+)
+def test_poll_job_status_failed_url_validation(mocker, test_settings, base_url):
+    """Test polling job status."""
+    settings = test_settings.model_copy(deep=True)
+    job_id = uuid4()
+    settings.API_ENDPOINT = base_url
+    with pytest.raises(OpenAlexRefreshError) as error:
+        poll_job_status(settings, job_id)
+    assert "Invalid URL constructed" in str(error.value)
 
 
 def test_poll_job_status_failed_request_exception(mocker, test_settings):

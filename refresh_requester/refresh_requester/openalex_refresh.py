@@ -1,9 +1,11 @@
 """Module for requesting a refresh from the OpenAlex Incremental Ingestion API."""
 
+import re
 from datetime import date
 from json.decoder import JSONDecodeError
 
 from loguru import logger
+from pydantic import HttpUrl, ValidationError
 from requests.exceptions import RequestException
 
 from refresh_requester.config import Settings, get_retry_session
@@ -11,6 +13,26 @@ from refresh_requester.config import Settings, get_retry_session
 
 class OpenAlexRefreshError(Exception):
     """OpenAlex Refresh Error."""
+
+
+def create_composite_url(base_url: str, url_path: str) -> str:
+    """
+    Generate a composite URL from a base URL and a URL path.
+
+    Removes duplicate slashes except for the "://" part of the URL.
+    The composite URL is validated by pydantic HttpUrl before being recast to str.
+
+    Args:
+        base_url (str): The base URL.
+        url_path (str): The URL path to append.
+
+    Returns:
+        str: The composite URL.
+
+    """
+    url = base_url + "/" + url_path
+    url = re.sub(r"(?<!:)//+", "/", url)
+    return str(HttpUrl(url))
 
 
 def poll_job_status(settings: Settings, job_submission_id: str) -> dict:
@@ -27,11 +49,19 @@ def poll_job_status(settings: Settings, job_submission_id: str) -> dict:
     """
     try:
         session = get_retry_session()
-        url = str(settings.API_ENDPOINT) + f"/api/v1/jobs/{job_submission_id}"
+        base_url = str(settings.API_ENDPOINT)
+        url_path = f"/api/v1/jobs/{job_submission_id}"
+
+        url = create_composite_url(base_url, url_path)
 
         response = session.get(url, timeout=settings.request_timeout)
         response.raise_for_status()
         response_json = response.json()
+
+    except ValidationError as validation_error:
+        error_message = f"Invalid URL constructed: {validation_error}"
+        logger.error(error_message)
+        raise OpenAlexRefreshError(error_message) from validation_error
     except RequestException as http_exception:
         error_message = f"HTTP exception: {http_exception}"
         logger.error(error_message)
