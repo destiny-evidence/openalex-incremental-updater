@@ -4,7 +4,7 @@ from datetime import date
 from json.decoder import JSONDecodeError
 
 from loguru import logger
-from pydantic import HttpUrl
+from pydantic import HttpUrl, ValidationError
 from requests.exceptions import RequestException
 
 from refresh_requester.config import Settings, get_retry_session
@@ -61,6 +61,11 @@ def poll_job_status(settings: Settings, job_submission_id: str) -> None:
         response = session.get(url, timeout=settings.request_timeout)
         response.raise_for_status()
         response_json = response.json()
+
+    except ValidationError as validation_error:
+        error_message = f"Invalid URL constructed: {validation_error}"
+        logger.error(error_message)
+        raise OpenAlexRefreshError(error_message) from validation_error
     except RequestException as http_exception:
         error_message = f"HTTP exception: {http_exception}"
         logger.error(error_message)

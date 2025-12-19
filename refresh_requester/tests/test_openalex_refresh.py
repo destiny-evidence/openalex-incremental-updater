@@ -118,6 +118,26 @@ def test_poll_job_status_succeeded(mocker, test_settings):
     assert result == {"status": "succeeded"}
 
 
+@pytest.mark.parametrize(
+    ("base_url"),
+    [
+        ("ht!tp://invalid-url"),
+        ("https: //api.example.com"),
+        ("httpsapi.example.com"),
+        ("foo"),
+        ("foo://bar"),
+    ],
+)
+def test_poll_job_status_failed_url_validation(mocker, test_settings, base_url):
+    """Test polling job status."""
+    settings = test_settings.model_copy(deep=True)
+    job_id = uuid4()
+    settings.API_ENDPOINT = base_url
+    with pytest.raises(OpenAlexRefreshError) as error:
+        poll_job_status(settings, job_id)
+    assert "Invalid URL constructed" in str(error.value)
+
+
 def test_poll_job_status_failed_request_exception(mocker, test_settings):
     """Test polling job status."""
     settings = test_settings.model_copy(deep=True)
