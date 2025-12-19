@@ -6,7 +6,6 @@ from enum import StrEnum
 import httpx
 from fastapi import status
 from loguru import logger
-from requests.exceptions import ReadTimeout
 
 
 class CreatedOrUpdated(StrEnum):
@@ -39,7 +38,7 @@ class RetryTransport(httpx.AsyncHTTPTransport):
                 response = await super().handle_async_request(request, **kwargs)
                 response.request = request
                 response.raise_for_status()
-            except ReadTimeout as timeout_error:
+            except httpx.ReadTimeout as timeout_error:
                 logger.warning(
                     f"Attempt {attempt+1}: ReadTimeout error occurred: {timeout_error}"
                 )
@@ -57,12 +56,15 @@ class RetryTransport(httpx.AsyncHTTPTransport):
                 logger.warning(
                     f"Attempt {attempt+1}: Failed to fetch data from OpenAlex API: {error}"
                 )
+                response_object = getattr(error, "response", None)
                 error_status_code_exists = (
-                    error.response is not None
-                    and getattr(error.response, "status_code", None) is not None
+                    response_object is not None
+                    and getattr(response_object, "status_code", None) is not None
                 )
                 error_status_code = (
-                    error.response.status_code if error_status_code_exists else None
+                    getattr(response_object, "status_code", None)
+                    if error_status_code_exists
+                    else None
                 )
                 if (
                     error_status_code_exists

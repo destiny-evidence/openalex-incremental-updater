@@ -1,5 +1,6 @@
 """Pytest configuration file."""
 
+import logging
 from collections.abc import AsyncIterator, Generator
 from typing import Any
 
@@ -7,6 +8,7 @@ import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
 from httpx import ASGITransport, AsyncClient
+from loguru import logger
 
 pytest_plugins = [
     "tests.fixtures.routers",
@@ -15,6 +17,17 @@ pytest_plugins = [
     "tests.fixtures.solr_schema",
     "tests.fixtures.auth",
 ]
+
+
+@pytest.fixture
+def caplog(caplog: pytest.LogCaptureFixture) -> Generator[pytest.LogCaptureFixture]:
+    class PropogateHandler(logging.Handler):
+        def emit(self, record: logging.LogRecord) -> None:
+            logging.getLogger(record.name).handle(record)
+
+    handler_id = logger.add(PropogateHandler(), format="{message}")
+    yield caplog
+    logger.remove(handler_id)
 
 
 def get_app() -> FastAPI:
