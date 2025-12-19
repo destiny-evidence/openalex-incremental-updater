@@ -55,11 +55,33 @@ def test_refresh_request_http_error_failure(mocker, test_settings):
     assert "HTTP exception" in str(error.value)
 
 
-def test_create_composite_url():
+@pytest.mark.parametrize(
+    ("base_url", "url_path", "expected_url"),
+    [
+        (
+            "https://api.example.com/",
+            "/api//v1/resource",
+            "https://api.example.com/api/v1/resource",
+        ),
+        (
+            "https://api.example.com",
+            "api/v1/resource",
+            "https://api.example.com/api/v1/resource",
+        ),
+        (
+            "https://api.example.com////",
+            "///api/v1/resource",
+            "https://api.example.com/api/v1/resource",
+        ),
+        (
+            "https://api.example.com////",
+            "/////api//v1//resource",
+            "https://api.example.com/api/v1/resource",
+        ),
+    ],
+)
+def test_create_composite_url(base_url, url_path, expected_url):
     """Test create_composite_url function."""
-    base_url = "https://api.example.com/"
-    url_path = "/api/v1/resource"
-    expected_url = "https://api.example.com/api/v1/resource"
     result = create_composite_url(base_url, url_path)
     assert result == expected_url
 

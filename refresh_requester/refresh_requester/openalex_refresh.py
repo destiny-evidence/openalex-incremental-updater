@@ -29,8 +29,14 @@ def create_composite_url(base_url: str, url_path: str) -> str:
         str: The composite URL.
 
     """
-    url = base_url + url_path
-    return str(HttpUrl("/".join(url.rsplit("//", 1))))
+    url = base_url + "/" + url_path
+    while "//" in url.replace("://", "___TEMP___"):
+        url = (
+            url.replace("://", "___TEMP___")
+            .replace("//", "/")
+            .replace("___TEMP___", "://")
+        )
+    return str(HttpUrl(url))
 
 
 def poll_job_status(settings: Settings, job_submission_id: str) -> None:
