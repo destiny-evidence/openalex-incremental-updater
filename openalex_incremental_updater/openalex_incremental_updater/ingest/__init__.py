@@ -57,17 +57,14 @@ class RetryTransport(httpx.AsyncHTTPTransport):
                     f"Attempt {attempt+1}: Failed to fetch data from OpenAlex API: {error}"
                 )
                 response_object = getattr(error, "response", None)
-                error_status_code_exists = (
-                    response_object is not None
-                    and getattr(response_object, "status_code", None) is not None
-                )
                 error_status_code = (
                     getattr(response_object, "status_code", None)
-                    if error_status_code_exists
+                    if response_object
                     else None
                 )
+
                 if (
-                    error_status_code_exists
+                    error_status_code is not None
                     and error_status_code == status.HTTP_404_NOT_FOUND
                 ):
                     return httpx.Response(
@@ -80,7 +77,7 @@ class RetryTransport(httpx.AsyncHTTPTransport):
                     )
                     return httpx.Response(
                         status_code=error_status_code
-                        if error_status_code_exists
+                        if error_status_code is not None
                         else 500,
                         content=str(error),
                     )
