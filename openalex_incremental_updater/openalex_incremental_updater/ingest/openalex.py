@@ -2,7 +2,7 @@
 
 import uuid
 from asyncio import Lock
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable, Iterator
 from datetime import date
 
 import httpx
@@ -74,7 +74,7 @@ class OpenAlexDataFetcher:
         openalex_filter: str | None,
         works_retrieved_limit: int | None = None,
         report: Callable | None = None,
-    ) -> list[DestinyOpenAlexWork]:
+    ) -> AsyncIterator[DestinyOpenAlexWork]:
         """
         Fetch data from the OpenAlex API using a custom filter.
 
@@ -83,14 +83,12 @@ class OpenAlexDataFetcher:
             works_retrieved_limit (Optional[int]): The maximum number of works to retrieve. Defaults to None.
 
         Returns:
-            list[DestinyOpenAlexWork]: The retrieved works.
+            AsyncIterator[DestinyOpenAlexWork]: The retrieved works.
 
         """
         if report:
             report(status=JobState.PENDING, progress="Starting fetch job")
         async with fetch_lock:
-            aggregate_results = []
-
             # OpenAlex API limits the number of results per page to 200
             per_page: str = str(
                 min(200, works_retrieved_limit) if works_retrieved_limit else 200
@@ -138,7 +136,6 @@ class OpenAlexDataFetcher:
                     retrieved_works = response.json()
 
                     results = retrieved_works["results"]
-                    aggregate_results.extend(results)
 
                     count_works_total = retrieved_works["meta"]["count"]
                     total_works_to_download = count_works_total
@@ -164,8 +161,16 @@ class OpenAlexDataFetcher:
                         logger.info(
                             f"Reached the limit of {works_retrieved_limit} works."
                         )
-                        return self.process_aggregate_results(aggregate_results)
+                        capped_results = results[
+                            : works_retrieved_limit
+                            - (counter_works_retrieved - len(results))
+                        ]
+                        for result in capped_results:
+                            yield convert_openalex_to_destiny(result)
+                        break
 
+            for result in results:
+                yield convert_openalex_to_destiny(result)
             logger.info(f"Last known cursor: {last_known_cursor}")
             logger.info(
                 f"Finished paging. Retrieved {counter_works_retrieved} results."
@@ -176,12 +181,11 @@ class OpenAlexDataFetcher:
                     progress=f"{counter_works_retrieved} works retrieved",
                     total_works=total_works_to_download,
                 )
-
-            return self.process_aggregate_results(aggregate_results)
+            logger.info("Processing aggregate results.")
 
     def process_aggregate_results(
         self, aggregate_results: list[dict]
-    ) -> list[DestinyOpenAlexWork]:
+    ) -> Iterator[DestinyOpenAlexWork]:
         """
         Process the aggregate results from the OpenAlex API to match the Destiny data model.
 
@@ -189,7 +193,7 @@ class OpenAlexDataFetcher:
             aggregate_results (list[dict]): The aggregate results from the OpenAlex API.
 
         Returns:
-            list[DestinyWork]: The processed results in the Destiny data model format.
+            Iterator[DestinyWork]: The processed results in the Destiny data model format.
 
         """
-        return [convert_openalex_to_destiny(result) for result in aggregate_results]
+        yield from (convert_openalex_to_destiny(result) for result in aggregate_results)

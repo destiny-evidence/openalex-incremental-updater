@@ -1,5 +1,7 @@
 """Define data conversion functions."""
 
+from collections.abc import Iterator
+
 from loguru import logger
 
 from openalex_incremental_updater.models.destiny import DestinyOpenAlexWork
@@ -10,23 +12,21 @@ class JSONLConversionError(Exception):
 
 
 def convert_destinyworks_to_jsonl_string(
-    destiny_data: list[DestinyOpenAlexWork],
-) -> str:
+    destiny_data: Iterator[DestinyOpenAlexWork],
+) -> Iterator[bytes]:
     """
-    Convert a DestinyOpenAlexWork object to JSONL format.
+    Generate JSONL lines from DestinyOpenAlexWork objects.
 
     Args:
-        work (DestinyOpenAlexWork): The work object to convert.
+        destiny_data (Iterator[DestinyOpenAlexWork]): The work objects to convert.
 
-    Returns:
-        str: The JSONL representation of the work object.
+    Yields:
+        Iterator[bytes]: An iterator of JSONL lines.
 
     """
-    if not isinstance(destiny_data, list):
-        error_message = "destiny_data must be a list of dictionaries - TypeError"
-        raise JSONLConversionError(error_message)
     try:
-        return "\n".join([data.model_dump_json() for data in destiny_data])
+        for data in destiny_data:
+            yield (data.model_dump_json() + "\n").encode("utf-8")
     except (TypeError, ValueError) as jsonl_conversion_error:
         error_message = f"Error converting JSON to JSONL: {jsonl_conversion_error}"
         logger.error(error_message)

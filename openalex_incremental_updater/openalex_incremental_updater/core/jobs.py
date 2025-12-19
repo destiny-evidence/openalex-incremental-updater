@@ -1,6 +1,6 @@
 """Manage background jobs for the application."""
 
-from collections.abc import Callable
+from collections.abc import Callable, Iterator
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
@@ -83,7 +83,7 @@ async def openalex_works_ingest_date_range(
     end_date: date,
     ingest_type: CreatedOrUpdated,
     limit: int | None = None,
-) -> str:
+) -> Iterator[bytes]:
     """
     Fetch Works from the OpenAlex API with a date range filter and ingest them into the repository.
 
@@ -95,7 +95,7 @@ async def openalex_works_ingest_date_range(
         limit (int): Maximum number of records to ingest. Defaults to None.
 
     Returns:
-        str: JSONL-ified response from the API, representing a list of DestinyOpenAlexWork objects.
+        Iterator[bytes]: JSONL-ified response from the API, representing a list of DestinyOpenAlexWork objects.
 
     """
     openalex_query = OpenAlexDataFetcher.build_range_query(
@@ -183,13 +183,13 @@ async def openalex_works_ingest_open_filter(
 
 
 async def run_openalex_refresh_blob_upload_job(
-    data: str, fetch_date: date, stop_date: date, refresh_date: date
+    data: Iterator[bytes], fetch_date: date, stop_date: date, refresh_date: date
 ) -> str:
     """
     Run the blob upload job.
 
     Args:
-        data (list[str]): The response from the API, converted to JSON-lines
+        data (Iterator[bytes]): The response from the API, converted to JSON-lines
         fetch_date (date): The date at which the data was fetched
         stop_date (date): The date at which the data was fetched until (inclusive)
         refresh_date (date): The date at which the data was refreshed
