@@ -21,11 +21,11 @@ pytest_plugins = [
 
 @pytest.fixture
 def caplog(caplog: pytest.LogCaptureFixture) -> Generator[pytest.LogCaptureFixture]:
-    class PropogateHandler(logging.Handler):
+    class PropagateHandler(logging.Handler):
         def emit(self, record: logging.LogRecord) -> None:
             logging.getLogger(record.name).handle(record)
 
-    handler_id = logger.add(PropogateHandler(), format="{message}")
+    handler_id = logger.add(PropagateHandler(), format="{message}")
     yield caplog
     logger.remove(handler_id)
 
