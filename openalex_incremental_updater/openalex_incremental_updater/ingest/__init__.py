@@ -61,9 +61,12 @@ class RetryTransport(httpx.AsyncHTTPTransport):
                     error.response is not None
                     and getattr(error.response, "status_code", None) is not None
                 )
+                error_status_code = (
+                    error.response.status_code if error_status_code_exists else None
+                )
                 if (
                     error_status_code_exists
-                    and error.response.status_code == status.HTTP_404_NOT_FOUND
+                    and error_status_code == status.HTTP_404_NOT_FOUND
                 ):
                     return httpx.Response(
                         status_code=status.HTTP_404_NOT_FOUND,
@@ -74,7 +77,7 @@ class RetryTransport(httpx.AsyncHTTPTransport):
                         f"Failed to fetch data from OpenAlex API after {self.retries} attempts."
                     )
                     return httpx.Response(
-                        status_code=error.response.status_code
+                        status_code=error_status_code
                         if error_status_code_exists
                         else 500,
                         content=str(error),
