@@ -59,7 +59,7 @@ class RetryTransport(httpx.AsyncHTTPTransport):
                 )
                 error_status_code_exists = (
                     error.response is not None
-                    and error.response.status_code is not None
+                    and getattr(error.response, "status_code", None) is not None
                 )
                 if (
                     error_status_code_exists
