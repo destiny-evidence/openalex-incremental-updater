@@ -2,7 +2,7 @@
 
 import uuid
 from asyncio import Lock
-from collections.abc import AsyncIterator, Callable, Iterator
+from collections.abc import AsyncIterator, Callable
 from datetime import date
 
 import httpx
@@ -166,18 +166,3 @@ class OpenAlexDataFetcher:
                     total_works=total_works_to_download,
                 )
             logger.info("Processing aggregate results.")
-
-    def process_aggregate_results(
-        self, aggregate_results: list[dict]
-    ) -> Iterator[DestinyOpenAlexWork]:
-        """
-        Process the aggregate results from the OpenAlex API to match the Destiny data model.
-
-        Args:
-            aggregate_results (list[dict]): The aggregate results from the OpenAlex API.
-
-        Returns:
-            Iterator[DestinyWork]: The processed results in the Destiny data model format.
-
-        """
-        yield from (convert_openalex_to_destiny(result) for result in aggregate_results)
