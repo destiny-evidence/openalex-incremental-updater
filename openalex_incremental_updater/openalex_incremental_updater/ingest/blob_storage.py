@@ -92,6 +92,9 @@ def blob_upload(
             )
             block_ids.append(block_id)
 
+        if not block_ids:
+            logger.warning("Uploading empty blob.")
+
         blob_client.commit_block_list(block_ids)
         logger.info(f"Successfully uploaded entire refresh response to {filename}")
 
