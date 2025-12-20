@@ -117,39 +117,6 @@ async def openalex_works_ingest_date_range(
         return convert_destinyworks_to_jsonl_string(results)
 
 
-async def openalex_works_ingest_from_date(
-    fetch_date: date,
-    ingest_type: CreatedOrUpdated,
-    limit: int | None = None,
-) -> list[DestinyOpenAlexWork]:
-    """
-    Fetch Works from the OpenAlex API with a date filter and ingest them into the repository.
-
-    Args:
-        fetch_date (date): Date to fetch data from. Must be in the format YYYY-MM-DD.
-        ingest_type (CreatedOrUpdated): Method of determining ingest data. Must be one of "created" or "updated".
-        limit (int): Maximum number of records to ingest. Defaults to None.
-
-    Returns:
-        list[DestinyOpenAlexWork]: List of DestinyOpenAlexWork objects.
-
-    """
-    openalex_query = OpenAlexDataFetcher.build_query(fetch_date, ingest_type)
-    fetcher = OpenAlexDataFetcher()
-    try:
-        results = await fetcher.fetch_works_filter(
-            openalex_filter=openalex_query,
-            works_retrieved_limit=limit,
-        )
-    except UpstreamOpenAlexError as error:
-        error_message = str(error)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=error_message
-        ) from error
-    else:
-        return results
-
-
 async def openalex_works_ingest_open_filter(
     openalex_query_string: str,
     limit: int,

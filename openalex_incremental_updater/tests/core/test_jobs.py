@@ -9,7 +9,6 @@ from pytest_mock import MockerFixture
 from openalex_incremental_updater.core.job_state import JobManager
 from openalex_incremental_updater.core.jobs import (
     openalex_works_ingest_date_range,
-    openalex_works_ingest_from_date,
     openalex_works_ingest_open_filter,
     run_background_openalex_ingest_job,
     run_openalex_refresh_blob_upload_job,
@@ -125,7 +124,7 @@ async def test_openalex_works_ingest_date_range_success(
     result = await openalex_works_ingest_date_range(
         test_report, date.today(), date.today(), ingest_type
     )
-    assert result == single_destiny_openalex_work_jsonl_string
+    assert next(result).decode("utf-8") == single_destiny_openalex_work_jsonl_string
 
 
 @pytest.mark.anyio
@@ -154,61 +153,6 @@ async def test_openalex_works_ingest_date_range_fails_upstream(
             test_report, date.today(), date.today(), ingest_type
         )
     assert str(exc_info.value) == "Test error"
-
-
-@pytest.mark.anyio
-@freeze_time("2025-08-18")
-@pytest.mark.parametrize(
-    "ingest_type", [CreatedOrUpdated("created"), CreatedOrUpdated("updated")]
-)
-async def test_openalex_works_ingest_from_date(
-    mocker: MockerFixture,
-    ingest_type: CreatedOrUpdated,
-    set_test_environment_variables: Generator,
-    single_destinyopenalex_work_response: dict,
-):
-    """Test successful ingestion of OpenAlex works from a specific date."""
-    expected_result = [
-        DestinyOpenAlexWork.model_validate(single_destinyopenalex_work_response)
-    ]
-    mocker.patch(
-        "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.build_query",
-        return_value="test_query",
-    )
-    mocker.patch(
-        "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.fetch_works_filter",
-        return_value=expected_result,
-    )
-    test_date = date.today()
-    result = await openalex_works_ingest_from_date(test_date, ingest_type)
-    assert result == expected_result
-
-
-@pytest.mark.anyio
-@freeze_time("2025-08-18")
-@pytest.mark.parametrize(
-    "ingest_type", [CreatedOrUpdated("created"), CreatedOrUpdated("updated")]
-)
-async def test_openalex_works_ingest_fails_gracefully(
-    mocker: MockerFixture,
-    ingest_type: CreatedOrUpdated,
-    set_test_environment_variables: Generator,
-):
-    """Test successful ingestion of OpenAlex works from a specific date."""
-    mocker.patch(
-        "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.build_query",
-        return_value="test_query",
-    )
-    mocker.patch(
-        "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.fetch_works_filter",
-        side_effect=UpstreamOpenAlexError("Test error"),
-    )
-    test_date = date.today()
-
-    with pytest.raises(HTTPException) as exc_info:
-        await openalex_works_ingest_from_date(test_date, ingest_type)
-    assert exc_info.value.detail == "Test error"
-    assert exc_info.value.status_code == status.HTTP_400_BAD_REQUEST
 
 
 @pytest.mark.anyio

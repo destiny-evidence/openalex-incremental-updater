@@ -53,5 +53,5 @@ def single_destiny_openalex_work_jsonl_string() -> str:
         '"2025-01-01","publication_year":2025,"publisher":null,"authorship":[{'
         '"display_name":"First Author","orcid":"https://orcid.org/example-orcid-first-author",'
         '"position":"first"},{"display_name":"Last Author","orcid":"https://orcid.org/'
-        'example-orcid-last-author","position":"last"}]}}]}'
+        'example-orcid-last-author","position":"last"}]}}]}\n'
     )

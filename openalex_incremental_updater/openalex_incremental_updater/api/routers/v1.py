@@ -12,7 +12,6 @@ from openalex_incremental_updater.core.auth import generate_token
 from openalex_incremental_updater.core.config import get_settings
 from openalex_incremental_updater.core.job_state import JobManager, JobState
 from openalex_incremental_updater.core.jobs import (
-    openalex_works_ingest_from_date,
     openalex_works_ingest_open_filter,
     run_background_openalex_ingest_job,
 )
@@ -54,37 +53,6 @@ async def _run_with_tracking_async(job_id: str, coro: Awaitable) -> None:
         job_manager.fail(job_id, generic_exception)
     finally:
         TASKS.pop(job_id, None)
-
-
-@router.get("/openalex_works_ingest_from_date")
-async def get_openalex_works_ingest_from_date(
-    fetch_date: Annotated[
-        date,
-        Query(description="Date to fetch data from. Must be in ISO format YYYY-MM-DD."),
-    ],
-    ingest_type: Annotated[
-        CreatedOrUpdated,
-        Query(
-            description="Method of determining ingest data. Must be one of 'created' or 'updated'."
-        ),
-    ],
-    limit: Annotated[
-        int | None, Query(description="Maximum number of records to ingest.")
-    ] = None,
-) -> list[DestinyOpenAlexWork]:
-    """
-    Fetch Works from the OpenAlex API with a date filter and ingest them into the repository.
-
-    Args:
-        fetch_date (date): Date to fetch data from. Must be in the format YYYY-MM-DD.
-        ingest_type (CreatedOrUpdated): Method of determining ingest data. Must be one of "created" or "updated".
-        limit (int): Maximum number of records to ingest. Defaults to None.
-
-    Returns:
-        list[DestinyOpenAlexWork]: List of DestinyOpenAlexWork objects.
-
-    """
-    return await openalex_works_ingest_from_date(fetch_date, ingest_type, limit)
 
 
 def report_status(job_manager: JobManager, job_id: str) -> Callable:
