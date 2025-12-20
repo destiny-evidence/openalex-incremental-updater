@@ -145,7 +145,7 @@ async def openalex_works_ingest_open_filter(
             status_code=status.HTTP_400_BAD_REQUEST, detail=error_message
         ) from error
     else:
-        return results
+        return [item async for item in results]
 
 
 async def run_openalex_refresh_blob_upload_job(
