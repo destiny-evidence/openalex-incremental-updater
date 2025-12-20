@@ -170,7 +170,7 @@ async def test_openalex_works_ingest_open_filter(
         DestinyOpenAlexWork.model_validate(single_destinyopenalex_work_response)
     ]
     mocker.patch(
-        "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.build_query",
+        "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.build_range_query",
         return_value="test_query",
     )
     mocker.patch(
@@ -193,7 +193,7 @@ async def test_openalex_works_ingest_open_filter_fails_gracefully(
 ):
     """Test successful ingestion of OpenAlex works from a specific date."""
     mocker.patch(
-        "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.build_query",
+        "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.build_range_query",
         return_value="test_query",
     )
     mocker.patch(

@@ -36,13 +36,44 @@ async def test_open_filter_call_success(
         mock_route = respx.get(mock_url).mock(
             return_value=httpx.Response(status.HTTP_200_OK, json=expected_response)
         )
+        response = await fetcher.fetch_works_filter(openalex_filter=test_filter)
+        results = [item async for item in response]
+
+        assert mock_route.call_count == 1
+        assert results == [
+            convert_openalex_to_destiny(work) for work in double_openalex_work_response
+        ]
+
+
+@pytest.mark.anyio
+async def test_open_filter_call_success_limit(
+    double_openalex_work_response: list[dict],
+) -> None:
+    fetcher = OpenAlexDataFetcher()
+    expected_response = {
+        "meta": {
+            "count": 1,
+            "next_cursor": None,
+        },
+        "results": double_openalex_work_response,
+    }
+    test_date = double_openalex_work_response[0]["publication_date"]
+
+    test_filter = f"from_created_date:{test_date}"
+    single_openalex_work = [double_openalex_work_response[0]]
+    mock_url = "https://api.openalex.org/works"
+    with respx.mock:
+        mock_route = respx.get(mock_url).mock(
+            return_value=httpx.Response(status.HTTP_200_OK, json=expected_response)
+        )
         response = await fetcher.fetch_works_filter(
             openalex_filter=test_filter, works_retrieved_limit=1
         )
+        results = [item async for item in response]
 
         assert mock_route.call_count == 1
-        assert response == [
-            convert_openalex_to_destiny(work) for work in double_openalex_work_response
+        assert results == [
+            convert_openalex_to_destiny(work) for work in single_openalex_work
         ]
 
 
@@ -77,11 +108,11 @@ async def test_open_filter_call_openalex_error(
         respx.get(mock_url).mock(
             return_value=httpx.Response(test_error_status_code, json=expected_response)
         )
-
+        response = await fetcher.fetch_works_filter(
+            openalex_filter=test_filter, works_retrieved_limit=1
+        )
         with pytest.raises(UpstreamOpenAlexError) as invalid_url_error:
-            await fetcher.fetch_works_filter(
-                openalex_filter=test_filter, works_retrieved_limit=1
-            )
+            _result = [item async for item in response]
 
         assert isinstance(invalid_url_error.value, UpstreamOpenAlexError)
         assert str(test_error_status_code) in str(
@@ -93,7 +124,7 @@ async def test_open_filter_call_openalex_error(
 @pytest.mark.parametrize(
     "created_or_updated", [CreatedOrUpdated("created"), CreatedOrUpdated("updated")]
 )
-async def test_fetch_works_filter_from_date_call_success(
+async def test_fetch_works_filter_date_range_call_success(
     double_openalex_work_response: list[dict], created_or_updated: CreatedOrUpdated
 ) -> None:
     fetcher = OpenAlexDataFetcher(retries=0)
@@ -107,7 +138,9 @@ async def test_fetch_works_filter_from_date_call_success(
     test_date = double_openalex_work_response[0]["publication_date"]
     mock_url = "https://api.openalex.org/works"
 
-    openalex_query = OpenAlexDataFetcher.build_query(test_date, created_or_updated)
+    openalex_query = OpenAlexDataFetcher.build_range_query(
+        test_date, test_date, created_or_updated
+    )
 
     with respx.mock:
         mocked_call = respx.get(mock_url).mock(
@@ -116,11 +149,11 @@ async def test_fetch_works_filter_from_date_call_success(
 
         response = await fetcher.fetch_works_filter(
             openalex_filter=openalex_query,
-            works_retrieved_limit=1,
         )
+        results = [item async for item in response]
 
         assert mocked_call.call_count == 1
-        assert response == [
+        assert results == [
             convert_openalex_to_destiny(work) for work in double_openalex_work_response
         ]
 
@@ -140,7 +173,7 @@ async def test_fetch_works_filter_from_date_call_success(
         status.HTTP_504_GATEWAY_TIMEOUT,
     ],
 )
-async def test_fetch_works_filter_from_date_call_openalex_error(
+async def test_fetch_works_filter_date_range_call_openalex_error(
     double_openalex_work_response: list[dict],
     created_or_updated: CreatedOrUpdated,
     test_error_status_code: int,
@@ -156,37 +189,24 @@ async def test_fetch_works_filter_from_date_call_openalex_error(
     test_date = double_openalex_work_response[0]["publication_date"]
     mock_url = "https://api.openalex.org/works"
 
-    test_openalex_query = OpenAlexDataFetcher.build_query(test_date, created_or_updated)
+    test_openalex_query = OpenAlexDataFetcher.build_range_query(
+        test_date, test_date, created_or_updated
+    )
 
     with respx.mock:
         respx.get(mock_url).mock(
             return_value=httpx.Response(test_error_status_code, json=expected_response)
         )
-
+        response = await fetcher.fetch_works_filter(
+            openalex_filter=test_openalex_query,
+        )
         with pytest.raises(UpstreamOpenAlexError) as invalid_url_error:
-            await fetcher.fetch_works_filter(
-                openalex_filter=test_openalex_query,
-                works_retrieved_limit=1,
-            )
+            _result = [item async for item in response]
+
         assert isinstance(invalid_url_error.value, UpstreamOpenAlexError)
         assert str(test_error_status_code) in str(
             invalid_url_error.value
         ), "Check that the error message contains the expected status code."
-
-
-@freeze_time("2025-08-19")
-@pytest.mark.parametrize(
-    "ingest_type", [CreatedOrUpdated("created"), CreatedOrUpdated("updated")]
-)
-def test_build_query(
-    ingest_type: CreatedOrUpdated, set_test_environment_variables: Generator
-):
-    test_date = date.today()
-    fetcher = OpenAlexDataFetcher()
-    expected_output = f"from_{ingest_type.value}_date:{test_date.isoformat()}"
-    query = fetcher.build_query(test_date, ingest_type)
-
-    assert query == expected_output
 
 
 @freeze_time("2025-08-19")

@@ -34,27 +34,11 @@ class OpenAlexDataFetcher:
         self.backoff_factor = backoff_factor
 
     @staticmethod
-    def build_query(fetch_date: date, created_or_updated: CreatedOrUpdated) -> str:
-        """
-        Build a query string to filter OpenAlex API data by date.
-
-        Args:
-            fetch_date (date): The date to filter by.
-            created_or_updated (CreatedOrUpdated): The type of date to filter by.
-
-        Returns:
-            str: The query string.
-
-        """
-        update_type = created_or_updated.value
-        return f"from_{update_type}_date:{fetch_date}"
-
-    @staticmethod
     def build_range_query(
         start_date: date, end_date: date, created_or_updated: CreatedOrUpdated
     ) -> str:
         """
-        Build a query string to filter OpenAlex API data by date.
+        Build a query string to filter OpenAlex API data by a date range.
 
         Args:
             start_date (date): The start date to filter by.
@@ -169,12 +153,12 @@ class OpenAlexDataFetcher:
                             yield convert_openalex_to_destiny(result)
                         break
 
-            for result in results:
-                yield convert_openalex_to_destiny(result)
-            logger.info(f"Last known cursor: {last_known_cursor}")
-            logger.info(
-                f"Finished paging. Retrieved {counter_works_retrieved} results."
-            )
+                    for result in results:
+                        yield convert_openalex_to_destiny(result)
+                logger.info(f"Last known cursor: {last_known_cursor}")
+                logger.info(
+                    f"Finished paging. Retrieved {counter_works_retrieved} results."
+                )
             if report:
                 report(
                     status=JobState.DOWNLOADED,

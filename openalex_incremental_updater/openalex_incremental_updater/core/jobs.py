@@ -43,6 +43,7 @@ async def run_background_openalex_ingest_job(
 
     """
     logger.info("Starting background OpenAlex ingest job")
+    date_today = datetime.now(ZoneInfo("UTC")).date()
     total_ingested = 0
     try:
         job_result = await openalex_works_ingest_date_range(
@@ -57,13 +58,11 @@ async def run_background_openalex_ingest_job(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=error_message
         ) from error
-    logger.info("Ingest job completed successfully. Uploading to blob storage...")
+    logger.info("Streaming data from ingest to blob storage")
     job_progress = job_manager.get(job_id).get("progress", {})
     total_ingested = job_progress.get("total_works", 0)
-    logger.info(f"Data downloaded. {job_progress=}")
-    logger.info(f"{total_ingested=}")
-    job_manager.set_progress(job_id, status="uploading", total_works=total_ingested)
-    date_today = datetime.now(ZoneInfo("UTC")).date()
+    logger.info(f"{job_progress=}, {total_ingested=}")
+
     uploaded_blob_name = await run_openalex_refresh_blob_upload_job(
         job_result, start_date, end_date, date_today
     )

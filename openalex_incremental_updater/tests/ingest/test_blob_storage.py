@@ -56,7 +56,10 @@ def test_blob_upload_success(
 ):
     """Test successful blob upload."""
     test_data = (
-        '{"key1": "value1", "key2": "value2"},{"key3": "value3", "key4": "value4"}'
+        '{"key1": "value1", "key2": "value2"}\n{"key3": "value3", "key4": "value4"}\n'
+    )
+    test_data_bytes_iter = (
+        line.encode("utf-8") for line in test_data.splitlines(keepends=True)
     )
     test_filename = "a_test_path/to_a/test_blob.jsonl"
     mock_blob_client = mocker.Mock()
@@ -66,9 +69,11 @@ def test_blob_upload_success(
 
     mock_blob_service.return_value.get_blob_client.return_value = mock_blob_client
 
-    result = blob_upload(test_data, test_filename)
+    result = blob_upload(test_data_bytes_iter, test_filename)
     assert result == test_filename, "Check that the returned filename matches the input"
-    mock_blob_client.upload_blob.assert_called_once_with(test_data, overwrite=True)
+    assert (
+        mock_blob_client.commit_block_list.call_count == 1
+    ), "Check that commit_block_list was called once"
 
 
 @pytest.mark.parametrize(
@@ -88,11 +93,17 @@ def test_blob_upload_failure(
     exception: type[Exception],
 ):
     """Test failed blob upload."""
-    test_data = {"key1": "value1", "key2": "value2"}
+    test_data = (
+        '{"key1": "value1", "key2": "value2"}\n{"key3": "value3", "key4": "value4"}\n'
+    )
+    lines = list(test_data.splitlines(keepends=True))
+    chunk_size = len(lines[0].encode("utf-8"))
+    test_data_bytes_iter = (line.encode("utf-8") for line in lines)
+
     test_filename = "a_test_path/to_a/test_blob.jsonl"
 
     mock_blob_client = mocker.Mock()
-    mock_blob_client.upload_blob.side_effect = exception("Test uploading error")
+    mock_blob_client.stage_block.side_effect = [{}, exception("Test uploading error")]
 
     mock_get_blob_service_client = mocker.patch(
         "openalex_incremental_updater.ingest.blob_storage.BlobServiceClient"
@@ -102,5 +113,5 @@ def test_blob_upload_failure(
     )
 
     with pytest.raises(BlobUploadError) as error:
-        blob_upload(test_data, test_filename)
+        blob_upload(test_data_bytes_iter, test_filename, chunk_size=chunk_size)
     assert "Test uploading error" in str(error.value)

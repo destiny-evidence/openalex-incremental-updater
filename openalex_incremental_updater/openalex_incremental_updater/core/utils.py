@@ -1,6 +1,7 @@
 """Define useful utility functions for the OpenAlex Incremental Updater."""
 
 import functools
+import inspect
 import time
 from collections.abc import Awaitable, Callable
 from typing import ParamSpec, TypeVar
@@ -35,12 +36,20 @@ def async_timer(
 
         """
         start_time = time.perf_counter()
-        result = await timed_function(*args, **kwargs)
+        result = timed_function(*args, **kwargs)
+        if inspect.isasyncgen(result):
+            end_time = time.perf_counter()
+            logger.info(
+                f"{timed_function.__name__}: Elapsed time to first yield: {(end_time - start_time):.2f} seconds"
+            )
+            return result
+
+        awaited_result = await result
         end_time = time.perf_counter()
         logger.info(
             f"{timed_function.__name__}: Elapsed time: {(end_time - start_time):.2f} seconds"
         )
-        return result
+        return awaited_result
 
     return async_timer_wrapper
 

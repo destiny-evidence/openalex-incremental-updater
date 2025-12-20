@@ -1,6 +1,6 @@
 """Define data conversion functions."""
 
-from collections.abc import Iterator
+from collections.abc import Iterable, Iterator
 
 from loguru import logger
 
@@ -24,10 +24,19 @@ def convert_destinyworks_to_jsonl_string(
         Iterator[bytes]: An iterator of JSONL lines.
 
     """
+    type_error = (
+        not isinstance(destiny_data, Iterable)
+        or isinstance(destiny_data, str)
+        or any(not isinstance(item, DestinyOpenAlexWork) for item in destiny_data)
+    )
+    if type_error:
+        error_message = "destiny_data must be an iterable of DestinyOpenAlexWork"
+        logger.error(error_message)
+        raise JSONLConversionError(error_message)
     try:
         for data in destiny_data:
             yield (data.model_dump_json() + "\n").encode("utf-8")
-    except (TypeError, ValueError) as jsonl_conversion_error:
+    except (TypeError, ValueError, AttributeError) as jsonl_conversion_error:
         error_message = f"Error converting JSON to JSONL: {jsonl_conversion_error}"
         logger.error(error_message)
         raise JSONLConversionError(error_message) from jsonl_conversion_error
