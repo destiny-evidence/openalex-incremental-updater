@@ -1,6 +1,6 @@
 """Manage background jobs for the application."""
 
-from collections.abc import Callable, Iterator
+from collections.abc import AsyncIterator, Callable, Iterator
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
@@ -119,7 +119,7 @@ async def openalex_works_ingest_date_range(
 async def openalex_works_ingest_open_filter(
     openalex_query_string: str,
     limit: int,
-) -> list[DestinyOpenAlexWork]:
+) -> AsyncIterator[DestinyOpenAlexWork]:
     """
     Fetch data from the OpenAlex API and ingest it into the repository.
 
@@ -131,12 +131,12 @@ async def openalex_works_ingest_open_filter(
         limit (int): Maximum number of records to ingest.
 
     Returns:
-        JSONResponse: Response with status code and message.
+        AsyncIterator[DestinyOpenAlexWork]: The retrieved works.
 
     """
     fetcher = OpenAlexDataFetcher()
     try:
-        results = await fetcher.fetch_works_filter(
+        results = fetcher.fetch_works_filter(
             openalex_filter=openalex_query_string, works_retrieved_limit=limit
         )
     except UpstreamOpenAlexError as error:
@@ -145,7 +145,7 @@ async def openalex_works_ingest_open_filter(
             status_code=status.HTTP_400_BAD_REQUEST, detail=error_message
         ) from error
     else:
-        return [item async for item in results]
+        return results
 
 
 async def run_openalex_refresh_blob_upload_job(

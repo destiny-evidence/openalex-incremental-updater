@@ -12,7 +12,6 @@ from openalex_incremental_updater.core.auth import generate_token
 from openalex_incremental_updater.core.config import get_settings
 from openalex_incremental_updater.core.job_state import JobManager, JobState
 from openalex_incremental_updater.core.jobs import (
-    openalex_works_ingest_open_filter,
     run_background_openalex_ingest_job,
 )
 from openalex_incremental_updater.core.utils import logger
@@ -20,7 +19,6 @@ from openalex_incremental_updater.ingest.openalex import (
     CreatedOrUpdated,
 )
 from openalex_incremental_updater.models.auth import DestinyRepoToken
-from openalex_incremental_updater.models.destiny import DestinyOpenAlexWork
 from openalex_incremental_updater.models.job_response import JobResponse
 
 TASKS: dict[str, asyncio.Task[Any]] = {}
@@ -182,31 +180,6 @@ def cancel_job(job_id: str) -> JSONResponse:
         raise HTTPException(status_code=404, detail="Job not found")
     task.cancel()
     return JSONResponse(status_code=204, content={"ok": True})
-
-
-@router.get("/openalex_works_open_filter")
-async def get_openalex_works_ingest_open_filter(
-    openalex_query_string: Annotated[
-        str,
-        Query(description="OpenAlex API-compliant query string."),
-    ],
-    limit: Annotated[int, Query(description="Maximum number of records to ingest.")],
-) -> list[DestinyOpenAlexWork]:
-    """
-    Fetch data from the OpenAlex API and ingest it into the repository.
-
-    Requires a user-defined filter string to be passed in the query parameter.
-    It is left to the user to ensure that the filter string is correctly formatted.
-
-    Args:
-        openalex_query_string (str): OpenAlex API-compliant query string.
-        limit (int): Maximum number of records to ingest.
-
-    Returns:
-        JSONResponse: Response with status code and message.
-
-    """
-    return await openalex_works_ingest_open_filter(openalex_query_string, limit)
 
 
 @router.get("/auth_token")
