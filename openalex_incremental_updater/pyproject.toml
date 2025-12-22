@@ -73,6 +73,9 @@ lint.per-file-ignores = {"openalex_incremental_updater/openalex_incremental_upda
   "DTZ007" # Naive datetime constructed using `datetime.datetime.strptime()` without %z
 ], "openalex_incremental_updater/openalex_incremental_updater/core/jobs.py" = [
   "PLR0913" # Too many arguments in function definition
+], "openalex_incremental_updater/openalex_incremental_updater/ingest/blob_storage.py" = [
+  "BLE001", # Do not catch blind exception: Exception
+  "PLR0915" # Too many statements
 ], "openalex_incremental_updater/openalex_incremental_updater/core/utils.py" = [
   "ANN002", # Missing type annotation for *args
   "ANN003" # Missing type annotation for **kwargs

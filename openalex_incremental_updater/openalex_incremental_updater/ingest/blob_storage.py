@@ -100,21 +100,34 @@ async def blob_upload(
     except (ResourceExistsError, ResourceNotFoundError) as storage_error:
         error_message = f"Error uploading refresh response: {storage_error}"
         logger.error(error_message)
-        await blob_client.delete_blob()
+        try:
+            await blob_client.delete_blob()
+        except Exception as delete_error:
+            # exceptionally, catch all exceptions here to avoid masking the original error
+            logger.error(f"Error deleting blob after failure: {delete_error}")
         raise BlobUploadError(error_message) from storage_error
     except (ClientAuthenticationError, HttpResponseError) as request_error:
         error_message = f"Error uploading refresh response: {request_error}"
         logger.error(error_message)
-        await blob_client.delete_blob()
+        try:
+            await blob_client.delete_blob()
+        except Exception as delete_error:
+            logger.error(f"Error deleting blob after failure: {delete_error}")
         raise BlobUploadError(error_message) from request_error
     except (ServiceRequestError, AzureError) as azure_error:
         error_message = f"Error uploading refresh response: {azure_error}"
         logger.error(error_message)
-        await blob_client.delete_blob()
+        try:
+            await blob_client.delete_blob()
+        except Exception as delete_error:
+            logger.error(f"Error deleting blob after failure: {delete_error}")
         raise BlobUploadError(error_message) from azure_error
     except ValueError as value_error:
         error_message = f"Error uploading refresh response: {value_error}"
         logger.error(error_message)
-        await blob_client.delete_blob()
+        try:
+            await blob_client.delete_blob()
+        except Exception as delete_error:
+            logger.error(f"Error deleting blob after failure: {delete_error}")
         raise BlobUploadError(error_message) from value_error
     return filename
