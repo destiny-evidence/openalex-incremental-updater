@@ -23,16 +23,18 @@ async def test_get_blob_service_client(
     mocker: MockerFixture, set_test_environment_variables: Generator
 ):
     """Test getting the blob service client."""
-    mock_blob_service = mocker.patch(
-        "openalex_incremental_updater.ingest.blob_storage.BlobServiceClient"
+    mock_blob_service_instance = mocker.MagicMock()
+    mock_blob_service_instance.close = mocker.AsyncMock()
+
+    mocker.patch(
+        "openalex_incremental_updater.ingest.blob_storage.BlobServiceClient",
+        return_value=mock_blob_service_instance,
     )
-    blob_service_client = mock_blob_service.return_value
 
-    result = await get_blob_service_client()
-
-    assert (
-        result == blob_service_client
-    ), "Check that the returned blob service client is correct"
+    async with get_blob_service_client() as client:
+        assert (
+            client == mock_blob_service_instance
+        ), "Check that the returned blob service client is correct"
 
 
 @pytest.mark.asyncio
@@ -40,13 +42,17 @@ async def test_get_blob_service_client_failure_azure_error(
     mocker: MockerFixture, set_test_environment_variables: Generator
 ):
     """Test getting the blob service client."""
+    mock_blob_service_instance = mocker.MagicMock()
+    mock_blob_service_instance.close = mocker.AsyncMock()
+
     mocker.patch(
         "openalex_incremental_updater.ingest.blob_storage.BlobServiceClient",
         side_effect=AzureError("Test error"),
     )
 
     with pytest.raises(BlobUploadError) as error:
-        await get_blob_service_client()
+        async with get_blob_service_client():
+            pass
 
     assert "Error getting blob client: Test error" in str(
         error.value
@@ -69,11 +75,15 @@ async def test_blob_upload_success(
     test_data_bytes_iter = async_gen(test_data)
     test_filename = "a_test_path/to_a/test_blob.jsonl"
     mock_blob_client = mocker.AsyncMock()
-    mock_blob_service = mocker.patch(
-        "openalex_incremental_updater.ingest.blob_storage.BlobServiceClient"
-    )
 
-    mock_blob_service.return_value.get_blob_client.return_value = mock_blob_client
+    mock_blob_service_instance = mocker.MagicMock()
+    mock_blob_service_instance.close = mocker.AsyncMock()
+    mock_blob_service_instance.get_blob_client.return_value = mock_blob_client
+
+    mocker.patch(
+        "openalex_incremental_updater.ingest.blob_storage.BlobServiceClient",
+        return_value=mock_blob_service_instance,
+    )
 
     result = await blob_upload(test_data_bytes_iter, test_filename)
     assert result == test_filename, "Check that the returned filename matches the input"
@@ -117,11 +127,12 @@ async def test_blob_upload_failure(
     mock_blob_client = mocker.AsyncMock()
     mock_blob_client.stage_block.side_effect = [{}, exception("Test uploading error")]
 
-    mock_get_blob_service_client = mocker.patch(
-        "openalex_incremental_updater.ingest.blob_storage.BlobServiceClient"
-    )
-    mock_get_blob_service_client.return_value.get_blob_client.return_value = (
-        mock_blob_client
+    mock_blob_service_instance = mocker.MagicMock()
+    mock_blob_service_instance.close = mocker.AsyncMock()
+    mock_blob_service_instance.get_blob_client.return_value = mock_blob_client
+    mocker.patch(
+        "openalex_incremental_updater.ingest.blob_storage.BlobServiceClient",
+        return_value=mock_blob_service_instance,
     )
 
     with pytest.raises(BlobUploadError) as error:

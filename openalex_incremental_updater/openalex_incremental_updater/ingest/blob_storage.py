@@ -1,7 +1,7 @@
 """Blob storage interaction utility functions."""
 
 import base64
-from collections.abc import AsyncIterator
+from collections.abc import AsyncGenerator, AsyncIterator
 from contextlib import asynccontextmanager
 
 from azure.core.exceptions import (
@@ -24,17 +24,18 @@ class BlobUploadError(Exception):
 
 
 @asynccontextmanager
-async def get_blob_service_client() -> BlobServiceClient:
+async def get_blob_service_client() -> AsyncGenerator[BlobServiceClient]:
     """
     Define an async context manager to get a blob service client.
 
     Raises:
         BlobUploadError: A descriptive error message
 
-    Returns:
-        BlobServiceClient: A blob client
+    Yields:
+        AsyncGenerator[BlobServiceClient, None]: The blob service client
 
     """
+    client = None
     try:
         account_url = (
             f"https://{get_settings().STORAGE_BLOB_ACCOUNT}.blob.core.windows.net"
@@ -42,15 +43,14 @@ async def get_blob_service_client() -> BlobServiceClient:
         credential = DefaultAzureCredential()
 
         client = BlobServiceClient(account_url, credential=credential)
-        try:
-            yield client
-        finally:
-            await client.close()
-
+        yield client
     except AzureError as azure_error:
         error_message = f"Error getting blob client: {azure_error}"
         logger.error(error_message)
         raise BlobUploadError(error_message) from azure_error
+    finally:
+        if client is not None:
+            await client.close()
 
 
 async def blob_upload(
