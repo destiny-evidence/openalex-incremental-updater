@@ -1,7 +1,7 @@
 """Blob storage interaction utility functions."""
 
 import base64
-from collections.abc import Iterator
+from collections.abc import AsyncIterator
 
 from azure.core.exceptions import (
     AzureError,
@@ -12,7 +12,7 @@ from azure.core.exceptions import (
     ServiceRequestError,
 )
 from azure.identity import DefaultAzureCredential
-from azure.storage.blob import BlobServiceClient
+from azure.storage.blob.aio import BlobServiceClient
 from loguru import logger
 
 from openalex_incremental_updater.core.config import get_settings
@@ -22,7 +22,7 @@ class BlobUploadError(Exception):
     """Blob Upload Error."""
 
 
-def get_blob_service_client() -> BlobServiceClient:
+async def get_blob_service_client() -> BlobServiceClient:
     """
     Get a blob client.
 
@@ -47,14 +47,14 @@ def get_blob_service_client() -> BlobServiceClient:
         raise BlobUploadError(error_message) from azure_error
 
 
-def blob_upload(
-    data: Iterator[bytes], filename: str, chunk_size: int = 4 * 1024 * 1024
+async def blob_upload(
+    data: AsyncIterator[bytes], filename: str, chunk_size: int = 4 * 1024 * 1024
 ) -> str:
     """
     Upload data to blob storage.
 
     Args:
-        data (Iterator[bytes]): The response from the API, converted to JSON-lines
+        data (AsyncIterator[bytes]): The response from the API, converted to JSON-lines
         filename (str): The name of the file to upload
         chunk_size (int): The size of each chunk to upload. Defaults to 4 MB.
 
@@ -63,7 +63,7 @@ def blob_upload(
 
     """
     try:
-        blob_service_client = get_blob_service_client()
+        blob_service_client = await get_blob_service_client()
 
         blob_client = blob_service_client.get_blob_client(
             container=get_settings().STORAGE_BLOB_CONTAINER, blob=filename
@@ -71,11 +71,11 @@ def blob_upload(
         buffer = bytearray()
         block_ids = []
         block_num = 0
-        for chunk in data:
+        async for chunk in data:
             buffer.extend(chunk)
             while len(buffer) >= chunk_size:
                 block_id = base64.b64encode(f"{block_num:07}".encode()).decode()
-                blob_client.stage_block(
+                await blob_client.stage_block(
                     block_id=block_id,
                     data=buffer[:chunk_size],
                 )
@@ -83,10 +83,9 @@ def blob_upload(
                 buffer = buffer[chunk_size:]
                 block_num += 1
 
-        # Upload remaining data as the final block
         if buffer:
             block_id = base64.b64encode(f"{block_num:07}".encode()).decode()
-            blob_client.stage_block(
+            await blob_client.stage_block(
                 block_id=block_id,
                 data=buffer,
             )
@@ -95,23 +94,27 @@ def blob_upload(
         if not block_ids:
             logger.warning("Uploading empty blob.")
 
-        blob_client.commit_block_list(block_ids)
+        await blob_client.commit_block_list(block_ids)
         logger.info(f"Successfully uploaded entire refresh response to {filename}")
 
     except (ResourceExistsError, ResourceNotFoundError) as storage_error:
         error_message = f"Error uploading refresh response: {storage_error}"
         logger.error(error_message)
+        await blob_client.delete_blob()
         raise BlobUploadError(error_message) from storage_error
     except (ClientAuthenticationError, HttpResponseError) as request_error:
         error_message = f"Error uploading refresh response: {request_error}"
         logger.error(error_message)
+        await blob_client.delete_blob()
         raise BlobUploadError(error_message) from request_error
     except (ServiceRequestError, AzureError) as azure_error:
         error_message = f"Error uploading refresh response: {azure_error}"
         logger.error(error_message)
+        await blob_client.delete_blob()
         raise BlobUploadError(error_message) from azure_error
     except ValueError as value_error:
         error_message = f"Error uploading refresh response: {value_error}"
         logger.error(error_message)
+        await blob_client.delete_blob()
         raise BlobUploadError(error_message) from value_error
     return filename

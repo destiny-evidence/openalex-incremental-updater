@@ -1,6 +1,6 @@
 """Manage background jobs for the application."""
 
-from collections.abc import AsyncIterator, Callable, Iterator
+from collections.abc import AsyncIterator, Callable
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
@@ -17,7 +17,6 @@ from openalex_incremental_updater.ingest.openalex import (
     OpenAlexDataFetcher,
     UpstreamOpenAlexError,
 )
-from openalex_incremental_updater.models.destiny import DestinyOpenAlexWork
 
 
 async def run_background_openalex_ingest_job(
@@ -46,10 +45,18 @@ async def run_background_openalex_ingest_job(
     date_today = datetime.now(ZoneInfo("UTC")).date()
     total_ingested = 0
     try:
-        job_result = await openalex_works_ingest_date_range(
+        job_result = openalex_works_ingest_date_range(
             report, start_date, end_date, ingest_type, limit
         )
 
+        logger.info("Streaming data from ingest to blob storage")
+        job_progress = job_manager.get(job_id).get("progress", {})
+        total_ingested = job_progress.get("total_works", 0)
+        logger.info(f"{job_progress=}, {total_ingested=}")
+
+        uploaded_blob_name = await run_openalex_refresh_blob_upload_job(
+            job_result, start_date, end_date, date_today
+        )
     except UpstreamOpenAlexError as error:
         error_message = str(error)
         logger.error("Ingest job failed: {}", error_message)
@@ -58,14 +65,6 @@ async def run_background_openalex_ingest_job(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST, detail=error_message
         ) from error
-    logger.info("Streaming data from ingest to blob storage")
-    job_progress = job_manager.get(job_id).get("progress", {})
-    total_ingested = job_progress.get("total_works", 0)
-    logger.info(f"{job_progress=}, {total_ingested=}")
-
-    uploaded_blob_name = await run_openalex_refresh_blob_upload_job(
-        job_result, start_date, end_date, date_today
-    )
     logger.info("Blob upload completed successfully.")
     job_manager.set_progress(
         job_id,
@@ -82,7 +81,7 @@ async def openalex_works_ingest_date_range(
     end_date: date,
     ingest_type: CreatedOrUpdated,
     limit: int | None = None,
-) -> Iterator[bytes]:
+) -> AsyncIterator[bytes]:
     """
     Fetch Works from the OpenAlex API with a date range filter and ingest them into the repository.
 
@@ -94,7 +93,7 @@ async def openalex_works_ingest_date_range(
         limit (int): Maximum number of records to ingest. Defaults to None.
 
     Returns:
-        Iterator[bytes]: JSONL-ified response from the API, representing a list of DestinyOpenAlexWork objects.
+        AsyncIterator[bytes]: JSONL-ified response from the API, representing a list of DestinyOpenAlexWork objects.
 
     """
     openalex_query = OpenAlexDataFetcher.build_range_query(
@@ -103,53 +102,21 @@ async def openalex_works_ingest_date_range(
     fetcher = OpenAlexDataFetcher()
     logger.info("Fetching OpenAlex works from {} to {}", start_date, end_date)
     try:
-        results = await fetcher.fetch_works_filter(
+        results = fetcher.fetch_works_filter(
             openalex_filter=openalex_query,
             works_retrieved_limit=limit,
             report=report,
         )
+        async for item in convert_destinyworks_to_jsonl_string(results):
+            yield item
     except UpstreamOpenAlexError as error:
         error_message = str(error)
         logger.error("Error fetching OpenAlex works: {}", error_message)
         raise error from error
-    else:
-        return convert_destinyworks_to_jsonl_string(results)
-
-
-async def openalex_works_ingest_open_filter(
-    openalex_query_string: str,
-    limit: int,
-) -> AsyncIterator[DestinyOpenAlexWork]:
-    """
-    Fetch data from the OpenAlex API and ingest it into the repository.
-
-    Requires a user-defined filter string to be passed in the query parameter.
-    It is left to the user to ensure that the filter string is correctly formatted.
-
-    Args:
-        openalex_query_string (str): OpenAlex API-compliant query string.
-        limit (int): Maximum number of records to ingest.
-
-    Returns:
-        AsyncIterator[DestinyOpenAlexWork]: The retrieved works.
-
-    """
-    fetcher = OpenAlexDataFetcher()
-    try:
-        results = fetcher.fetch_works_filter(
-            openalex_filter=openalex_query_string, works_retrieved_limit=limit
-        )
-    except UpstreamOpenAlexError as error:
-        error_message = str(error)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=error_message
-        ) from error
-    else:
-        return results
 
 
 async def run_openalex_refresh_blob_upload_job(
-    data: Iterator[bytes], fetch_date: date, stop_date: date, refresh_date: date
+    data: AsyncIterator[bytes], fetch_date: date, stop_date: date, refresh_date: date
 ) -> str:
     """
     Run the blob upload job.
@@ -165,7 +132,7 @@ async def run_openalex_refresh_blob_upload_job(
 
     """
     blob_name = f"openalex_refresh_from_date_{fetch_date}_to_{stop_date}_refreshed_on_{refresh_date}.jsonl"
-    uploaded_blob = blob_upload(data, blob_name)
+    uploaded_blob = await blob_upload(data, blob_name)
     logger.info(
         f"Data uploaded to blob storage from {fetch_date} to {stop_date}, uploaded {refresh_date}"
     )

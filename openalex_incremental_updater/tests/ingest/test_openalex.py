@@ -42,13 +42,13 @@ async def test_fetch_works_filter_date_range_call_success(
             return_value=httpx.Response(status.HTTP_200_OK, json=expected_response)
         )
 
-        response = await fetcher.fetch_works_filter(
+        response = fetcher.fetch_works_filter(
             openalex_filter=openalex_query,
         )
         results = [item async for item in response]
-
+        flat_results = [work for batch in results for work in batch]
         assert mocked_call.call_count == 1
-        assert results == [
+        assert flat_results == [
             convert_openalex_to_destiny(work) for work in double_openalex_work_response
         ]
 
@@ -92,7 +92,7 @@ async def test_fetch_works_filter_date_range_call_openalex_error(
         respx.get(mock_url).mock(
             return_value=httpx.Response(test_error_status_code, json=expected_response)
         )
-        response = await fetcher.fetch_works_filter(
+        response = fetcher.fetch_works_filter(
             openalex_filter=test_openalex_query,
         )
         with pytest.raises(UpstreamOpenAlexError) as invalid_url_error:

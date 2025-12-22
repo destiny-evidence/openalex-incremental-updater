@@ -58,7 +58,7 @@ class OpenAlexDataFetcher:
         openalex_filter: str | None,
         works_retrieved_limit: int | None = None,
         report: Callable | None = None,
-    ) -> AsyncIterator[DestinyOpenAlexWork]:
+    ) -> AsyncIterator[list[DestinyOpenAlexWork]]:
         """
         Fetch data from the OpenAlex API using a custom filter.
 
@@ -67,7 +67,7 @@ class OpenAlexDataFetcher:
             works_retrieved_limit (Optional[int]): The maximum number of works to retrieve. Defaults to None.
 
         Returns:
-            AsyncIterator[DestinyOpenAlexWork]: The retrieved works.
+            AsyncIterator[list[DestinyOpenAlexWork]]: The retrieved works.
 
         """
         if report:
@@ -147,12 +147,13 @@ class OpenAlexDataFetcher:
                             : works_retrieved_limit
                             - (counter_works_retrieved - len(results))
                         ]
-                        for result in capped_results:
-                            yield convert_openalex_to_destiny(result)
+                        yield [
+                            convert_openalex_to_destiny(result)
+                            for result in capped_results
+                        ]
                         break
 
-                    for result in results:
-                        yield convert_openalex_to_destiny(result)
+                    yield [convert_openalex_to_destiny(result) for result in results]
                 logger.info(f"Last known cursor: {last_known_cursor}")
                 logger.info(
                     f"Finished paging. Retrieved {counter_works_retrieved} results."

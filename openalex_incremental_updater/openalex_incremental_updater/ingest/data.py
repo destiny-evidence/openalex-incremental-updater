@@ -1,7 +1,6 @@
 """Define data conversion functions."""
 
-import itertools
-from collections.abc import Iterable, Iterator
+from collections.abc import AsyncIterator
 
 from loguru import logger
 
@@ -12,31 +11,32 @@ class JSONLConversionError(Exception):
     """JSONL Conversion Error."""
 
 
-def convert_destinyworks_to_jsonl_string(
-    destiny_data: Iterator[DestinyOpenAlexWork],
-) -> Iterator[bytes]:
+async def convert_destinyworks_to_jsonl_string(
+    destiny_data: AsyncIterator[list[DestinyOpenAlexWork]],
+) -> AsyncIterator[bytes]:
     """
     Generate JSONL lines from DestinyOpenAlexWork objects.
 
     Args:
-        destiny_data (Iterator[DestinyOpenAlexWork]): The work objects to convert.
+        destiny_data (AsyncIterator[list[DestinyOpenAlexWork]]): The work objects to convert.
 
     Yields:
-        Iterator[bytes]: An iterator of JSONL lines.
+        AsyncIterator[bytes]: An iterator of JSONL lines.
 
     """
-    if not isinstance(destiny_data, Iterable) or isinstance(destiny_data, (str)):
-        error_message = "destiny_data must be an iterable of DestinyOpenAlexWork"
-        logger.error(error_message)
-        raise JSONLConversionError(error_message)
-    destiny_data, validation_iter = itertools.tee(destiny_data)
-    if any(not isinstance(item, DestinyOpenAlexWork) for item in validation_iter):
-        error_message = "destiny_data must be an iterable of DestinyOpenAlexWork"
-        logger.error(error_message)
-        raise JSONLConversionError(error_message)
     try:
-        for data in destiny_data:
-            yield (data.model_dump_json() + "\n").encode("utf-8")
+        async for batch in destiny_data:
+            if not isinstance(batch, list):
+                error_message = "Each batch must be a list of DestinyOpenAlexWork"
+                logger.error(error_message)
+                raise JSONLConversionError(error_message)
+            for work in batch:
+                if not isinstance(work, DestinyOpenAlexWork):
+                    error_message = "All items must be DestinyOpenAlexWork instances"
+                    logger.error(error_message)
+                    raise JSONLConversionError(error_message)
+                jsonl_line = work.model_dump_json().encode("utf-8") + b"\n"
+                yield jsonl_line
     except (TypeError, ValueError, AttributeError) as jsonl_conversion_error:
         error_message = f"Error converting JSON to JSONL: {jsonl_conversion_error}"
         logger.error(error_message)

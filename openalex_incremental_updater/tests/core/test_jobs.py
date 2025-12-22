@@ -1,5 +1,6 @@
-from collections.abc import Generator
+from collections.abc import AsyncIterator, Generator
 from datetime import date
+from typing import Any
 
 import pytest
 from fastapi import HTTPException, status
@@ -65,10 +66,17 @@ async def test_run_background_openalex_ingest_job_fails_gracefully(
     set_test_environment_variables: Generator,
     ingest_type: CreatedOrUpdated,
 ):
-    """Test running the background OpenAlex ingest job."""
+    async def fake_async_gen():
+        if False:
+            yield
+        raise UpstreamOpenAlexError("Test error")
+
+    def mock_func(*args: Any, **kwargs: Any) -> AsyncIterator:
+        return fake_async_gen()
+
     mocker.patch(
         "openalex_incremental_updater.core.jobs.openalex_works_ingest_date_range",
-        side_effect=UpstreamOpenAlexError("Test error"),
+        new=mock_func,
     )
     start_date = date.today()
     end_date = date.today()
@@ -111,19 +119,35 @@ async def test_openalex_works_ingest_date_range_success(
         "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.build_range_query",
         return_value="test_query",
     )
+
+    async def fake_fetch_works_filter(*args, **kwargs):
+        if False:
+            yield
+        yield test_response
+
     mocker.patch(
         "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.fetch_works_filter",
-        return_value=test_response,
+        new=fake_fetch_works_filter,
     )
+
+    async def fake_convert_destinyworks_to_jsonl_string(results):
+        if False:
+            yield
+        yield single_destiny_openalex_work_jsonl_string.encode("utf-8")
+
     mocker.patch(
         "openalex_incremental_updater.ingest.data.convert_destinyworks_to_jsonl_string",
-        return_value=single_destiny_openalex_work_jsonl_string,
+        new=fake_convert_destinyworks_to_jsonl_string,
     )
     test_report = None
-    result = await openalex_works_ingest_date_range(
+    result_gen = openalex_works_ingest_date_range(
         test_report, date.today(), date.today(), ingest_type
     )
-    assert next(result).decode("utf-8") == single_destiny_openalex_work_jsonl_string
+    results = [item async for item in result_gen]
+    assert all(
+        result.decode("utf-8") == single_destiny_openalex_work_jsonl_string
+        for result in results
+    )
 
 
 @pytest.mark.anyio
@@ -141,16 +165,22 @@ async def test_openalex_works_ingest_date_range_fails_upstream(
         "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.build_range_query",
         return_value="test_query",
     )
+
+    async def fake_fetch_works_filter(*args, **kwargs):
+        if False:
+            yield
+        raise UpstreamOpenAlexError("Test error")
+
     mocker.patch(
         "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.fetch_works_filter",
-        side_effect=UpstreamOpenAlexError("Test error"),
+        new=fake_fetch_works_filter,
     )
     test_report = None
-
+    response = openalex_works_ingest_date_range(
+        test_report, date.today(), date.today(), ingest_type
+    )
     with pytest.raises(UpstreamOpenAlexError) as exc_info:
-        await openalex_works_ingest_date_range(
-            test_report, date.today(), date.today(), ingest_type
-        )
+        _result = [item async for item in response]
     assert str(exc_info.value) == "Test error"
 
 
