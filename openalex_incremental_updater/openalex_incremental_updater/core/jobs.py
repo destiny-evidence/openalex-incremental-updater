@@ -133,7 +133,7 @@ async def run_openalex_refresh_blob_upload_job(
     Run the blob upload job.
 
     Args:
-        data (Iterator[bytes]): The response from the API, converted to JSON-lines
+        data (AsyncIterator[bytes]): The response from the API, converted to JSON-lines
         fetch_date (date): The date at which the data was fetched
         stop_date (date): The date at which the data was fetched until (inclusive)
         refresh_date (date): The date at which the data was refreshed
