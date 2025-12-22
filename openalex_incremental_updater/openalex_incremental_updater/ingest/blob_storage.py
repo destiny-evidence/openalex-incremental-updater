@@ -2,6 +2,7 @@
 
 import base64
 from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 
 from azure.core.exceptions import (
     AzureError,
@@ -22,9 +23,10 @@ class BlobUploadError(Exception):
     """Blob Upload Error."""
 
 
+@asynccontextmanager
 async def get_blob_service_client() -> BlobServiceClient:
     """
-    Get a blob client.
+    Define an async context manager to get a blob service client.
 
     Raises:
         BlobUploadError: A descriptive error message
@@ -39,7 +41,11 @@ async def get_blob_service_client() -> BlobServiceClient:
         )
         credential = DefaultAzureCredential()
 
-        return BlobServiceClient(account_url, credential=credential)
+        client = BlobServiceClient(account_url, credential=credential)
+        try:
+            yield client
+        finally:
+            await client.close()
 
     except AzureError as azure_error:
         error_message = f"Error getting blob client: {azure_error}"
@@ -63,39 +69,38 @@ async def blob_upload(
 
     """
     try:
-        blob_service_client = await get_blob_service_client()
+        async with get_blob_service_client() as blob_service_client:
+            blob_client = blob_service_client.get_blob_client(
+                container=get_settings().STORAGE_BLOB_CONTAINER, blob=filename
+            )
+            buffer = bytearray()
+            block_ids = []
+            block_num = 0
+            async for chunk in data:
+                buffer.extend(chunk)
+                while len(buffer) >= chunk_size:
+                    block_id = base64.b64encode(f"{block_num:07}".encode()).decode()
+                    await blob_client.stage_block(
+                        block_id=block_id,
+                        data=buffer[:chunk_size],
+                    )
+                    block_ids.append(block_id)
+                    buffer = buffer[chunk_size:]
+                    block_num += 1
 
-        blob_client = blob_service_client.get_blob_client(
-            container=get_settings().STORAGE_BLOB_CONTAINER, blob=filename
-        )
-        buffer = bytearray()
-        block_ids = []
-        block_num = 0
-        async for chunk in data:
-            buffer.extend(chunk)
-            while len(buffer) >= chunk_size:
+            if buffer:
                 block_id = base64.b64encode(f"{block_num:07}".encode()).decode()
                 await blob_client.stage_block(
                     block_id=block_id,
-                    data=buffer[:chunk_size],
+                    data=buffer,
                 )
                 block_ids.append(block_id)
-                buffer = buffer[chunk_size:]
-                block_num += 1
 
-        if buffer:
-            block_id = base64.b64encode(f"{block_num:07}".encode()).decode()
-            await blob_client.stage_block(
-                block_id=block_id,
-                data=buffer,
-            )
-            block_ids.append(block_id)
+            if not block_ids:
+                logger.warning("Uploading empty blob.")
 
-        if not block_ids:
-            logger.warning("Uploading empty blob.")
-
-        await blob_client.commit_block_list(block_ids)
-        logger.info(f"Successfully uploaded entire refresh response to {filename}")
+            await blob_client.commit_block_list(block_ids)
+            logger.info(f"Successfully uploaded entire refresh response to {filename}")
 
     except (ResourceExistsError, ResourceNotFoundError) as storage_error:
         error_message = f"Error uploading refresh response: {storage_error}"
