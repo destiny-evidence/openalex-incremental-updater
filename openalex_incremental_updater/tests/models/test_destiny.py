@@ -331,7 +331,7 @@ def test_get_destiny_openalex_work_blank_abstract_from_openalex_input_with_incor
         ("!@#$%^&*()", True),
     ],
 )
-def test_is_valid_nonempty_string(input_value: Any, *, expected_output: bool) -> None:  # noqa: ANN401
+def test_is_valid_nonempty_string(input_value: Any, *, expected_output: bool) -> None:
     """Test the is_valid_nonempty_string function."""
     assert (
         is_valid_nonempty_string(input_value) == expected_output
