@@ -38,7 +38,7 @@ async def run_background_openalex_ingest_job(
         start_date (date): Start date to fetch data from.
         end_date (date): End date to fetch data to.
         ingest_type (CreatedOrUpdated): Method of determining ingest data. Must be one of "created" or "updated".
-        limit (int | None, optional): Maximum number of records to ingest. Defaults to None.
+        limit (int | None): Maximum number of records to ingest. Defaults to None.
 
     """
     logger.info("Starting background OpenAlex ingest job")
@@ -90,7 +90,7 @@ async def openalex_works_ingest_date_range(
         start_date (date): Start date to fetch data from. Must be in the format YYYY-MM-DD.
         end_date (date): End date to fetch data to. Must be in the format YYYY-MM-DD.
         ingest_type (CreatedOrUpdated): Method of determining ingest data. Must be one of "created" or "updated".
-        limit (int): Maximum number of records to ingest. Defaults to None.
+        limit (int | None): Maximum number of records to ingest. Defaults to None.
 
     Returns:
         AsyncIterator[bytes]: JSONL-ified response from the API, representing a list of DestinyOpenAlexWork objects.
