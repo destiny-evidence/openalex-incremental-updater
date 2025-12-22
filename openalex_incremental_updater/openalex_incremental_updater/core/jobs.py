@@ -44,6 +44,7 @@ async def run_background_openalex_ingest_job(
     logger.info("Starting background OpenAlex ingest job")
     date_today = datetime.now(ZoneInfo("UTC")).date()
     total_ingested = 0
+    uploaded_blob_name: str | None = None
     try:
         job_result = openalex_works_ingest_date_range(
             report, start_date, end_date, ingest_type, limit
@@ -66,6 +67,16 @@ async def run_background_openalex_ingest_job(
             status_code=status.HTTP_400_BAD_REQUEST, detail=error_message
         ) from error
     logger.info("Blob upload completed successfully.")
+    if uploaded_blob_name is None:
+        error_message = "Blob upload did not complete successfully."
+        logger.error(error_message)
+        job_manager.set_progress(job_id, status="failed", progress="failed")
+        job_manager.fail(job_id, Exception(error_message))
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=error_message,
+        )
+
     job_manager.set_progress(
         job_id,
         status="succeeded",
