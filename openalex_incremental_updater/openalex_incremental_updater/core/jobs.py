@@ -51,13 +51,14 @@ async def run_background_openalex_ingest_job(
         )
 
         logger.info("Streaming data from ingest to blob storage")
-        job_progress = job_manager.get(job_id).get("progress", {})
-        total_ingested = job_progress.get("total_works", 0)
-        logger.info(f"{job_progress=}, {total_ingested=}")
 
         uploaded_blob_name = await run_openalex_refresh_blob_upload_job(
             job_result, start_date, end_date, date_today
         )
+
+        job_progress = job_manager.get(job_id).get("progress", {})
+        total_ingested = job_progress.get("total_works", 0)
+        logger.info(f"Upload complete. {job_progress=}, {total_ingested=}")
     except UpstreamOpenAlexError as error:
         error_message = str(error)
         logger.error("Ingest job failed: {}", error_message)
