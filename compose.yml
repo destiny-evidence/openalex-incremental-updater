@@ -2,8 +2,6 @@ services:
   api:
     build:
       context: ./openalex_incremental_updater
-      cache_from:
-        - openalex-incremental-updater-api:latest
     ports:
       - "8000:8000"
     container_name: openalex-incremental-updater-api
@@ -13,19 +11,17 @@ services:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health-check/"]
       interval: 10s
       timeout: 5s
-      retries: 5
-      start_period: 40s
+      retries: 10
+      start_period: 10s
     environment:
       AZURE_CONFIG_DIR: /azcfg
       AZURE_LOG_LEVEL: DEBUG
     volumes:
-      - "${HOME}/.azure:/azcfg:ro"
+      - "${HOME}/.azure:/azcfg:rw"
 
   job:
     build:
       context: ./refresh_requester
-      cache_from:
-        - refresh-requester:latest
     depends_on:
       api:
         condition: service_healthy
@@ -34,6 +30,6 @@ services:
       AZURE_CONFIG_DIR: /azcfg
       AZURE_LOG_LEVEL: DEBUG
     volumes:
-      - "${HOME}/.azure:/azcfg:ro"
+      - "${HOME}/.azure:/azcfg:rw"
     env_file:
       - refresh_requester/.env
