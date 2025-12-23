@@ -20,7 +20,7 @@ tests = []
 
 [project]
 name = "openalex-incremental-updater"
-version = "0.4.0"
+version = "0.5.0"
 description = ""
 authors = [{name = "Harry Moss", email = "h.moss@ucl.ac.uk"}]
 requires-python = ">=3.13,<3.14"
