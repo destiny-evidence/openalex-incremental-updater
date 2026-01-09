@@ -41,5 +41,5 @@ jobs:
           export TAG=$(git rev-parse --short HEAD)
           az containerapp update \
             --name ${{ secrets.CONTAINER_APP_NAME_STAGING }} \
-            --resource-group ${{ secrets.RESOURCE_GROUP }} \
+            --resource-group ${{ secrets.RESOURCE_GROUP_STAGING }} \
             --image ${{ secrets.REGISTRY_LOGIN_SERVER }}/${{ env.IMAGE_NAME }}:$TAG
