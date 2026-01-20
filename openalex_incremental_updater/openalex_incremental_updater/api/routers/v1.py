@@ -5,6 +5,7 @@ from collections.abc import Awaitable, Callable
 from datetime import date
 from typing import Annotated, Any
 
+from destiny_sdk.references import ReferenceFileInput
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 
@@ -21,7 +22,6 @@ from openalex_incremental_updater.ingest.openalex import (
     CreatedOrUpdated,
 )
 from openalex_incremental_updater.models.auth import DestinyRepoToken
-from openalex_incremental_updater.models.destiny import DestinyOpenAlexWork
 from openalex_incremental_updater.models.job_response import JobResponse
 
 TASKS: dict[str, asyncio.Task[Any]] = {}
@@ -71,7 +71,7 @@ async def get_openalex_works_ingest_from_date(
     limit: Annotated[
         int | None, Query(description="Maximum number of records to ingest.")
     ] = None,
-) -> list[DestinyOpenAlexWork]:
+) -> list[ReferenceFileInput]:
     """
     Fetch Works from the OpenAlex API with a date filter and ingest them into the repository.
 
@@ -81,7 +81,7 @@ async def get_openalex_works_ingest_from_date(
         limit (int): Maximum number of records to ingest. Defaults to None.
 
     Returns:
-        list[DestinyOpenAlexWork]: List of DestinyOpenAlexWork objects.
+        list[ReferenceFileInput]: List of ReferenceFileInput objects.
 
     """
     return await openalex_works_ingest_from_date(fetch_date, ingest_type, limit)
@@ -134,7 +134,7 @@ async def openalex_ingest_processing(
         limit (int): Maximum number of records to ingest.
 
     Returns:
-        list[DestinyOpenAlexWork]: List of DestinyOpenAlexWork objects.
+        list[ReferenceFileInput]: List of ReferenceFileInput objects.
 
     """
     job_id = job_manager.create(
@@ -223,7 +223,7 @@ async def get_openalex_works_ingest_open_filter(
         Query(description="OpenAlex API-compliant query string."),
     ],
     limit: Annotated[int, Query(description="Maximum number of records to ingest.")],
-) -> list[DestinyOpenAlexWork]:
+) -> list[ReferenceFileInput]:
     """
     Fetch data from the OpenAlex API and ingest it into the repository.
 
@@ -235,7 +235,7 @@ async def get_openalex_works_ingest_open_filter(
         limit (int): Maximum number of records to ingest.
 
     Returns:
-        JSONResponse: Response with status code and message.
+        list[ReferenceFileInput]: List of ReferenceFileInput objects.
 
     """
     return await openalex_works_ingest_open_filter(openalex_query_string, limit)

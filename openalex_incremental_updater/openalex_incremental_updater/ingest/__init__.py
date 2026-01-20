@@ -40,7 +40,7 @@ class RetryTransport(httpx.AsyncHTTPTransport):
                 response.raise_for_status()
             except httpx.ReadTimeout as timeout_error:
                 logger.warning(
-                    f"Attempt {attempt+1}: ReadTimeout error occurred: {timeout_error}"
+                    f"Attempt {attempt + 1}: ReadTimeout error occurred: {timeout_error}"
                 )
                 if attempt == self.retries:
                     logger.error(
@@ -54,7 +54,7 @@ class RetryTransport(httpx.AsyncHTTPTransport):
                 attempt += 1
             except (httpx.HTTPStatusError, httpx.RequestError) as error:
                 logger.warning(
-                    f"Attempt {attempt+1}: Failed to fetch data from OpenAlex API: {error}"
+                    f"Attempt {attempt + 1}: Failed to fetch data from OpenAlex API: {error}"
                 )
                 response_object = getattr(error, "response", None)
                 error_status_code = (

@@ -4,6 +4,7 @@ from collections.abc import Callable
 from datetime import date, datetime
 from zoneinfo import ZoneInfo
 
+from destiny_sdk.references import ReferenceFileInput
 from fastapi import HTTPException, status
 
 from openalex_incremental_updater.core.job_state import JobManager
@@ -17,7 +18,6 @@ from openalex_incremental_updater.ingest.openalex import (
     OpenAlexDataFetcher,
     UpstreamOpenAlexError,
 )
-from openalex_incremental_updater.models.destiny import DestinyOpenAlexWork
 
 
 async def run_background_openalex_ingest_job(
@@ -95,7 +95,7 @@ async def openalex_works_ingest_date_range(
         limit (int): Maximum number of records to ingest. Defaults to None.
 
     Returns:
-        str: JSONL-ified response from the API, representing a list of DestinyOpenAlexWork objects.
+        str: JSONL-ified response from the API, representing a list of ReferenceFileInput objects.
 
     """
     openalex_query = OpenAlexDataFetcher.build_range_query(
@@ -121,7 +121,7 @@ async def openalex_works_ingest_from_date(
     fetch_date: date,
     ingest_type: CreatedOrUpdated,
     limit: int | None = None,
-) -> list[DestinyOpenAlexWork]:
+) -> list[ReferenceFileInput]:
     """
     Fetch Works from the OpenAlex API with a date filter and ingest them into the repository.
 
@@ -131,7 +131,7 @@ async def openalex_works_ingest_from_date(
         limit (int): Maximum number of records to ingest. Defaults to None.
 
     Returns:
-        list[DestinyOpenAlexWork]: List of DestinyOpenAlexWork objects.
+        list[ReferenceFileInput]: List of ReferenceFileInput objects.
 
     """
     openalex_query = OpenAlexDataFetcher.build_query(fetch_date, ingest_type)
@@ -153,7 +153,7 @@ async def openalex_works_ingest_from_date(
 async def openalex_works_ingest_open_filter(
     openalex_query_string: str,
     limit: int,
-) -> list[DestinyOpenAlexWork]:
+) -> list[ReferenceFileInput]:
     """
     Fetch data from the OpenAlex API and ingest it into the repository.
 
@@ -165,7 +165,7 @@ async def openalex_works_ingest_open_filter(
         limit (int): Maximum number of records to ingest.
 
     Returns:
-        JSONResponse: Response with status code and message.
+        list[ReferenceFileInput]: List of ReferenceFileInput objects.
 
     """
     fetcher = OpenAlexDataFetcher()

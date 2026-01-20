@@ -8,23 +8,22 @@ from concurrent.futures import ProcessPoolExecutor
 from pathlib import Path
 from typing import TextIO, cast
 
+from destiny_sdk.references import ReferenceFileInput
 from loguru import logger
-from tqdm import tqdm
-
 from openalex_incremental_updater.models.destiny import (
     DataSource,
-    DestinyOpenAlexWork,
-    DestinyOpenAlexWorkMetadata,
+    ReferenceFileInputMetadata,
     get_destiny_openalex_work,
     strip_url_prefix,
 )
+from tqdm import tqdm
 
 logger.add(
     "schema_conversion_processing.log", rotation="10 MB", level="INFO", enqueue=True
 )
 
 
-def convert_solr_to_destiny(solr_document: dict) -> DestinyOpenAlexWork:
+def convert_solr_to_destiny(solr_document: dict) -> ReferenceFileInput:
     """
     Convert a Solr document to a Destiny OpenAlex work.
 
@@ -32,7 +31,7 @@ def convert_solr_to_destiny(solr_document: dict) -> DestinyOpenAlexWork:
         solr_document (dict): The Solr document to convert.
 
     Returns:
-        DestinyOpenAlexWork: The converted Destiny OpenAlex work.
+        ReferenceFileInput: The converted Destiny OpenAlex work.
 
     """
     processor_version = "initial_solr_import"
@@ -73,7 +72,7 @@ def convert_solr_to_destiny(solr_document: dict) -> DestinyOpenAlexWork:
     else:
         pubmed_id = None
 
-    work_metadata = DestinyOpenAlexWorkMetadata(
+    work_metadata = ReferenceFileInputMetadata(
         is_retracted=is_retracted,
         doi=doi,
         openalex_id=openalex_id,
@@ -91,7 +90,7 @@ def convert_solr_to_destiny(solr_document: dict) -> DestinyOpenAlexWork:
     )
 
 
-def transform_batch(batch: list[dict]) -> list[DestinyOpenAlexWork]:
+def transform_batch(batch: list[dict]) -> list[ReferenceFileInput]:
     """
     Transform a batch of Solr documents to Destiny OpenAlex works.
 
@@ -99,7 +98,7 @@ def transform_batch(batch: list[dict]) -> list[DestinyOpenAlexWork]:
         batch (list[dict]): A batch of Solr documents to transform.
 
     Returns:
-        list[DestinyOpenAlexWork]: A list of transformed Destiny OpenAlex works.
+        list[ReferenceFileInput]: A list of transformed Destiny OpenAlex works.
 
     """
     return [convert_solr_to_destiny(solr_document) for solr_document in batch]

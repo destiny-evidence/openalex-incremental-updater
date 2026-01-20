@@ -2,6 +2,7 @@ from collections.abc import Generator
 from datetime import date
 
 import pytest
+from destiny_sdk.references import ReferenceFileInput
 from fastapi import HTTPException, status
 from freezegun import freeze_time
 from pytest_mock import MockerFixture
@@ -18,7 +19,6 @@ from openalex_incremental_updater.ingest.openalex import (
     CreatedOrUpdated,
     UpstreamOpenAlexError,
 )
-from openalex_incremental_updater.models.destiny import DestinyOpenAlexWork
 
 
 @pytest.mark.anyio
@@ -107,7 +107,7 @@ async def test_openalex_works_ingest_date_range_success(
 ):
     """Test successful ingestion of OpenAlex works within a date range."""
     test_response = [
-        DestinyOpenAlexWork.model_validate(single_destinyopenalex_work_response)
+        ReferenceFileInput.model_validate(single_destinyopenalex_work_response)
     ]
     mocker.patch(
         "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.build_range_query",
@@ -118,7 +118,7 @@ async def test_openalex_works_ingest_date_range_success(
         return_value=test_response,
     )
     mocker.patch(
-        "openalex_incremental_updater.ingest.data.convert_destinyworks_to_jsonl_string",
+        "openalex_incremental_updater.core.jobs.convert_destinyworks_to_jsonl_string",
         return_value=single_destiny_openalex_work_jsonl_string,
     )
     test_report = None
@@ -169,7 +169,7 @@ async def test_openalex_works_ingest_from_date(
 ):
     """Test successful ingestion of OpenAlex works from a specific date."""
     expected_result = [
-        DestinyOpenAlexWork.model_validate(single_destinyopenalex_work_response)
+        ReferenceFileInput.model_validate(single_destinyopenalex_work_response)
     ]
     mocker.patch(
         "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.build_query",
@@ -223,7 +223,7 @@ async def test_openalex_works_ingest_open_filter(
 ):
     """Test successful ingestion of OpenAlex works from a specific date."""
     expected_result = [
-        DestinyOpenAlexWork.model_validate(single_destinyopenalex_work_response)
+        ReferenceFileInput.model_validate(single_destinyopenalex_work_response)
     ]
     mocker.patch(
         "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.build_query",

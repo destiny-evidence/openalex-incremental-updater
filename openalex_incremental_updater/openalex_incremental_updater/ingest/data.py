@@ -1,8 +1,7 @@
 """Define data conversion functions."""
 
+from destiny_sdk.references import ReferenceFileInput
 from loguru import logger
-
-from openalex_incremental_updater.models.destiny import DestinyOpenAlexWork
 
 
 class JSONLConversionError(Exception):
@@ -10,16 +9,16 @@ class JSONLConversionError(Exception):
 
 
 def convert_destinyworks_to_jsonl_string(
-    destiny_data: list[DestinyOpenAlexWork],
+    destiny_data: list[ReferenceFileInput],
 ) -> str:
     """
-    Convert a DestinyOpenAlexWork object to JSONL format.
+    Convert a ReferenceFileInput object to JSONL format.
 
     Args:
-        work (DestinyOpenAlexWork): The work object to convert.
+        destiny_data (list[ReferenceFileInput]): The list of work objects to convert.
 
     Returns:
-        str: The JSONL representation of the work object.
+        str: The JSONL representation of the work objects.
 
     """
     if not isinstance(destiny_data, list):

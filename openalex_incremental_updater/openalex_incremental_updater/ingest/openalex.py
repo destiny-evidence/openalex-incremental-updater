@@ -6,16 +6,14 @@ from collections.abc import Callable
 from datetime import date
 
 import httpx
+from destiny_sdk.references import ReferenceFileInput
 from loguru import logger
 
 from openalex_incremental_updater.core.config import get_settings
 from openalex_incremental_updater.core.job_state import JobState
 from openalex_incremental_updater.core.utils import async_timer
 from openalex_incremental_updater.ingest import AsyncRetryClient, CreatedOrUpdated
-from openalex_incremental_updater.models.destiny import (
-    DestinyOpenAlexWork,
-    convert_openalex_to_destiny,
-)
+from openalex_incremental_updater.models.destiny import convert_openalex_to_destiny
 
 fetch_lock = Lock()
 
@@ -74,7 +72,7 @@ class OpenAlexDataFetcher:
         openalex_filter: str | None,
         works_retrieved_limit: int | None = None,
         report: Callable | None = None,
-    ) -> list[DestinyOpenAlexWork]:
+    ) -> list[ReferenceFileInput]:
         """
         Fetch data from the OpenAlex API using a custom filter.
 
@@ -83,7 +81,7 @@ class OpenAlexDataFetcher:
             works_retrieved_limit (Optional[int]): The maximum number of works to retrieve. Defaults to None.
 
         Returns:
-            list[DestinyOpenAlexWork]: The retrieved works.
+            list[ReferenceFileInput]: The retrieved works.
 
         """
         if report:
@@ -181,7 +179,7 @@ class OpenAlexDataFetcher:
 
     def process_aggregate_results(
         self, aggregate_results: list[dict]
-    ) -> list[DestinyOpenAlexWork]:
+    ) -> list[ReferenceFileInput]:
         """
         Process the aggregate results from the OpenAlex API to match the Destiny data model.
 
