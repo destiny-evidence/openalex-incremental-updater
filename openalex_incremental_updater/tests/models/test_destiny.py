@@ -138,9 +138,7 @@ def test_destiny_openalex_work_missing_identifier_fields_ignored(
             openalex_id = identifier.identifier
             break
 
-    identifier_types = []
-    for identifier in work.identifiers:
-        identifier_types.append(identifier.identifier_type)
+    identifier_types = [identifier.identifier_type for identifier in work.identifiers]
 
     assert (
         openalex_id == expected_openalex_id
@@ -216,6 +214,7 @@ def test_get_destiny_openalex_work_success(
     assert (
         first_identifier_value == expected_openalex_id
     ), "Expect that the OpenAlex ID is set correctly in the identifiers"
+    assert abstract_content is not None, "Abstract content should be present"
     assert (
         abstract_content.abstract == expected_abstract
     ), "Expect that the abstract is set correctly"
@@ -315,11 +314,14 @@ def test_get_destiny_openalex_work_blank_abstract_from_openalex_input_with_incor
         first_identifier_value == expected_openalex_id
     ), "Expect that the OpenAlex ID is set correctly in the identifiers"
 
+    assert work_annotations is not None, "Annotations should be present"
     assert (
         work_annotations[0].data == expected_annotations
     ), "Expect that the annotations are still set correctly in the case of no abstract"
 
+    assert work_locations is not None, "Locations should be present"
     first_location = work_locations[0] if work_locations else None
+    assert first_location is not None, "First location should be present"
     first_location_dict = {
         "is_oa": first_location.is_oa,
         "landing_page_url": str(first_location.landing_page_url)
@@ -404,6 +406,16 @@ def test_pubmed_identifier_parsed_as_integer(
             elif identifier.other_identifier_name == "Pubmed Central ID":
                 destiny_pubmed_central_identifier = identifier
 
+    assert destiny_openalex_identifier is not None, "OpenAlex identifier should be found"
+    assert destiny_doi_identifier is not None, "DOI identifier should be found"
+    assert (
+        destiny_microsoft_academic_graph_identifier is not None
+    ), "MAG identifier should be found"
+    assert (
+        destiny_pubmed_central_identifier is not None
+    ), "PMC identifier should be found"
+    assert destiny_pubmed_identifier is not None, "PubMed identifier should be found"
+
     assert isinstance(
         destiny_openalex_identifier.identifier, str
     ), "Expect that openalex_id is a string"
@@ -466,6 +478,9 @@ def test_pubmed_identifier_none_case_handled(
         elif isinstance(identifier, DOIIdentifier):
             destiny_doi_identifier = identifier
 
+    assert destiny_openalex_identifier is not None, "OpenAlex identifier should be found"
+    assert destiny_doi_identifier is not None, "DOI identifier should be found"
+
     assert isinstance(
         destiny_openalex_identifier.identifier, str
     ), "Expect that openalex_id is a string"
@@ -514,6 +529,9 @@ def test_pubmed_central_identifier_masquerading_as_pubmed_id(
             destiny_openalex_identifier = identifier
         elif isinstance(identifier, DOIIdentifier):
             destiny_doi_identifier = identifier
+
+    assert destiny_openalex_identifier is not None, "OpenAlex identifier should be found"
+    assert destiny_doi_identifier is not None, "DOI identifier should be found"
 
     assert isinstance(
         destiny_openalex_identifier.identifier, str

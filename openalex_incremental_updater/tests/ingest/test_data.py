@@ -16,14 +16,16 @@ def test_convert_destinyworks_to_jsonl_string_valid_json(destiny_work_dict: dict
         ReferenceFileInput.model_validate(destiny_work_dict),
         ReferenceFileInput.model_validate(destiny_work_dict),
     ]
+    expected_line_count = 2
+    expected_identifier_count = 2
     result = convert_destinyworks_to_jsonl_string(destiny_data)
     # Split the JSONL into lines and parse each
     lines = result.strip().split("\n")
-    assert len(lines) == 2, "Should have 2 lines in the output"
+    assert len(lines) == expected_line_count, "Should have 2 lines in the output"
     for line in lines:
         parsed = json.loads(line)
         assert parsed["visibility"] == "public"
-        assert len(parsed["identifiers"]) == 2
+        assert len(parsed["identifiers"]) == expected_identifier_count
         assert len(parsed["enhancements"]) == 1
 
 
