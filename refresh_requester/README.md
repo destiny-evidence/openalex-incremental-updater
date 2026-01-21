@@ -32,7 +32,7 @@ This will allow you to use development- and test-time dependencies, as well as t
 
 Ensure you have a `.env` file in this directory with the following environment variables populated:
 
-- `API_ENDPOINT`: The `openalex_works_ingest_from_date` endpoint of the OpenAlex Incremental Updater API that will provide incremental updates.
+- `API_ENDPOINT`: The `openalex_works_ingest_date_range` endpoint of the OpenAlex Incremental Updater API that will provide incremental updates.
 - `TOKEN_ENDPOINT`: The `auth_token` endpoint of the OpenAlex Incremental Updater API that will provide a bearer token for authentication against the DESTINY Repository API.
 - `STORAGE_BLOB_ACCOUNT`: The name of the Azure Blob Storage account where the updates will be uploaded.
 - `STORAGE_BLOB_CONTAINER`: The name of the Azure Blob Storage container where the updates will be uploaded.

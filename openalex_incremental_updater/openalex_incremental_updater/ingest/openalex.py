@@ -2,7 +2,7 @@
 
 import uuid
 from asyncio import Lock
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from datetime import date
 
 import httpx
@@ -34,27 +34,11 @@ class OpenAlexDataFetcher:
         self.backoff_factor = backoff_factor
 
     @staticmethod
-    def build_query(fetch_date: date, created_or_updated: CreatedOrUpdated) -> str:
-        """
-        Build a query string to filter OpenAlex API data by date.
-
-        Args:
-            fetch_date (date): The date to filter by.
-            created_or_updated (CreatedOrUpdated): The type of date to filter by.
-
-        Returns:
-            str: The query string.
-
-        """
-        update_type = created_or_updated.value
-        return f"from_{update_type}_date:{fetch_date}"
-
-    @staticmethod
     def build_range_query(
         start_date: date, end_date: date, created_or_updated: CreatedOrUpdated
     ) -> str:
         """
-        Build a query string to filter OpenAlex API data by date.
+        Build a query string to filter OpenAlex API data by a date range.
 
         Args:
             start_date (date): The start date to filter by.
@@ -74,7 +58,7 @@ class OpenAlexDataFetcher:
         openalex_filter: str | None,
         works_retrieved_limit: int | None = None,
         report: Callable | None = None,
-    ) -> list[DestinyOpenAlexWork]:
+    ) -> AsyncIterator[list[DestinyOpenAlexWork]]:
         """
         Fetch data from the OpenAlex API using a custom filter.
 
@@ -83,14 +67,12 @@ class OpenAlexDataFetcher:
             works_retrieved_limit (Optional[int]): The maximum number of works to retrieve. Defaults to None.
 
         Returns:
-            list[DestinyOpenAlexWork]: The retrieved works.
+            AsyncIterator[list[DestinyOpenAlexWork]]: The retrieved works.
 
         """
         if report:
             report(status=JobState.PENDING, progress="Starting fetch job")
         async with fetch_lock:
-            aggregate_results = []
-
             # OpenAlex API limits the number of results per page to 200
             per_page: str = str(
                 min(200, works_retrieved_limit) if works_retrieved_limit else 200
@@ -118,7 +100,6 @@ class OpenAlexDataFetcher:
 
                 counter_works_retrieved = 0
                 last_known_cursor = None
-                total_works_to_download = 0
                 while cursor:
                     filtered_works_url = (
                         query_string + f"&cursor={cursor}&per-page={per_page}"
@@ -138,10 +119,8 @@ class OpenAlexDataFetcher:
                     retrieved_works = response.json()
 
                     results = retrieved_works["results"]
-                    aggregate_results.extend(results)
 
                     count_works_total = retrieved_works["meta"]["count"]
-                    total_works_to_download = count_works_total
                     counter_works_retrieved += len(results)
                     logger.info(
                         f"[Instance {instance_id}] Processed {counter_works_retrieved} results of {count_works_total}"
@@ -164,32 +143,19 @@ class OpenAlexDataFetcher:
                         logger.info(
                             f"Reached the limit of {works_retrieved_limit} works."
                         )
-                        return self.process_aggregate_results(aggregate_results)
+                        capped_results = results[
+                            : works_retrieved_limit
+                            - (counter_works_retrieved - len(results))
+                        ]
+                        yield [
+                            convert_openalex_to_destiny(result)
+                            for result in capped_results
+                        ]
+                        break
 
-            logger.info(f"Last known cursor: {last_known_cursor}")
-            logger.info(
-                f"Finished paging. Retrieved {counter_works_retrieved} results."
-            )
-            if report:
-                report(
-                    status=JobState.DOWNLOADED,
-                    progress=f"{counter_works_retrieved} works retrieved",
-                    total_works=total_works_to_download,
+                    yield [convert_openalex_to_destiny(result) for result in results]
+                logger.info(f"Last known cursor: {last_known_cursor}")
+                logger.info(
+                    f"Finished paging. Retrieved {counter_works_retrieved} results."
                 )
-
-            return self.process_aggregate_results(aggregate_results)
-
-    def process_aggregate_results(
-        self, aggregate_results: list[dict]
-    ) -> list[DestinyOpenAlexWork]:
-        """
-        Process the aggregate results from the OpenAlex API to match the Destiny data model.
-
-        Args:
-            aggregate_results (list[dict]): The aggregate results from the OpenAlex API.
-
-        Returns:
-            list[DestinyWork]: The processed results in the Destiny data model format.
-
-        """
-        return [convert_openalex_to_destiny(result) for result in aggregate_results]
+            logger.info("Completed streaming results.")
