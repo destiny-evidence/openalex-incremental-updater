@@ -65,12 +65,13 @@ async def get_blob_service_client() -> AsyncGenerator[BlobServiceClient]:
         )
         credential = DefaultAzureCredential()
 
-        client = BlobServiceClient(account_url, credential=credential)
+        try:
+            client = BlobServiceClient(account_url, credential=credential)
+        except AzureError as azure_error:
+            error_message = f"Error getting blob client: {azure_error}"
+            logger.error(error_message)
+            raise BlobUploadError(error_message) from azure_error
         yield client
-    except AzureError as azure_error:
-        error_message = f"Error getting blob client: {azure_error}"
-        logger.error(error_message)
-        raise BlobUploadError(error_message) from azure_error
     finally:
         if client is not None:
             await client.close()

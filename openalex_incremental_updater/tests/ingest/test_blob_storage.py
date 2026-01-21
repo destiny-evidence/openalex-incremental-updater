@@ -185,4 +185,4 @@ async def test_blob_upload_failure_delete_raises(
         await blob_upload(test_data_bytes_iter, test_filename, chunk_size=chunk_size)
 
     assert str(original_exception) in str(error.value)
-    assert mock_blob_client.delete_blob.await_count >= 1
+    assert mock_blob_client.delete_blob.await_count == 1
