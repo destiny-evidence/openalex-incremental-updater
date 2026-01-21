@@ -313,7 +313,7 @@ def prepare_destiny_authorships(
         position_str = author.get("author_position", "")
 
         if not display_name or not position_str:
-            logger.debug(
+            logger.warning(
                 f"Skipping authorship with missing data: display_name={display_name!r}, position={position_str!r}"
             )
             continue
@@ -321,7 +321,9 @@ def prepare_destiny_authorships(
         try:
             position = AuthorPosition(position_str)
         except ValueError:
-            logger.debug(f"Skipping authorship with invalid position: {position_str!r}")
+            logger.warning(
+                f"Skipping authorship with invalid position: {position_str!r}"
+            )
             continue
 
         authorships.append(
@@ -347,7 +349,7 @@ def prepare_destiny_locations(metadata: DestinyOpenAlexWorkMetadata) -> list[Loc
     """
     locations: list[Location] = []
     for location in metadata.locations or []:
-        is_oa = location.get("is_oa")
+        is_oa = location.get("is_oa", False)
         version = location.get("version")
         landing_page_url = location.get("landing_page_url")
         pdf_url = location.get("pdf_url")
@@ -355,7 +357,7 @@ def prepare_destiny_locations(metadata: DestinyOpenAlexWorkMetadata) -> list[Loc
         extra = location.get("source")
 
         loc = Location(
-            is_oa=is_oa if is_oa is not None else None,
+            is_oa=is_oa,
             version=version if is_valid_nonempty_string(version) else None,
             landing_page_url=landing_page_url
             if is_valid_nonempty_string(landing_page_url)
