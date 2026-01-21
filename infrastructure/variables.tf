@@ -1,22 +1,10 @@
-variable "app_name" {
-  description = "Name of the app being deployed."
-  default = "incremental-updater"
-  type = string
-}
-
-variable "app_job_name" {
-  description = "Name of the app job being deployed."
-  default = "job-openalex-refresh"
-  type = string
-}
-
 variable "container_registry_name" {
   description = "Name of the container registry where incremental updater images are pushed."
   type = string
 }
 
-variable "container_registry_resource_group_name" {
-  description = "Name of the container registry resource group."
+variable "destiny_shared_infra_resource_group_name" {
+  description = "Name of the Destiny Shared Infrastructure resource group."
   type = string
 }
 
@@ -25,12 +13,12 @@ variable "github_actions_service_principal_object_id" {
   type = string
 }
 
-variable "environment" {
+variable "deployment_environment" {
   description = "Environment for the Incremental Updater App and App Job, should be either development, staging or production."
   default     = "development"
   type = string
   validation {
-    condition     = contains(["development", "staging", "production"], var.environment)
+    condition     = contains(["development", "staging", "production"], var.deployment_environment)
     error_message = "Environment must be one of 'development', 'staging' or 'production'."
   }
 }
@@ -81,26 +69,8 @@ variable "openalex_api_key" {
   sensitive   = true
 }
 
-variable "azure_auth_environment_id_development" {
-  description = "The Azure authentication environment ID for the Incremental Updater App."
-  default = null
-  type = string
-  validation {
-    condition     = (
-      (var.azure_auth_environment_id_development != null ? 1 : 0) +
-      (var.azure_auth_environment_id_staging != null ? 1 : 0) +
-      (var.azure_auth_environment_id_production != null ? 1 : 0)
-    ) == 1
-    error_message = "Exactly one azure_auth_environment_id variable must be set (non-null)."
-  }
-}
-variable "azure_auth_environment_id_staging" {
-  description = "The Azure authentication environment ID for the Incremental Updater App in staging."
-  default = null
-  type = string
-}
-variable "azure_auth_environment_id_production" {
-  description = "The Azure authentication environment ID for the Incremental Updater App in production."
+variable "azure_auth_environment_id" {
+  description = "The Azure authentication environment ID for the Incremental Updater App, either development, staging or production."
   default = null
   type = string
 }
@@ -139,26 +109,8 @@ variable "storage_blob_account_key" {
   sensitive   = true
 }
 
-variable "storage_blob_container_development" {
-  description = "The Storage Blob Container name for the Incremental Updater App in development."
-  type = string
-  default = null
-  validation {
-    condition     = (
-      (var.storage_blob_container_development != null ? 1 : 0) +
-      (var.storage_blob_container_staging != null ? 1 : 0) +
-      (var.storage_blob_container_production != null ? 1 : 0)
-    ) == 1
-    error_message = "Exactly one storage_blob_container variable must be set (non-null)."
-  }
-}
-variable "storage_blob_container_staging" {
-  description = "The Storage Blob Container name for the Incremental Updater App in staging."
-  type = string
-  default = null
-}
-variable "storage_blob_container_production" {
-  description = "The Storage Blob Container name for the Incremental Updater App in production."
+variable "storage_blob_container" {
+  description = "The Storage Blob Container name for the Incremental Updater App. Chosed based on environment: development, staging or production."
   type = string
   default = null
 }
@@ -169,44 +121,13 @@ variable "log_level" {
     type       = string
 }
 
-variable "repository_endpoint_development" {
-  description = "The Repository Endpoint for the development Incremental Updater App."
-  default = null
-  type = string
-  validation {
-    condition     = (
-      (var.repository_endpoint_development != null ? 1 : 0) +
-      (var.repository_endpoint_staging != null ? 1 : 0) +
-      (var.repository_endpoint_production != null ? 1 : 0)
-    ) == 1
-    error_message = "Exactly one repository_endpoint variable must be set (non-null)."
-  }
-}
-variable "repository_endpoint_staging" {
-  description = "The Repository Endpoint for the Incremental Updater App in staging."
-  default = null
-  type = string
-}
-variable "repository_endpoint_production" {
-  description = "The Repository Endpoint for the Incremental Updater App in production."
+variable "repository_endpoint" {
+  description = "The DESTINY Repository Endpoint URL for the development Incremental Updater App. Environment-specific variable."
   default = null
   type = string
 }
 
 locals {
-  azure_auth_environment_id_evaluated = (
-    var.environment == "development" ? var.azure_auth_environment_id_development :
-    var.environment == "staging" ? var.azure_auth_environment_id_staging :
-    var.azure_auth_environment_id_production
-  )
-  storage_blob_container_id_evaluated = (
-    var.environment == "development" ? var.storage_blob_container_development :
-    var.environment == "staging" ? var.storage_blob_container_staging :
-    var.storage_blob_container_production
-  )
-  repository_endpoint_id_evaluated = (
-    var.environment == "development" ? var.repository_endpoint_development :
-    var.environment == "staging" ? var.repository_endpoint_staging :
-    var.repository_endpoint_production
-  )
+  app_name = "incremental-updater"
+  app_job_name = "job-openalex-refresh"
 }
