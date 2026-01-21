@@ -121,7 +121,8 @@ class OpenAlexDataFetcher:
                     results = retrieved_works["results"]
 
                     count_works_total = retrieved_works["meta"]["count"]
-                    counter_works_retrieved += len(results)
+                    number_of_results_in_current_batch = len(results)
+                    counter_works_retrieved += number_of_results_in_current_batch
                     logger.info(
                         f"[Instance {instance_id}] Processed {counter_works_retrieved} results of {count_works_total}"
                     )
@@ -136,20 +137,29 @@ class OpenAlexDataFetcher:
                         )
                     if cursor:
                         last_known_cursor = cursor
-                    if (
-                        works_retrieved_limit
+
+                    this_batch_hits_requested_results_limit = (
+                        works_retrieved_limit is not None
                         and counter_works_retrieved >= works_retrieved_limit
-                    ):
+                    )
+                    if this_batch_hits_requested_results_limit:
                         logger.info(
                             f"Reached the limit of {works_retrieved_limit} works."
                         )
-                        capped_results = results[
-                            : works_retrieved_limit
-                            - (counter_works_retrieved - len(results))
+                        # This line just here to satisfy mypy that works_retrieved_limit is not None
+                        limit = works_retrieved_limit if works_retrieved_limit else 0
+                        number_of_results_under_limit = counter_works_retrieved - limit
+                        required_number_of_results_from_final_batch = (
+                            number_of_results_in_current_batch
+                            - number_of_results_under_limit
+                        )
+
+                        final_limited_batch = results[
+                            :required_number_of_results_from_final_batch
                         ]
                         yield [
                             convert_openalex_to_destiny(result)
-                            for result in capped_results
+                            for result in final_limited_batch
                         ]
                         break
 
