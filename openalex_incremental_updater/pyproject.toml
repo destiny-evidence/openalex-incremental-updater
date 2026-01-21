@@ -20,7 +20,7 @@ tests = []
 
 [project]
 name = "openalex-incremental-updater"
-version = "0.4.0"
+version = "0.5.0"
 description = ""
 authors = [{name = "Harry Moss", email = "h.moss@ucl.ac.uk"}]
 requires-python = ">=3.13,<3.14"
@@ -37,7 +37,8 @@ dependencies = [
   "destiny-sdk>=0.7.5,<0.8",
   "azure-core>=1.35.0",
   "azure-identity>=1.24.0",
-  "azure-storage-blob>=12.26.0"
+  "azure-storage-blob>=12.26.0",
+  "aiohttp>=3.13.2"
 ]
 
 [tool.mypy]
@@ -72,6 +73,17 @@ lint.per-file-ignores = {"openalex_incremental_updater/openalex_incremental_upda
   "DTZ007" # Naive datetime constructed using `datetime.datetime.strptime()` without %z
 ], "openalex_incremental_updater/openalex_incremental_updater/core/jobs.py" = [
   "PLR0913" # Too many arguments in function definition
+], "openalex_incremental_updater/openalex_incremental_updater/ingest/blob_storage.py" = [
+  "BLE001", # Do not catch blind exception: Exception
+  "PLR0915" # Too many statements
+], "openalex_incremental_updater/openalex_incremental_updater/core/utils.py" = [
+  "ANN002", # Missing type annotation for *args
+  "ANN003" # Missing type annotation for **kwargs
+], "openalex_incremental_updater/tests/*" = [
+  "ANN001", # Missing type annotation for function argument
+  "ANN401", # Dynamically typed expressions disallowed
+  "ANN002", # Missing type annotation for *args
+  "ANN003" # Missing type annotation for **kwargs
 ], "refresh_requester/tests*" = [
   "ANN001", # Missing type annotation for function argument
   "ANN201", # Missing type annotation for function return value

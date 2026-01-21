@@ -1,5 +1,3 @@
-import json
-
 import pytest
 from destiny_sdk.references import ReferenceFileInput
 from pytest_mock import MockerFixture
@@ -10,53 +8,113 @@ from openalex_incremental_updater.ingest.data import (
 )
 
 
-def test_convert_destinyworks_to_jsonl_string_valid_json(destiny_work_dict: dict):
+@pytest.mark.asyncio
+async def test_convert_destinyworks_to_jsonl_string_valid_json(destiny_work_dict: dict):
     """Test successful conversion of JSON to JSON-line based with valid JSON."""
     destiny_data = [
-        ReferenceFileInput.model_validate(destiny_work_dict),
-        ReferenceFileInput.model_validate(destiny_work_dict),
+        [
+            ReferenceFileInput.model_validate(destiny_work_dict),
+        ],
+        [
+            ReferenceFileInput.model_validate(destiny_work_dict),
+            ReferenceFileInput.model_validate(destiny_work_dict),
+        ],
     ]
-    expected_line_count = 2
-    expected_identifier_count = 2
-    result = convert_destinyworks_to_jsonl_string(destiny_data)
-    # Split the JSONL into lines and parse each
-    lines = result.strip().split("\n")
-    assert len(lines) == expected_line_count, "Should have 2 lines in the output"
-    for line in lines:
-        parsed = json.loads(line)
-        assert parsed["visibility"] == "public"
-        assert len(parsed["identifiers"]) == expected_identifier_count
-        assert len(parsed["enhancements"]) == 1
+    expected_jsonl = '{"visibility":"public","identifiers":[{"identifier":"10.1234/sampledoi","identifier_type":"doi"},{"identifier":"W1234567890","identifier_type":"open_alex"}],"enhancements":[{"source":"openalex","visibility":"public","robot_version":"1.0.0","content":{"enhancement_type":"bibliographic","authorship":[{"display_name":"Alice Example","orcid":"0000-0001-2345-6789","position":"first"}],"cited_by_count":10,"created_date":"2020-05-01","publication_date":"2020-04-01","publication_year":2020,"publisher":"Example Publisher","title":null}}]}\n{"visibility":"public","identifiers":[{"identifier":"10.1234/sampledoi","identifier_type":"doi"},{"identifier":"W1234567890","identifier_type":"open_alex"}],"enhancements":[{"source":"openalex","visibility":"public","robot_version":"1.0.0","content":{"enhancement_type":"bibliographic","authorship":[{"display_name":"Alice Example","orcid":"0000-0001-2345-6789","position":"first"}],"cited_by_count":10,"created_date":"2020-05-01","publication_date":"2020-04-01","publication_year":2020,"publisher":"Example Publisher","title":null}}]}\n{"visibility":"public","identifiers":[{"identifier":"10.1234/sampledoi","identifier_type":"doi"},{"identifier":"W1234567890","identifier_type":"open_alex"}],"enhancements":[{"source":"openalex","visibility":"public","robot_version":"1.0.0","content":{"enhancement_type":"bibliographic","authorship":[{"display_name":"Alice Example","orcid":"0000-0001-2345-6789","position":"first"}],"cited_by_count":10,"created_date":"2020-05-01","publication_date":"2020-04-01","publication_year":2020,"publisher":"Example Publisher","title":null}}]}\n'
 
+    async def async_gen(data):
+        for item in data:
+            yield item
 
-def test_convert_destinyworks_to_jsonl_string_invalid_json():
-    """Test failed conversion of invalid JSON to JSON-line based."""
-    with pytest.raises(JSONLConversionError) as error:
-        convert_destinyworks_to_jsonl_string("invalid_json")
+    destiny_data_async_generator = async_gen(destiny_data)
+    result_iterator = convert_destinyworks_to_jsonl_string(destiny_data_async_generator)
+    result = [item async for item in result_iterator]
+    result_string = b"".join(result).decode("utf-8")
     assert (
-        str(error.value) == "destiny_data must be a list of dictionaries - TypeError"
-    ), "Should see a type error-related message"
+        result_string == expected_jsonl
+    ), "The expected conversion should be returned."
 
 
-def test_convert_destinyworks_to_jsonl_string_empty_input():
+@pytest.mark.asyncio
+async def test_convert_destinyworks_to_jsonl_string_invalid_jsonl_conversion_batch_level(
+    destiny_work_dict,
+):
+    """Test failed conversion of invalid JSON to JSON-line based."""
+    test_invalid_json_destiny_works = "invalid_dict_item"
+
+    async def async_gen(data):
+        for item in data:
+            yield item
+
+    destiny_data_async_generator = async_gen(test_invalid_json_destiny_works)
+    result_generator = convert_destinyworks_to_jsonl_string(
+        destiny_data_async_generator
+    )
+
+    with pytest.raises(JSONLConversionError) as error:
+        _result = [item async for item in result_generator]
+
+    assert "Each batch must be a list of ReferenceFileInput" in str(error.value)
+
+
+@pytest.mark.asyncio
+async def test_convert_destinyworks_to_jsonl_string_invalid_jsonl_conversion_item_level(
+    destiny_work_dict,
+):
+    """Test failed conversion of invalid JSON to JSON-line based."""
+    test_invalid_json_destiny_works = [["invalid_dict_item"]]
+
+    async def async_gen(data):
+        for item in data:
+            yield item
+
+    destiny_data_async_generator = async_gen(test_invalid_json_destiny_works)
+    result_generator = convert_destinyworks_to_jsonl_string(
+        destiny_data_async_generator
+    )
+
+    with pytest.raises(JSONLConversionError) as error:
+        _result = [item async for item in result_generator]
+
+    assert "All items must be ReferenceFileInput instances" in str(error.value)
+
+
+@pytest.mark.asyncio
+async def test_convert_destinyworks_to_jsonl_string_empty_input():
     """Test successful conversion of an empty input to JSON-line based."""
-    response = convert_destinyworks_to_jsonl_string([])
-    assert response == "", "Empty input should return an empty string"
+
+    async def async_gen(data):
+        for item in data:
+            yield item
+
+    empty_list = []
+    response_generator = convert_destinyworks_to_jsonl_string(async_gen(empty_list))
+    response = [item async for item in response_generator]
+    result_bytes = b"".join(response)
+    result = result_bytes.decode("utf-8")
+    assert result == "", "Empty input should return an empty string"
 
 
-def test_convert_destinyworks_to_jsonl_string_fails_non_serializable(
+@pytest.mark.asyncio
+async def test_convert_destinyworks_to_jsonl_string_fails_non_serializable(
     mocker: MockerFixture, destiny_work_dict: dict
 ):
     """Test failed conversion of un-serializable JSON to JSON-line based."""
-    test_data = [
-        ReferenceFileInput.model_validate(destiny_work_dict),
-    ]
+    test_data = [[ReferenceFileInput.model_validate(destiny_work_dict)]]
+
+    async def async_gen(data):
+        for item in data:
+            yield item
+
+    test_data_async_generator = async_gen(test_data)
     mocker.patch(
         "pydantic.BaseModel.model_dump_json",
         side_effect=TypeError("Object of type set is not JSON serializable"),
     )
+    result_generator = convert_destinyworks_to_jsonl_string(test_data_async_generator)
+
     with pytest.raises(JSONLConversionError) as error:
-        convert_destinyworks_to_jsonl_string(test_data)
+        _result = [item async for item in result_generator]
     assert (
         str(error.value)
         == "Error converting JSON to JSONL: Object of type set is not JSON serializable"

@@ -9,8 +9,8 @@ services:
       - openalex_incremental_updater/.env
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health-check/"]
-      interval: 5s
-      timeout: 2s
+      interval: 10s
+      timeout: 5s
       retries: 10
       start_period: 10s
     environment:

@@ -42,15 +42,4 @@ def destiny_work(destiny_work_dict: dict) -> ReferenceFileInput:
 
 @pytest.fixture
 def single_destiny_openalex_work_jsonl_string() -> str:
-    return (
-        '{"visibility":"public","identifiers":[{"identifier_type":"open_alex",'
-        '"identifier":"W9876543210"},{"identifier_type":"doi","identifier":'
-        '"10.5678/test_doi"}],"enhancements":[{"source":"openalex","visibility":"public",'
-        '"processor_version":"initial_openalex_import",'
-        '"content":{"enhancement_type":"bibliographic","title":"Test Title",'
-        '"cited_by_count":null,"created_date":"2025-01-01","publication_date":'
-        '"2025-01-01","publication_year":2025,"publisher":null,"authorship":[{'
-        '"display_name":"First Author","orcid":"https://orcid.org/example-orcid-first-author",'
-        '"position":"first"},{"display_name":"Last Author","orcid":"https://orcid.org/'
-        'example-orcid-last-author","position":"last"}]}}]}'
-    )
+    return '{"visibility":"public","identifiers":[{"identifier":"W9876543210","identifier_type":"open_alex"},{"identifier":"10.5678/test_doi","identifier_type":"doi"}],"enhancements":[{"source":"openalex","visibility":"public","robot_version":null,"content":{"enhancement_type":"bibliographic","authorship":[{"display_name":"First Author","orcid":"https://orcid.org/example-orcid-first-author","position":"first"},{"display_name":"Last Author","orcid":"https://orcid.org/example-orcid-last-author","position":"last"}],"cited_by_count":null,"created_date":"2025-01-01","publication_date":"2025-01-01","publication_year":2025,"publisher":null,"title":"Test Title"}}]}\n'

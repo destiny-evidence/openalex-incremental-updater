@@ -1,5 +1,7 @@
 """Define data conversion functions."""
 
+from collections.abc import AsyncIterator
+
 from destiny_sdk.references import ReferenceFileInput
 from loguru import logger
 
@@ -8,25 +10,33 @@ class JSONLConversionError(Exception):
     """JSONL Conversion Error."""
 
 
-def convert_destinyworks_to_jsonl_string(
-    destiny_data: list[ReferenceFileInput],
-) -> str:
+async def convert_destinyworks_to_jsonl_string(
+    destiny_data: AsyncIterator[list[ReferenceFileInput]],
+) -> AsyncIterator[bytes]:
     """
-    Convert a ReferenceFileInput object to JSONL format.
+    Generate JSONL lines from ReferenceFileInput objects.
 
     Args:
-        destiny_data (list[ReferenceFileInput]): The list of work objects to convert.
+        destiny_data (AsyncIterator[list[ReferenceFileInput]]): The work objects to convert.
 
-    Returns:
-        str: The JSONL representation of the work objects.
+    Yields:
+        AsyncIterator[bytes]: An iterator of JSONL lines.
 
     """
-    if not isinstance(destiny_data, list):
-        error_message = "destiny_data must be a list of dictionaries - TypeError"
-        raise JSONLConversionError(error_message)
     try:
-        return "\n".join([data.to_jsonl() for data in destiny_data])
-    except (TypeError, ValueError) as jsonl_conversion_error:
+        async for batch in destiny_data:
+            if not isinstance(batch, list):
+                error_message = "Each batch must be a list of ReferenceFileInput"
+                logger.error(error_message)
+                raise JSONLConversionError(error_message)
+            for work in batch:
+                if not isinstance(work, ReferenceFileInput):
+                    error_message = "All items must be ReferenceFileInput instances"
+                    logger.error(error_message)
+                    raise JSONLConversionError(error_message)
+                jsonl_line = work.model_dump_json().encode("utf-8") + b"\n"
+                yield jsonl_line
+    except (TypeError, ValueError, AttributeError) as jsonl_conversion_error:
         error_message = f"Error converting JSON to JSONL: {jsonl_conversion_error}"
         logger.error(error_message)
         raise JSONLConversionError(error_message) from jsonl_conversion_error

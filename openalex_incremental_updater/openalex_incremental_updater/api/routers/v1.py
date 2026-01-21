@@ -5,7 +5,6 @@ from collections.abc import Awaitable, Callable
 from datetime import date
 from typing import Annotated, Any
 
-from destiny_sdk.references import ReferenceFileInput
 from fastapi import APIRouter, HTTPException, Query, status
 from fastapi.responses import JSONResponse
 
@@ -13,8 +12,6 @@ from openalex_incremental_updater.core.auth import generate_token
 from openalex_incremental_updater.core.config import get_settings
 from openalex_incremental_updater.core.job_state import JobManager, JobState
 from openalex_incremental_updater.core.jobs import (
-    openalex_works_ingest_from_date,
-    openalex_works_ingest_open_filter,
     run_background_openalex_ingest_job,
 )
 from openalex_incremental_updater.core.utils import logger
@@ -54,37 +51,6 @@ async def _run_with_tracking_async(job_id: str, coro: Awaitable) -> None:
         job_manager.fail(job_id, generic_exception)
     finally:
         TASKS.pop(job_id, None)
-
-
-@router.get("/openalex_works_ingest_from_date")
-async def get_openalex_works_ingest_from_date(
-    fetch_date: Annotated[
-        date,
-        Query(description="Date to fetch data from. Must be in ISO format YYYY-MM-DD."),
-    ],
-    ingest_type: Annotated[
-        CreatedOrUpdated,
-        Query(
-            description="Method of determining ingest data. Must be one of 'created' or 'updated'."
-        ),
-    ],
-    limit: Annotated[
-        int | None, Query(description="Maximum number of records to ingest.")
-    ] = None,
-) -> list[ReferenceFileInput]:
-    """
-    Fetch Works from the OpenAlex API with a date filter and ingest them into the repository.
-
-    Args:
-        fetch_date (date): Date to fetch data from. Must be in the format YYYY-MM-DD.
-        ingest_type (CreatedOrUpdated): Method of determining ingest data. Must be one of "created" or "updated".
-        limit (int): Maximum number of records to ingest. Defaults to None.
-
-    Returns:
-        list[ReferenceFileInput]: List of ReferenceFileInput objects.
-
-    """
-    return await openalex_works_ingest_from_date(fetch_date, ingest_type, limit)
 
 
 def report_status(job_manager: JobManager, job_id: str) -> Callable:
@@ -214,31 +180,6 @@ def cancel_job(job_id: str) -> JSONResponse:
         raise HTTPException(status_code=404, detail="Job not found")
     task.cancel()
     return JSONResponse(status_code=204, content={"ok": True})
-
-
-@router.get("/openalex_works_open_filter")
-async def get_openalex_works_ingest_open_filter(
-    openalex_query_string: Annotated[
-        str,
-        Query(description="OpenAlex API-compliant query string."),
-    ],
-    limit: Annotated[int, Query(description="Maximum number of records to ingest.")],
-) -> list[ReferenceFileInput]:
-    """
-    Fetch data from the OpenAlex API and ingest it into the repository.
-
-    Requires a user-defined filter string to be passed in the query parameter.
-    It is left to the user to ensure that the filter string is correctly formatted.
-
-    Args:
-        openalex_query_string (str): OpenAlex API-compliant query string.
-        limit (int): Maximum number of records to ingest.
-
-    Returns:
-        list[ReferenceFileInput]: List of ReferenceFileInput objects.
-
-    """
-    return await openalex_works_ingest_open_filter(openalex_query_string, limit)
 
 
 @router.get("/auth_token")
