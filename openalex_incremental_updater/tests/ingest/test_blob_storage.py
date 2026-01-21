@@ -184,5 +184,9 @@ async def test_blob_upload_failure_delete_raises(
     with pytest.raises(BlobUploadError) as error:
         await blob_upload(test_data_bytes_iter, test_filename, chunk_size=chunk_size)
 
-    assert str(original_exception) in str(error.value)
-    assert mock_blob_client.delete_blob.await_count == 1
+    assert str(original_exception) in str(
+        error.value
+    ), "Check that the original error message is in the raised BlobUploadError"
+    assert (
+        mock_blob_client.delete_blob.await_count == 1
+    ), "Check that delete_blob was attempted exactly once"
