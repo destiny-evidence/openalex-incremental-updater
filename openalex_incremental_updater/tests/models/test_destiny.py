@@ -223,7 +223,7 @@ def test_get_destiny_openalex_work_success(
     ), "Expect that the abstract process is set correctly"
 
 
-def test_get_destiny_openalex_work_blank_abstract_from_openalex_input_with_incorrect_source(
+def test_get_destiny_openalex_work_blank_abstract_from_openalex_input_with_incorrect_source(  # noqa: PLR0915
     openalex_work_dict: dict,
 ) -> None:
     """
