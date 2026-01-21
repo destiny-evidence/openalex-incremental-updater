@@ -406,7 +406,9 @@ def test_pubmed_identifier_parsed_as_integer(
             elif identifier.other_identifier_name == "Pubmed Central ID":
                 destiny_pubmed_central_identifier = identifier
 
-    assert destiny_openalex_identifier is not None, "OpenAlex identifier should be found"
+    assert (
+        destiny_openalex_identifier is not None
+    ), "OpenAlex identifier should be found"
     assert destiny_doi_identifier is not None, "DOI identifier should be found"
     assert (
         destiny_microsoft_academic_graph_identifier is not None
@@ -478,7 +480,9 @@ def test_pubmed_identifier_none_case_handled(
         elif isinstance(identifier, DOIIdentifier):
             destiny_doi_identifier = identifier
 
-    assert destiny_openalex_identifier is not None, "OpenAlex identifier should be found"
+    assert (
+        destiny_openalex_identifier is not None
+    ), "OpenAlex identifier should be found"
     assert destiny_doi_identifier is not None, "DOI identifier should be found"
 
     assert isinstance(
@@ -530,7 +534,9 @@ def test_pubmed_central_identifier_masquerading_as_pubmed_id(
         elif isinstance(identifier, DOIIdentifier):
             destiny_doi_identifier = identifier
 
-    assert destiny_openalex_identifier is not None, "OpenAlex identifier should be found"
+    assert (
+        destiny_openalex_identifier is not None
+    ), "OpenAlex identifier should be found"
     assert destiny_doi_identifier is not None, "DOI identifier should be found"
 
     assert isinstance(

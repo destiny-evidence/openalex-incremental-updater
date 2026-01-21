@@ -10,13 +10,14 @@ from typing import TextIO, cast
 
 from destiny_sdk.references import ReferenceFileInput
 from loguru import logger
+from tqdm import tqdm
+
 from openalex_incremental_updater.models.destiny import (
     DataSource,
     ReferenceFileInputMetadata,
     get_destiny_openalex_work,
     strip_url_prefix,
 )
-from tqdm import tqdm
 
 logger.add(
     "schema_conversion_processing.log", rotation="10 MB", level="INFO", enqueue=True
