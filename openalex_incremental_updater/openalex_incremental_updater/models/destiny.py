@@ -313,11 +313,15 @@ def prepare_destiny_authorships(
         position_str = author.get("author_position", "")
 
         if not display_name or not position_str:
+            logger.debug(
+                f"Skipping authorship with missing data: display_name={display_name!r}, position={position_str!r}"
+            )
             continue
 
         try:
             position = AuthorPosition(position_str)
         except ValueError:
+            logger.debug(f"Skipping authorship with invalid position: {position_str!r}")
             continue
 
         authorships.append(

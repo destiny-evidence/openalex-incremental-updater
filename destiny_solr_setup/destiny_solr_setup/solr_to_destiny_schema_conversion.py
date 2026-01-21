@@ -14,7 +14,7 @@ from tqdm import tqdm
 
 from openalex_incremental_updater.models.destiny import (
     DataSource,
-    ReferenceFileInputMetadata,
+    DestinyOpenAlexWorkMetadata,
     get_destiny_openalex_work,
     strip_url_prefix,
 )
@@ -73,7 +73,7 @@ def convert_solr_to_destiny(solr_document: dict) -> ReferenceFileInput:
     else:
         pubmed_id = None
 
-    work_metadata = ReferenceFileInputMetadata(
+    work_metadata = DestinyOpenAlexWorkMetadata(
         is_retracted=is_retracted,
         doi=doi,
         openalex_id=openalex_id,

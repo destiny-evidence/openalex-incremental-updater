@@ -25,7 +25,7 @@ def convert_destinyworks_to_jsonl_string(
         error_message = "destiny_data must be a list of dictionaries - TypeError"
         raise JSONLConversionError(error_message)
     try:
-        return "\n".join([data.model_dump_json() for data in destiny_data])
+        return "\n".join([data.to_jsonl() for data in destiny_data])
     except (TypeError, ValueError) as jsonl_conversion_error:
         error_message = f"Error converting JSON to JSONL: {jsonl_conversion_error}"
         logger.error(error_message)
