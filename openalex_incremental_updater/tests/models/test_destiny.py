@@ -3,11 +3,23 @@ from typing import Any
 from zoneinfo import ZoneInfo
 
 import pytest
+from destiny_sdk.enhancements import (
+    AbstractContentEnhancement,
+    AnnotationEnhancement,
+    BibliographicMetadataEnhancement,
+    LocationEnhancement,
+)
+from destiny_sdk.identifiers import (
+    DOIIdentifier,
+    OpenAlexIdentifier,
+    OtherIdentifier,
+    PubMedIdentifier,
+)
+from destiny_sdk.references import ReferenceFileInput
 from pydantic import ValidationError
 
 from openalex_incremental_updater.models.destiny import (
     DataSource,
-    DestinyOpenAlexWork,
     DestinyOpenAlexWorkMetadata,
     convert_inverted_abstract,
     convert_openalex_to_destiny,
@@ -29,30 +41,23 @@ def test_destiny_openalex_work_valid_from_valid_openalex_work_dict(
     )
     expected_publication_year = 2025
     destiny_work = convert_openalex_to_destiny(openalex_work_dict)
-    openalex_id_dict = next(
-        (
-            item
-            for item in destiny_work.identifiers
-            if item.get("identifier_type") == "open_alex"
-        ),
-        None,
-    )
-    openalex_id = openalex_id_dict.get("identifier", None) if openalex_id_dict else None
-    abstract = next(
-        item["content"]["abstract"]
-        for item in destiny_work.enhancements
-        if item["content"]["enhancement_type"] == "abstract"
-    )
-    publication_year = next(
-        item["content"]["publication_year"]
-        for item in destiny_work.enhancements
-        if item["content"]["enhancement_type"] == "bibliographic"
-    )
-    created_date = next(
-        item["content"]["created_date"]
-        for item in destiny_work.enhancements
-        if item["content"]["enhancement_type"] == "bibliographic"
-    )
+
+    openalex_id = None
+    for identifier in destiny_work.identifiers:
+        if isinstance(identifier, OpenAlexIdentifier):
+            openalex_id = identifier.identifier
+            break
+
+    abstract = None
+    publication_year = None
+    created_date = None
+    for enhancement in destiny_work.enhancements:
+        content = enhancement.content
+        if isinstance(content, AbstractContentEnhancement):
+            abstract = content.abstract
+        elif isinstance(content, BibliographicMetadataEnhancement):
+            publication_year = content.publication_year
+            created_date = str(content.created_date) if content.created_date else None
 
     assert (
         openalex_id == expected_openalex_id
@@ -88,7 +93,7 @@ def test_destiny_openalex_work_unexpected_fields_ignored_success(
     openalex_work_dict: dict,
 ) -> None:
     """
-    Test that unexpected fields are ignored when creating an DestinyOpenAlexWork object.
+    Test that unexpected fields are ignored when creating an ReferenceFileInput object.
 
     By default, Pydantic will ignore unexpected fields when creating an object.
     In this way, if DestinyOpenAlex adds additional fields to their API response, we can be more confident
@@ -101,11 +106,11 @@ def test_destiny_openalex_work_unexpected_fields_ignored_success(
     )
 
     work = convert_openalex_to_destiny(invalid_openalex_work_dict)
-    openalex_id_dict = next(
-        (item for item in work.identifiers if item["identifier_type"] == "open_alex"),
-        None,
-    )
-    openalex_id = openalex_id_dict.get("identifier", None) if openalex_id_dict else None
+    openalex_id = None
+    for identifier in work.identifiers:
+        if isinstance(identifier, OpenAlexIdentifier):
+            openalex_id = identifier.identifier
+            break
 
     assert (
         openalex_id == expected_openalex_id
@@ -120,18 +125,20 @@ def test_destiny_openalex_work_unexpected_fields_ignored_success(
 def test_destiny_openalex_work_missing_identifier_fields_ignored(
     openalex_work_dict: dict, missing_field: str, missing_field_value: None | str
 ) -> None:
-    """Test that empty identifier fields are ignored when creating an DestinyOpenAlexWork object."""
+    """Test that empty identifier fields are ignored when creating an ReferenceFileInput object."""
     expected_openalex_id = openalex_work_dict["ids"]["openalex"].rsplit("/", 1)[-1]
     invalid_openalex_work_dict = openalex_work_dict.copy()
     invalid_openalex_work_dict["ids"][missing_field] = missing_field_value
 
     work = convert_openalex_to_destiny(invalid_openalex_work_dict)
 
-    openalex_id_dict = next(
-        (item for item in work.identifiers if item["identifier_type"] == "open_alex"),
-        None,
-    )
-    openalex_id = openalex_id_dict.get("identifier", None) if openalex_id_dict else None
+    openalex_id = None
+    for identifier in work.identifiers:
+        if isinstance(identifier, OpenAlexIdentifier):
+            openalex_id = identifier.identifier
+            break
+
+    identifier_types = [identifier.identifier_type for identifier in work.identifiers]
 
     assert (
         openalex_id == expected_openalex_id
@@ -139,15 +146,15 @@ def test_destiny_openalex_work_missing_identifier_fields_ignored(
     assert not hasattr(
         work, "an_unexpected_field"
     ), "Expect that the unexpected field is not set on the object"
-    assert missing_field not in [
-        identifier["identifier_type"] for identifier in work.identifiers
-    ], "Expect that the missing identifier field is not set on the object"
+    assert (
+        missing_field not in identifier_types
+    ), "Expect that the missing identifier field is not set on the object"
 
 
 def test_get_destiny_openalex_work_success(
     openalex_work_dict: dict,
 ) -> None:
-    """Test that the get_destiny_openalex_work function returns a DestinyOpenAlexWorkMetadata object."""
+    """Test that the get_destiny_openalex_work function returns a ReferenceFileInput object."""
     correct_source_for_openalex_input = DataSource.OPEN_ALEX
     expected_openalex_id = openalex_work_dict["ids"]["openalex"].rsplit("/", 1)[-1]
     expected_abstract = "This is an example abstract"
@@ -192,31 +199,35 @@ def test_get_destiny_openalex_work_success(
     )
 
     assert isinstance(
-        work, DestinyOpenAlexWork
-    ), "Expect that the returned object is of type DestinyOpenAlexWork"
+        work, ReferenceFileInput
+    ), "Expect that the returned object is of type ReferenceFileInput"
 
-    abstract_dict = next(
-        enhancement_dict
-        for enhancement_dict in work.enhancements
-        if "abstract" in enhancement_dict["content"]["enhancement_type"]
-    )
+    abstract_content = None
+    for enhancement in work.enhancements:
+        if isinstance(enhancement.content, AbstractContentEnhancement):
+            abstract_content = enhancement.content
+            break
+
+    first_identifier = work.identifiers[0] if work.identifiers else None
+    first_identifier_value = first_identifier.identifier if first_identifier else None
 
     assert (
-        work.identifiers[0]["identifier"] == expected_openalex_id
+        first_identifier_value == expected_openalex_id
     ), "Expect that the OpenAlex ID is set correctly in the identifiers"
+    assert abstract_content is not None, "Abstract content should be present"
     assert (
-        abstract_dict["content"]["abstract"] == expected_abstract
+        abstract_content.abstract == expected_abstract
     ), "Expect that the abstract is set correctly"
     assert (
-        abstract_dict["content"]["process"] == expected_abstract_process
+        abstract_content.process.value == expected_abstract_process
     ), "Expect that the abstract process is set correctly"
 
 
-def test_get_destiny_openalex_work_blank_abstract_from_openalex_input_with_incorrect_source(
+def test_get_destiny_openalex_work_blank_abstract_from_openalex_input_with_incorrect_source(  # noqa: PLR0915
     openalex_work_dict: dict,
 ) -> None:
     """
-    Test that the get_destiny_openalex_work function returns a DestinyOpenAlexWorkMetadata object.
+    Test that the get_destiny_openalex_work function returns a ReferenceFileInput object.
 
     This test checks that when the source is not set to 'openalex' for openalex-type (inverted abstract)
     data, the abstract is not set and does not appear as an enhancement.
@@ -284,36 +295,49 @@ def test_get_destiny_openalex_work_blank_abstract_from_openalex_input_with_incor
         work_metadata, openalex_work_dict, data_source=bad_source_for_openalex_input
     )
 
-    work_annotations = next(
-        enhancement.get("content").get("annotations")
-        for enhancement in work.enhancements
-        if enhancement.get("content", {}).get("enhancement_type") == "annotation"
-    )
-
-    work_locations = next(
-        enhancement.get("content").get("locations")
-        for enhancement in work.enhancements
-        if enhancement.get("content", {}).get("enhancement_type") == "location"
-    )
+    work_annotations = None
+    work_locations = None
+    for enhancement in work.enhancements:
+        content = enhancement.content
+        if isinstance(content, AnnotationEnhancement):
+            work_annotations = content.annotations
+        elif isinstance(content, LocationEnhancement):
+            work_locations = content.locations
 
     assert isinstance(
-        work, DestinyOpenAlexWork
-    ), "Expect that the returned object is of type DestinyOpenAlexWork"
+        work, ReferenceFileInput
+    ), "Expect that the returned object is of type ReferenceFileInput"
+
+    first_identifier = work.identifiers[0] if work.identifiers else None
+    first_identifier_value = first_identifier.identifier if first_identifier else None
     assert (
-        work.identifiers[0]["identifier"] == expected_openalex_id
+        first_identifier_value == expected_openalex_id
     ), "Expect that the OpenAlex ID is set correctly in the identifiers"
 
+    assert work_annotations is not None, "Annotations should be present"
     assert (
-        next(iter(work_annotations))["data"] == expected_annotations
+        work_annotations[0].data == expected_annotations
     ), "Expect that the annotations are still set correctly in the case of no abstract"
+
+    assert work_locations is not None, "Locations should be present"
+    first_location = work_locations[0] if work_locations else None
+    assert first_location is not None, "First location should be present"
+    first_location_dict = {
+        "is_oa": first_location.is_oa,
+        "landing_page_url": str(first_location.landing_page_url)
+        if first_location.landing_page_url
+        else None,
+        "extra": first_location.extra,
+    }
     assert (
-        next(iter(work_locations)) == expected_locations
+        first_location_dict == expected_locations
     ), "Expect that the locations are still set correctly in the case of no abstract"
 
-    assert "abstract" not in [
-        enhancement_dict["content"]["enhancement_type"]
-        for enhancement_dict in work.enhancements
-    ], "Expect that the abstract is not set in the enhancements"
+    has_abstract = any(
+        isinstance(enhancement.content, AbstractContentEnhancement)
+        for enhancement in work.enhancements
+    )
+    assert not has_abstract, "Expect that the abstract is not set in the enhancements"
 
 
 @pytest.mark.parametrize(
@@ -342,13 +366,15 @@ def test_pubmed_identifier_parsed_as_integer(
     openalex_work_dict: dict,
 ) -> None:
     """
-    Test that the pubmed identifier is parsed as an integer in DestinyOpenAlexWork.
+    Test that the pubmed identifier is parsed as an integer in ReferenceFileInput.
 
     All other identifiers should be parsed as strings.
     """
     test_openalex_work_dict = openalex_work_dict.copy()
     openalex_identifier = openalex_work_dict["ids"].get("openalex").rsplit("/", 1)[-1]
     doi_identifier = openalex_work_dict["ids"].get("doi")
+    # DOIIdentifier strips https://doi.org/ prefix automatically
+    expected_doi_identifier = doi_identifier.replace("https://doi.org/", "")
     test_pmid_identifier = "https://pubmed.ncbi.nlm.nih.gov/123456789"
     test_microsoft_academic_graph_identifier = "2222222222"
     test_pubmed_central_identifier = "3333333333"
@@ -360,65 +386,68 @@ def test_pubmed_identifier_parsed_as_integer(
     test_openalex_work_dict["ids"]["pmcid"] = test_pubmed_central_identifier
 
     destiny_work = convert_openalex_to_destiny(test_openalex_work_dict)
-    destiny_pubmed_identifier = next(
-        identifier
-        for identifier in destiny_work.identifiers
-        if identifier["identifier_type"] == "pm_id"
-    )
-    destiny_openalex_identifier = next(
-        identifier
-        for identifier in destiny_work.identifiers
-        if identifier["identifier_type"] == "open_alex"
-    )
-    destiny_doi_identifier = next(
-        identifier
-        for identifier in destiny_work.identifiers
-        if identifier["identifier_type"] == "doi"
-    )
-    destiny_microsoft_academic_graph_identifier = next(
-        identifier
-        for identifier in destiny_work.identifiers
-        if identifier["identifier_type"] == "other"
-        and identifier["other_identifier_name"] == "Microsoft Academic Graph ID"
-    )
-    destiny_pubmed_central_identifier = next(
-        identifier
-        for identifier in destiny_work.identifiers
-        if identifier["identifier_type"] == "other"
-        and identifier["other_identifier_name"] == "Pubmed Central ID"
-    )
+
+    destiny_pubmed_identifier = None
+    destiny_openalex_identifier = None
+    destiny_doi_identifier = None
+    destiny_microsoft_academic_graph_identifier = None
+    destiny_pubmed_central_identifier = None
+
+    for identifier in destiny_work.identifiers:
+        if isinstance(identifier, PubMedIdentifier):
+            destiny_pubmed_identifier = identifier
+        elif isinstance(identifier, OpenAlexIdentifier):
+            destiny_openalex_identifier = identifier
+        elif isinstance(identifier, DOIIdentifier):
+            destiny_doi_identifier = identifier
+        elif isinstance(identifier, OtherIdentifier):
+            if identifier.other_identifier_name == "Microsoft Academic Graph ID":
+                destiny_microsoft_academic_graph_identifier = identifier
+            elif identifier.other_identifier_name == "Pubmed Central ID":
+                destiny_pubmed_central_identifier = identifier
+
+    assert (
+        destiny_openalex_identifier is not None
+    ), "OpenAlex identifier should be found"
+    assert destiny_doi_identifier is not None, "DOI identifier should be found"
+    assert (
+        destiny_microsoft_academic_graph_identifier is not None
+    ), "MAG identifier should be found"
+    assert (
+        destiny_pubmed_central_identifier is not None
+    ), "PMC identifier should be found"
+    assert destiny_pubmed_identifier is not None, "PubMed identifier should be found"
 
     assert isinstance(
-        destiny_openalex_identifier["identifier"], str
+        destiny_openalex_identifier.identifier, str
     ), "Expect that openalex_id is a string"
     assert isinstance(
-        destiny_doi_identifier["identifier"], str
+        destiny_doi_identifier.identifier, str
     ), "Expect that doi_id is a string"
     assert isinstance(
-        destiny_microsoft_academic_graph_identifier["identifier"], str
+        destiny_microsoft_academic_graph_identifier.identifier, str
     ), "Expect that mag_id is a string"
     assert isinstance(
-        destiny_pubmed_central_identifier["identifier"], str
+        destiny_pubmed_central_identifier.identifier, str
     ), "Expect that pubmed_central_id is a string"
     assert (
-        destiny_openalex_identifier["identifier"] == openalex_identifier
+        destiny_openalex_identifier.identifier == openalex_identifier
     ), "Expect that openalex_id is parsed correctly"
     assert (
-        destiny_doi_identifier["identifier"] == doi_identifier
+        destiny_doi_identifier.identifier == expected_doi_identifier
     ), "Expect that doi_id is parsed correctly"
     assert (
-        destiny_microsoft_academic_graph_identifier["identifier"]
+        destiny_microsoft_academic_graph_identifier.identifier
         == test_microsoft_academic_graph_identifier
     ), "Expect that mag_id is parsed correctly"
     assert (
-        destiny_pubmed_central_identifier["identifier"]
-        == test_pubmed_central_identifier
+        destiny_pubmed_central_identifier.identifier == test_pubmed_central_identifier
     ), "Expect that pubmed_central_id is parsed correctly"
 
     assert isinstance(
-        destiny_pubmed_identifier["identifier"], int
+        destiny_pubmed_identifier.identifier, int
     ), "Expect that pubmed_id is an integer"
-    assert destiny_pubmed_identifier["identifier"] == int(
+    assert destiny_pubmed_identifier.identifier == int(
         expected_resulting_pmid
     ), "Expect that pubmed_id is parsed correctly"
 
@@ -427,94 +456,108 @@ def test_pubmed_identifier_none_case_handled(
     openalex_work_dict: dict,
 ) -> None:
     """
-    Test that the pubmed identifier is parsed as an integer in DestinyOpenAlexWork.
+    Test that the pubmed identifier is parsed as an integer in ReferenceFileInput.
 
     All other identifiers should be parsed as strings.
     """
     test_openalex_work_dict = openalex_work_dict.copy()
     openalex_identifier = openalex_work_dict["ids"].get("openalex").rsplit("/", 1)[-1]
     doi_identifier = openalex_work_dict["ids"].get("doi")
+    # DOIIdentifier strips https://doi.org/ prefix automatically
+    expected_doi_identifier = doi_identifier.replace("https://doi.org/", "")
     test_pmid_identifier = None
 
     test_openalex_work_dict["ids"]["pmid"] = test_pmid_identifier
 
     destiny_work = convert_openalex_to_destiny(test_openalex_work_dict)
 
-    destiny_openalex_identifier = next(
-        identifier
-        for identifier in destiny_work.identifiers
-        if identifier["identifier_type"] == "open_alex"
-    )
-    destiny_doi_identifier = next(
-        identifier
-        for identifier in destiny_work.identifiers
-        if identifier["identifier_type"] == "doi"
-    )
+    destiny_openalex_identifier = None
+    destiny_doi_identifier = None
+
+    for identifier in destiny_work.identifiers:
+        if isinstance(identifier, OpenAlexIdentifier):
+            destiny_openalex_identifier = identifier
+        elif isinstance(identifier, DOIIdentifier):
+            destiny_doi_identifier = identifier
+
+    assert (
+        destiny_openalex_identifier is not None
+    ), "OpenAlex identifier should be found"
+    assert destiny_doi_identifier is not None, "DOI identifier should be found"
 
     assert isinstance(
-        destiny_openalex_identifier["identifier"], str
+        destiny_openalex_identifier.identifier, str
     ), "Expect that openalex_id is a string"
     assert isinstance(
-        destiny_doi_identifier["identifier"], str
+        destiny_doi_identifier.identifier, str
     ), "Expect that doi_id is a string"
     assert (
-        destiny_openalex_identifier["identifier"] == openalex_identifier
+        destiny_openalex_identifier.identifier == openalex_identifier
     ), "Expect that openalex_id is parsed correctly"
     assert (
-        destiny_doi_identifier["identifier"] == doi_identifier
+        destiny_doi_identifier.identifier == expected_doi_identifier
     ), "Expect that doi_id is parsed correctly"
 
     # Pubmed ID shouldn't be present if it is None
-    assert "pm_id" not in [
-        identifier["identifier_type"] for identifier in destiny_work.identifiers
-    ], "Expect that pm_id is not present if it is None"
+    has_pubmed = any(
+        isinstance(identifier, PubMedIdentifier)
+        for identifier in destiny_work.identifiers
+    )
+    assert not has_pubmed, "Expect that pm_id is not present if it is None"
 
 
 def test_pubmed_central_identifier_masquerading_as_pubmed_id(
     openalex_work_dict: dict,
 ) -> None:
     """
-    Test that the pubmed identifier is parsed as an integer in DestinyOpenAlexWork.
+    Test that the pubmed identifier is parsed as an integer in ReferenceFileInput.
 
     All other identifiers should be parsed as strings.
     """
     test_openalex_work_dict = openalex_work_dict.copy()
     openalex_identifier = openalex_work_dict["ids"].get("openalex").rsplit("/", 1)[-1]
     doi_identifier = openalex_work_dict["ids"].get("doi")
+    # DOIIdentifier strips https://doi.org/ prefix automatically
+    expected_doi_identifier = doi_identifier.replace("https://doi.org/", "")
     test_pmid_identifier = "PMCID123456789"
 
     test_openalex_work_dict["ids"]["pmid"] = test_pmid_identifier
 
     destiny_work = convert_openalex_to_destiny(test_openalex_work_dict)
 
-    destiny_openalex_identifier = next(
-        identifier
-        for identifier in destiny_work.identifiers
-        if identifier["identifier_type"] == "open_alex"
-    )
-    destiny_doi_identifier = next(
-        identifier
-        for identifier in destiny_work.identifiers
-        if identifier["identifier_type"] == "doi"
-    )
+    destiny_openalex_identifier = None
+    destiny_doi_identifier = None
+
+    for identifier in destiny_work.identifiers:
+        if isinstance(identifier, OpenAlexIdentifier):
+            destiny_openalex_identifier = identifier
+        elif isinstance(identifier, DOIIdentifier):
+            destiny_doi_identifier = identifier
+
+    assert (
+        destiny_openalex_identifier is not None
+    ), "OpenAlex identifier should be found"
+    assert destiny_doi_identifier is not None, "DOI identifier should be found"
 
     assert isinstance(
-        destiny_openalex_identifier["identifier"], str
+        destiny_openalex_identifier.identifier, str
     ), "Expect that openalex_id is a string"
     assert isinstance(
-        destiny_doi_identifier["identifier"], str
+        destiny_doi_identifier.identifier, str
     ), "Expect that doi_id is a string"
     assert (
-        destiny_openalex_identifier["identifier"] == openalex_identifier
+        destiny_openalex_identifier.identifier == openalex_identifier
     ), "Expect that openalex_id is parsed correctly"
     assert (
-        destiny_doi_identifier["identifier"] == doi_identifier
+        destiny_doi_identifier.identifier == expected_doi_identifier
     ), "Expect that doi_id is parsed correctly"
 
     # Pubmed ID shouldn't be present if it is None
-    assert "pm_id" not in [
-        identifier["identifier_type"] for identifier in destiny_work.identifiers
-    ], "Expect that pm_id is not present if it is None"
+    has_pubmed = any(
+        isinstance(identifier, PubMedIdentifier)
+        for identifier in destiny_work.identifiers
+    )
+    assert not has_pubmed, "Expect that pm_id is not present if it is None"
 
 
 @pytest.mark.parametrize(

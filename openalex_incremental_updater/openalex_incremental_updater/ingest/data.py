@@ -2,9 +2,8 @@
 
 from collections.abc import AsyncIterator
 
+from destiny_sdk.references import ReferenceFileInput
 from loguru import logger
-
-from openalex_incremental_updater.models.destiny import DestinyOpenAlexWork
 
 
 class JSONLConversionError(Exception):
@@ -12,13 +11,13 @@ class JSONLConversionError(Exception):
 
 
 async def convert_destinyworks_to_jsonl_string(
-    destiny_data: AsyncIterator[list[DestinyOpenAlexWork]],
+    destiny_data: AsyncIterator[list[ReferenceFileInput]],
 ) -> AsyncIterator[bytes]:
     """
-    Generate JSONL lines from DestinyOpenAlexWork objects.
+    Generate JSONL lines from ReferenceFileInput objects.
 
     Args:
-        destiny_data (AsyncIterator[list[DestinyOpenAlexWork]]): The work objects to convert.
+        destiny_data (AsyncIterator[list[ReferenceFileInput]]): The work objects to convert.
 
     Yields:
         AsyncIterator[bytes]: An iterator of JSONL lines.
@@ -27,12 +26,12 @@ async def convert_destinyworks_to_jsonl_string(
     try:
         async for batch in destiny_data:
             if not isinstance(batch, list):
-                error_message = "Each batch must be a list of DestinyOpenAlexWork"
+                error_message = "Each batch must be a list of ReferenceFileInput"
                 logger.error(error_message)
                 raise JSONLConversionError(error_message)
             for work in batch:
-                if not isinstance(work, DestinyOpenAlexWork):
-                    error_message = "All items must be DestinyOpenAlexWork instances"
+                if not isinstance(work, ReferenceFileInput):
+                    error_message = "All items must be ReferenceFileInput instances"
                     logger.error(error_message)
                     raise JSONLConversionError(error_message)
                 jsonl_line = work.model_dump_json().encode("utf-8") + b"\n"

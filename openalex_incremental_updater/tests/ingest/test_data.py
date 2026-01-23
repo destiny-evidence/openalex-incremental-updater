@@ -1,11 +1,11 @@
 import pytest
+from destiny_sdk.references import ReferenceFileInput
 from pytest_mock import MockerFixture
 
 from openalex_incremental_updater.ingest.data import (
     JSONLConversionError,
     convert_destinyworks_to_jsonl_string,
 )
-from openalex_incremental_updater.models.destiny import DestinyOpenAlexWork
 
 
 @pytest.mark.asyncio
@@ -13,37 +13,14 @@ async def test_convert_destinyworks_to_jsonl_string_valid_json(destiny_work_dict
     """Test successful conversion of JSON to JSON-line based with valid JSON."""
     destiny_data = [
         [
-            DestinyOpenAlexWork.model_validate(destiny_work_dict),
+            ReferenceFileInput.model_validate(destiny_work_dict),
         ],
         [
-            DestinyOpenAlexWork.model_validate(destiny_work_dict),
-            DestinyOpenAlexWork.model_validate(destiny_work_dict),
+            ReferenceFileInput.model_validate(destiny_work_dict),
+            ReferenceFileInput.model_validate(destiny_work_dict),
         ],
     ]
-    expected_jsonl = '{"visibility":"public","identifiers":[{"identifier_type":"doi",\
-"identifier":"10.1234/sampledoi"},{"identifier_type":"openalex","identifier":\
-"W1234567890"}],"enhancements":[{"source":"openalex","visibility":"public",\
-"processor_version":"1.0.0","content":\
-{"enhancement_type":"bibliographic","authorship":[{"display_name":\
-"Alice Example","orcid":"0000-0001-2345-6789","position":"first"}],\
-"cited_by_count":10,"created_date":"2020-05-01","publication_date":\
-"2020-04-01","publication_year":2020,"publisher":"Example Publisher"}}]}\n\
-{"visibility":"public","identifiers":[{"identifier_type":"doi","identifier":\
-"10.1234/sampledoi"},{"identifier_type":"openalex","identifier":"W1234567890"}],\
-"enhancements":[{"source":"openalex","visibility":"public","processor_version":\
-"1.0.0","content":{"enhancement_type":\
-"bibliographic","authorship":[{"display_name":"Alice Example","orcid":\
-"0000-0001-2345-6789","position":"first"}],"cited_by_count":10,"created_date":\
-"2020-05-01","publication_date":"2020-04-01","publication_year":2020,\
-"publisher":"Example Publisher"}}]}\n\
-{"visibility":"public","identifiers":[{"identifier_type":"doi","identifier":\
-"10.1234/sampledoi"},{"identifier_type":"openalex","identifier":"W1234567890"}],\
-"enhancements":[{"source":"openalex","visibility":"public","processor_version":\
-"1.0.0","content":{"enhancement_type":\
-"bibliographic","authorship":[{"display_name":"Alice Example","orcid":\
-"0000-0001-2345-6789","position":"first"}],"cited_by_count":10,"created_date":\
-"2020-05-01","publication_date":"2020-04-01","publication_year":2020,\
-"publisher":"Example Publisher"}}]}\n'
+    expected_jsonl = '{"visibility":"public","identifiers":[{"identifier":"10.1234/sampledoi","identifier_type":"doi"},{"identifier":"W1234567890","identifier_type":"open_alex"}],"enhancements":[{"source":"openalex","visibility":"public","robot_version":"1.0.0","content":{"enhancement_type":"bibliographic","authorship":[{"display_name":"Alice Example","orcid":"0000-0001-2345-6789","position":"first"}],"cited_by_count":10,"created_date":"2020-05-01","updated_date":null,"publication_date":"2020-04-01","publication_year":2020,"publisher":"Example Publisher","title":null}}]}\n{"visibility":"public","identifiers":[{"identifier":"10.1234/sampledoi","identifier_type":"doi"},{"identifier":"W1234567890","identifier_type":"open_alex"}],"enhancements":[{"source":"openalex","visibility":"public","robot_version":"1.0.0","content":{"enhancement_type":"bibliographic","authorship":[{"display_name":"Alice Example","orcid":"0000-0001-2345-6789","position":"first"}],"cited_by_count":10,"created_date":"2020-05-01","updated_date":null,"publication_date":"2020-04-01","publication_year":2020,"publisher":"Example Publisher","title":null}}]}\n{"visibility":"public","identifiers":[{"identifier":"10.1234/sampledoi","identifier_type":"doi"},{"identifier":"W1234567890","identifier_type":"open_alex"}],"enhancements":[{"source":"openalex","visibility":"public","robot_version":"1.0.0","content":{"enhancement_type":"bibliographic","authorship":[{"display_name":"Alice Example","orcid":"0000-0001-2345-6789","position":"first"}],"cited_by_count":10,"created_date":"2020-05-01","updated_date":null,"publication_date":"2020-04-01","publication_year":2020,"publisher":"Example Publisher","title":null}}]}\n'
 
     async def async_gen(data):
         for item in data:
@@ -77,7 +54,7 @@ async def test_convert_destinyworks_to_jsonl_string_invalid_jsonl_conversion_bat
     with pytest.raises(JSONLConversionError) as error:
         _result = [item async for item in result_generator]
 
-    assert "Each batch must be a list of DestinyOpenAlexWork" in str(error.value)
+    assert "Each batch must be a list of ReferenceFileInput" in str(error.value)
 
 
 @pytest.mark.asyncio
@@ -99,7 +76,7 @@ async def test_convert_destinyworks_to_jsonl_string_invalid_jsonl_conversion_ite
     with pytest.raises(JSONLConversionError) as error:
         _result = [item async for item in result_generator]
 
-    assert "All items must be DestinyOpenAlexWork instances" in str(error.value)
+    assert "All items must be ReferenceFileInput instances" in str(error.value)
 
 
 @pytest.mark.asyncio
@@ -123,7 +100,7 @@ async def test_convert_destinyworks_to_jsonl_string_fails_non_serializable(
     mocker: MockerFixture, destiny_work_dict: dict
 ):
     """Test failed conversion of un-serializable JSON to JSON-line based."""
-    test_data = [[DestinyOpenAlexWork.model_validate(destiny_work_dict)]]
+    test_data = [[ReferenceFileInput.model_validate(destiny_work_dict)]]
 
     async def async_gen(data):
         for item in data:

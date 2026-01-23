@@ -100,7 +100,7 @@ async def openalex_ingest_processing(
         limit (int): Maximum number of records to ingest.
 
     Returns:
-        list[DestinyOpenAlexWork]: List of DestinyOpenAlexWork objects.
+        list[ReferenceFileInput]: List of ReferenceFileInput objects.
 
     """
     job_id = job_manager.create(
