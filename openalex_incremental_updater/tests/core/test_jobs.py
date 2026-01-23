@@ -3,6 +3,7 @@ from datetime import date
 from typing import Any
 
 import pytest
+from destiny_sdk.references import ReferenceFileInput
 from fastapi import HTTPException, status
 from freezegun import freeze_time
 from pytest_mock import MockerFixture
@@ -17,7 +18,6 @@ from openalex_incremental_updater.ingest.openalex import (
     CreatedOrUpdated,
     UpstreamOpenAlexError,
 )
-from openalex_incremental_updater.models.destiny import DestinyOpenAlexWork
 
 
 @pytest.mark.anyio
@@ -113,7 +113,7 @@ async def test_openalex_works_ingest_date_range_success(
 ):
     """Test successful ingestion of OpenAlex works within a date range."""
     test_response = [
-        DestinyOpenAlexWork.model_validate(single_destinyopenalex_work_response)
+        ReferenceFileInput.model_validate(single_destinyopenalex_work_response)
     ]
     mocker.patch(
         "openalex_incremental_updater.ingest.openalex.OpenAlexDataFetcher.build_range_query",

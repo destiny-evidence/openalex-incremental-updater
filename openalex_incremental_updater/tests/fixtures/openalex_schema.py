@@ -6,20 +6,20 @@ from openalex_incremental_updater.models.openalex import OpenAlexWork
 @pytest.fixture
 def openalex_work_dict() -> dict:
     return {
-        "id": "https://openalex.org/example-openalex-id",
-        "doi": "https://doi.org/example-doi",
+        "id": "https://openalex.org/W1234567890",
+        "doi": "https://doi.org/10.1234/example-doi",
         "title": "Test title",
         "display_name": "Test display name",
         "publication_year": 2025,
         "publication_date": "2025-01-01",
         "ids": {
-            "openalex": "https://openalex.org/example-openalex-id",
-            "doi": "https://doi.org/example-doi",
+            "openalex": "https://openalex.org/W1234567890",
+            "doi": "https://doi.org/10.1234/example-doi",
         },
         "language": "en",
         "primary_location": {
             "is_oa": False,
-            "landing_page_url": "https://doi.org/example-doi",
+            "landing_page_url": "https://doi.org/10.1234/example-doi",
             "pdf_url": None,
             "source": {
                 "id": "https://openalex.org/example-source-id",
@@ -167,7 +167,7 @@ def openalex_work_dict() -> dict:
         "locations": [
             {
                 "is_oa": False,
-                "landing_page_url": "https://doi.org/example-doi",
+                "landing_page_url": "https://doi.org/10.1234/example-doi",
                 "pdf_url": None,
                 "source": {
                     "id": "https://openalex.org/example-location-id",
@@ -220,7 +220,7 @@ def openalex_work_dict() -> dict:
             "abstract": [4],
         },
         "abstract_inverted_index_v3": None,
-        "cited_by_api_url": "https://api.openalex.org/works?filter=cites:example-openalex-id",
+        "cited_by_api_url": "https://api.openalex.org/works?filter=cites:W1234567890",
         "counts_by_year": [],
         "updated_date": "2025-01-02T01:00:00.00",
         "created_date": "2025-01-01",
