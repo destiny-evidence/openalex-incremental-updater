@@ -46,7 +46,6 @@ async def run_background_openalex_ingest_job(
     date_today = datetime.now(ZoneInfo("UTC")).date()
     total_ingested = 0
     uploaded_blob_name: str | None = None
-    job_progress = job_manager.get(job_id).get("progress", {})
     try:
         job_result = openalex_works_ingest_date_range(
             report, start_date, end_date, ingest_type, limit
@@ -58,6 +57,7 @@ async def run_background_openalex_ingest_job(
             job_result, start_date, end_date, date_today
         )
 
+        job_progress = job_manager.get(job_id).get("progress", {})
         total_ingested = job_progress.get("total_works", 0)
         logger.info(f"Upload complete. {job_progress=}, {total_ingested=}")
     except (UpstreamOpenAlexError, JSONLConversionError) as error:
