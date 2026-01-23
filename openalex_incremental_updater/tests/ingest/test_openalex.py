@@ -11,6 +11,7 @@ from openalex_incremental_updater.ingest import CreatedOrUpdated
 from openalex_incremental_updater.ingest.openalex import (
     OpenAlexDataFetcher,
     UpstreamOpenAlexError,
+    safe_result_conversion,
 )
 from openalex_incremental_updater.models.destiny import convert_openalex_to_destiny
 
@@ -118,3 +119,93 @@ def test_build_range_query(
     query = fetcher.build_range_query(test_start_date, test_end_date, ingest_type)
 
     assert query == expected_output
+
+
+def test_safe_result_conversion_success(
+    single_openalex_work_response: list[dict],
+) -> None:
+    errors_dict: dict[str, list[str]] = {"doi_errors": []}
+    expected_converted = [convert_openalex_to_destiny(single_openalex_work_response)]
+    safe_converted = safe_result_conversion(
+        [single_openalex_work_response],
+        errors_dict,
+        report=None,
+    )
+
+    assert all(
+        converted == expected
+        for converted, expected in zip(safe_converted, expected_converted, strict=False)
+    ), "Converted results should match expected results"
+    assert errors_dict["doi_errors"] == [], "There should be no DOI errors"
+
+
+@pytest.mark.parametrize(
+    "doi_pair",
+    [
+        ["this/is/an/invalid_doi/", "10.1000/xyz456"],
+        ["http://invalid_doi.com/12345", "10.1000/xyz456"],
+        ["10.1000/xyz456=", "10.1000/xyz456"],
+    ],
+)
+def test_safe_result_conversion_with_invalid_doi_with_report(
+    double_openalex_work_response: list[dict],
+    doi_pair: list[str],
+    job_report_dict: dict,
+) -> None:
+    errors_dict: dict[str, list[str]] = {"doi_errors": []}
+    job_manager = job_report_dict["job_manager"]
+    job_id = job_report_dict["job_id"]
+    job_report = job_report_dict["report"]
+    invalid_doi_responses = double_openalex_work_response.copy()
+    for i, _ in enumerate(invalid_doi_responses):
+        invalid_doi_responses[i]["doi"] = doi_pair[i]
+        invalid_doi_responses[i]["ids"]["doi"] = doi_pair[i]
+
+    invalid_dois = [doi_pair[0]]
+
+    result_payload = invalid_doi_responses
+    safe_converted = safe_result_conversion(
+        result_payload,
+        errors_dict,
+        report=job_report,
+    )
+    report_progress = job_manager.get(job_id).get("progress", {})
+    report_errors = report_progress.get("errors", {})
+
+    expected_converted_records = len(doi_pair) - len(invalid_dois)
+    assert (
+        len(safe_converted) == expected_converted_records
+    ), "Only valid DOI entries should be converted"
+    assert set(report_errors.get("doi_errors", [])) == set(invalid_dois)
+
+
+@pytest.mark.parametrize(
+    "doi_pair",
+    [
+        ["this/is/an/invalid_doi/", "10.1000/xyz456"],
+        ["http://invalid_doi.com/12345", "10.1000/xyz456"],
+        ["10.1000/xyz456=", "10.1000/xyz456"],
+    ],
+)
+def test_safe_result_conversion_with_invalid_doi_no_report(
+    double_openalex_work_response: list[dict],
+    doi_pair: list[str],
+) -> None:
+    errors_dict: dict[str, list[str]] = {"doi_errors": []}
+    invalid_doi_responses = double_openalex_work_response.copy()
+    for i, _ in enumerate(invalid_doi_responses):
+        invalid_doi_responses[i]["doi"] = doi_pair[i]
+        invalid_doi_responses[i]["ids"]["doi"] = doi_pair[i]
+
+    invalid_dois = [doi_pair[0]]
+
+    result_payload = invalid_doi_responses
+    safe_converted = safe_result_conversion(
+        result_payload,
+        errors_dict,
+        report=None,
+    )
+    expected_converted_records = len(doi_pair) - len(invalid_dois)
+    assert (
+        len(safe_converted) == expected_converted_records
+    ), "Only valid DOI entries should be converted"

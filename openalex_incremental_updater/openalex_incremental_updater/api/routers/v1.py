@@ -1,7 +1,7 @@
 """API Router definitions for the OpenAlex Incremental Updater - version 1."""
 
 import asyncio
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable
 from datetime import date
 from typing import Annotated, Any
 
@@ -10,7 +10,11 @@ from fastapi.responses import JSONResponse
 
 from openalex_incremental_updater.core.auth import generate_token
 from openalex_incremental_updater.core.config import get_settings
-from openalex_incremental_updater.core.job_state import JobManager, JobState
+from openalex_incremental_updater.core.job_state import (
+    JobManager,
+    JobState,
+    report_status,
+)
 from openalex_incremental_updater.core.jobs import (
     run_background_openalex_ingest_job,
 )
@@ -51,23 +55,6 @@ async def _run_with_tracking_async(job_id: str, coro: Awaitable) -> None:
         job_manager.fail(job_id, generic_exception)
     finally:
         TASKS.pop(job_id, None)
-
-
-def report_status(job_manager: JobManager, job_id: str) -> Callable:
-    """
-    Create a report function for updating the status and progress of a job.
-
-    Args:
-        job_manager (JobManager): The job manager instance.
-        job_id (str): The ID of the job to report status for.
-
-
-    """
-
-    def report(**fields: dict) -> None:
-        job_manager.set_progress(job_id, **fields)
-
-    return report
 
 
 @router.get("/openalex_works_ingest_date_range")
