@@ -123,20 +123,29 @@ def test_build_range_query(
 
 def test_safe_result_conversion_success(
     single_openalex_work_response: list[dict],
+    job_report_dict: dict,
 ) -> None:
     errors_dict: dict[str, list[str]] = {"doi_errors": []}
+    job_manager = job_report_dict["job_manager"]
+    job_id = job_report_dict["job_id"]
+    job_report = job_report_dict["report"]
     expected_converted = [convert_openalex_to_destiny(single_openalex_work_response)]
     safe_converted = safe_result_conversion(
         [single_openalex_work_response],
         errors_dict,
-        report=None,
+        report=job_report,
     )
 
+    report_progress = job_manager.get(job_id).get("progress", {})
+    report_errors = report_progress.get("errors", {})
+    doi_errors = report_errors.get("doi_errors", [])
     assert all(
         converted == expected
         for converted, expected in zip(safe_converted, expected_converted, strict=False)
     ), "Converted results should match expected results"
-    assert errors_dict["doi_errors"] == [], "There should be no DOI errors"
+    assert (
+        doi_errors == errors_dict["doi_errors"] == []
+    ), "There should be no DOI errors"
 
 
 @pytest.mark.parametrize(
