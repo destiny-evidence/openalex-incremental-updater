@@ -1,5 +1,6 @@
 """Retrieve data from OpenAlex API."""
 
+import copy
 import uuid
 from asyncio import Lock
 from collections.abc import AsyncIterator, Callable
@@ -8,6 +9,7 @@ from datetime import date
 import httpx
 from destiny_sdk.references import ReferenceFileInput
 from loguru import logger
+from pydantic import ValidationError
 
 from openalex_incremental_updater.core.config import get_settings
 from openalex_incremental_updater.core.job_state import JobState
@@ -18,6 +20,8 @@ from openalex_incremental_updater.models.destiny import (
     convert_openalex_to_destiny,
 )
 
+_MAX_DOI_ERROR_EXAMPLES = 5
+
 fetch_lock = Lock()
 
 
@@ -27,7 +31,7 @@ class UpstreamOpenAlexError(Exception):
 
 def safe_result_conversion(
     results: list[dict],
-    errors_dict: dict[str, list[str]],
+    errors_dict: dict[str, dict],
     report: Callable | None = None,
 ) -> list[ReferenceFileInput]:
     """
@@ -35,31 +39,66 @@ def safe_result_conversion(
 
     "Safe" in this sense is handling non-critical errors (like invalid DOIs) gracefully.
 
+    On DOI validation errors, clear the DOI and retry the conversion so the reference is
+    retained with any other identifiers (OpenAlex, PubMed, etc.)
+
+    Errors are recorded with bounded aggregation.
+
     Args:
         results (list[dict]): List of OpenAlex result dictionaries.
-        errors_dict (dict[str, list[str]]): Dictionary to record errors.
+        errors_dict (dict[str, dict): Dictionary to record errors.
         report (Callable | None): Optional reporting function to log errors.
 
     Returns:
         list[ReferenceFileInput]: List of converted ReferenceFileInput objects.
 
     """
-    converted_results = []
+    converted_results: list[ReferenceFileInput] = []
+    doi_errors: dict = errors_dict.setdefault(
+        "doi_errors", {"total": 0, "examples": []}
+    )
     for result in results:
         try:
             converted_results.append(convert_openalex_to_destiny(result))
         except DESTINYReferenceDOIIdentifierError as doi_error:
             error_message = f"{doi_error}"
+
+            invalid_doi = error_message.split(": ")[-1]
+            logger.debug(f"Invalid DOI: {invalid_doi}")
+
             logger.warning(
                 "Encountered invalid DOI during ingestion: {}",
                 error_message,
             )
-            invalid_doi = error_message.split(": ")[-1]
-            logger.debug(f"Recording invalid DOI: {invalid_doi}")
-            if report:
-                errors_dict["doi_errors"].append(invalid_doi)
-                report(errors=errors_dict)
-            continue
+
+            doi_errors["total"] += 1
+
+            doi_error_examples = doi_errors.get("examples", [])
+            if len(doi_error_examples) < _MAX_DOI_ERROR_EXAMPLES:
+                doi_error_examples.append(invalid_doi)
+            cleaned = copy.deepcopy(result)
+
+            if isinstance(cleaned.get("ids"), dict):
+                cleaned["ids"]["doi"] = None
+            cleaned["doi"] = None
+
+            try:
+                converted_results.append(convert_openalex_to_destiny(cleaned))
+            except (
+                ValidationError,
+                ValueError,
+                TypeError,
+            ) as reference_conversion_error:
+                dropped = errors_dict.setdefault("dropped_records", {"total": 0})
+                dropped["total"] += 1
+                error_message = (
+                    "OpenAlex to Destiny conversion failed after clearing DOI"
+                    f"{reference_conversion_error}"
+                )
+                logger.warning(error_message)
+
+    if report and doi_errors.get("total", 0) > 0:
+        report(errors=errors_dict)
     return converted_results
 
 
@@ -109,7 +148,7 @@ class OpenAlexDataFetcher:
             AsyncIterator[list[ReferenceFileInput]]: The retrieved works.
 
         """
-        errors_dict: dict[str, list[str]] = {"doi_errors": []}
+        errors_dict: dict[str, dict] = {}
         if report:
             report(status=JobState.PENDING, progress="Starting fetch job")
 

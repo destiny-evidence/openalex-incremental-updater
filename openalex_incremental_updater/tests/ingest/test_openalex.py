@@ -4,6 +4,7 @@ from datetime import date
 import httpx
 import pytest
 import respx
+from destiny_sdk.identifiers import DOIIdentifier
 from fastapi import status
 from freezegun import freeze_time
 
@@ -13,7 +14,10 @@ from openalex_incremental_updater.ingest.openalex import (
     UpstreamOpenAlexError,
     safe_result_conversion,
 )
-from openalex_incremental_updater.models.destiny import convert_openalex_to_destiny
+from openalex_incremental_updater.models.destiny import (
+    DESTINYReferenceDOIIdentifierError,
+    convert_openalex_to_destiny,
+)
 
 
 @pytest.mark.anyio
@@ -125,7 +129,7 @@ def test_safe_result_conversion_success(
     single_openalex_work_response: list[dict],
     job_report_dict: dict,
 ) -> None:
-    errors_dict: dict[str, list[str]] = {"doi_errors": []}
+    errors_dict: dict[str, dict] = {}
     job_manager = job_report_dict["job_manager"]
     job_id = job_report_dict["job_id"]
     job_report = job_report_dict["report"]
@@ -138,14 +142,12 @@ def test_safe_result_conversion_success(
 
     report_progress = job_manager.get(job_id).get("progress", {})
     report_errors = report_progress.get("errors", {})
-    doi_errors = report_errors.get("doi_errors", [])
+    doi_errors = report_errors.get("doi_errors", {})
     assert all(
         converted == expected
         for converted, expected in zip(safe_converted, expected_converted, strict=False)
     ), "Converted results should match expected results"
-    assert (
-        doi_errors == errors_dict["doi_errors"] == []
-    ), "There should be no DOI errors"
+    assert doi_errors == {}, "There should be no DOI errors"
 
 
 @pytest.mark.parametrize(
@@ -156,12 +158,12 @@ def test_safe_result_conversion_success(
         ["10.1000/xyz456=", "10.1000/xyz456"],
     ],
 )
-def test_safe_result_conversion_with_invalid_doi_with_report(
+def test_safe_result_conversion_clears_invalid_doi_with_report(
     double_openalex_work_response: list[dict],
     doi_pair: list[str],
     job_report_dict: dict,
 ) -> None:
-    errors_dict: dict[str, list[str]] = {"doi_errors": []}
+    errors_dict: dict = {}
     job_manager = job_report_dict["job_manager"]
     job_id = job_report_dict["job_id"]
     job_report = job_report_dict["report"]
@@ -181,11 +183,23 @@ def test_safe_result_conversion_with_invalid_doi_with_report(
     report_progress = job_manager.get(job_id).get("progress", {})
     report_errors = report_progress.get("errors", {})
 
-    expected_converted_records = len(doi_pair) - len(invalid_dois)
-    assert (
-        len(safe_converted) == expected_converted_records
-    ), "Only valid DOI entries should be converted"
-    assert set(report_errors.get("doi_errors", [])) == set(invalid_dois)
+    expected_dois_present = len(doi_pair) - len(invalid_dois)
+
+    reference_identifiers = [reference.identifiers for reference in safe_converted]
+
+    remaining_doi_count = sum(
+        isinstance(identifier, DOIIdentifier)
+        for sublist in reference_identifiers
+        for identifier in sublist
+    )
+
+    assert len(safe_converted) == len(
+        double_openalex_work_response
+    ), "All entries should be converted, invalid DOIs are just removed"
+    assert expected_dois_present == remaining_doi_count, "Expect one DOI to be removed"
+    assert set(report_errors.get("doi_errors", [])["examples"]) == set(
+        invalid_dois
+    ), "Invalid DOIs should be reported"
 
 
 @pytest.mark.parametrize(
@@ -200,7 +214,7 @@ def test_safe_result_conversion_with_invalid_doi_no_report(
     double_openalex_work_response: list[dict],
     doi_pair: list[str],
 ) -> None:
-    errors_dict: dict[str, list[str]] = {"doi_errors": []}
+    errors_dict: dict[str, dict] = {}
     invalid_doi_responses = double_openalex_work_response.copy()
     for i, _ in enumerate(invalid_doi_responses):
         invalid_doi_responses[i]["doi"] = doi_pair[i]
@@ -214,7 +228,92 @@ def test_safe_result_conversion_with_invalid_doi_no_report(
         errors_dict,
         report=None,
     )
-    expected_converted_records = len(doi_pair) - len(invalid_dois)
+
+    expected_dois_present = len(doi_pair) - len(invalid_dois)
+
+    reference_identifiers = [reference.identifiers for reference in safe_converted]
+
+    remaining_doi_count = sum(
+        isinstance(identifier, DOIIdentifier)
+        for sublist in reference_identifiers
+        for identifier in sublist
+    )
+    assert len(safe_converted) == len(
+        double_openalex_work_response
+    ), "All entries should be converted, invalid DOIs are just removed"
+    assert remaining_doi_count == expected_dois_present, "Expect one DOI to be removed"
+
+
+@pytest.mark.parametrize(
+    "doi_pair",
+    [
+        ["this/is/an/invalid_doi/", "10.1000/xyz456"],
+        ["http://invalid_doi.com/12345", "10.1000/xyz456"],
+        ["10.1000/xyz456=", "10.1000/xyz456"],
+    ],
+)
+def test_safe_result_conversion_clears_entire_report_on_repeated_conversion_failure(
+    mocker,
+    double_openalex_work_response: list[dict],
+    doi_pair: list[str],
+    job_report_dict: dict,
+) -> None:
+    errors_dict: dict = {}
+    job_manager = job_report_dict["job_manager"]
+    job_id = job_report_dict["job_id"]
+    job_report = job_report_dict["report"]
+    invalid_doi_responses = double_openalex_work_response.copy()
+    for i, _ in enumerate(invalid_doi_responses):
+        invalid_doi_responses[i]["doi"] = doi_pair[i]
+        invalid_doi_responses[i]["ids"]["doi"] = doi_pair[i]
+
+    invalid_dois = [doi_pair[0]]
+
+    side_effects = iter(
+        [
+            DESTINYReferenceDOIIdentifierError(f"Invalid DOI: {doi_pair[0]}"),
+            ValueError("Conversion failed"),
+        ]
+    )
+
+    def invalid_doi_total_failure_side_effect(*args, **kwargs):
+        try:
+            side_effect = next(side_effects)
+            raise side_effect
+        except StopIteration:
+            return convert_openalex_to_destiny(*args, **kwargs)
+
+    mocker.patch(
+        "openalex_incremental_updater.ingest.openalex.convert_openalex_to_destiny",
+        side_effect=invalid_doi_total_failure_side_effect,
+    )
+    result_payload = invalid_doi_responses
+
+    safe_converted = safe_result_conversion(
+        result_payload,
+        errors_dict,
+        report=job_report,
+    )
+    report_progress = job_manager.get(job_id).get("progress", {})
+    report_errors = report_progress.get("errors", {})
+
+    expected_dois_present = len(doi_pair) - len(invalid_dois)
+
+    reference_identifiers = [reference.identifiers for reference in safe_converted]
+
+    remaining_doi_count = sum(
+        isinstance(identifier, DOIIdentifier)
+        for sublist in reference_identifiers
+        for identifier in sublist
+    )
+
     assert (
-        len(safe_converted) == expected_converted_records
-    ), "Only valid DOI entries should be converted"
+        len(safe_converted) == expected_dois_present
+    ), "All entries with invalid DOIs that continue to fail conversion should be removed"
+    assert expected_dois_present == remaining_doi_count, "Expect one DOI to be removed"
+    assert set(report_errors.get("doi_errors", [])["examples"]) == set(
+        invalid_dois
+    ), "Invalid DOIs should be reported"
+    assert report_errors.get("dropped_records", {}).get("total", 0) == len(
+        invalid_dois
+    ), "One record should be dropped after repeated conversion failure for invalid DOIs"
