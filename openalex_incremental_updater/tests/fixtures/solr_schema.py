@@ -17,6 +17,7 @@ def solr_work_dict() -> dict:
         "is_accepted": False,
         "cited_by_count": 0,
         "is_paratext": False,
+        "is_xpac": False,
         "is_published": False,
         "language": "en",
         "source": "Figshare",

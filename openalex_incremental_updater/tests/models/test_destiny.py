@@ -579,3 +579,50 @@ def test_strip_url_prefix(url: str, expected_output: str) -> None:
     assert (
         strip_url_prefix(url) == expected_output
     ), f"Expected {expected_output} for {url}"
+
+
+def test_is_xpac_annotation_created_when_true(
+    openalex_work_dict: dict,
+) -> None:
+    """Test that is_xpac annotation is created when is_xpac is True."""
+    test_work_dict = openalex_work_dict.copy()
+    test_work_dict["is_xpac"] = True
+
+    destiny_work = convert_openalex_to_destiny(test_work_dict)
+
+    # Find the annotation enhancement
+    is_xpac_annotation = None
+    for enhancement in destiny_work.enhancements:
+        if isinstance(enhancement.content, AnnotationEnhancement):
+            for annotation in enhancement.content.annotations:
+                if annotation.label == "is_xpac":
+                    is_xpac_annotation = annotation
+                    break
+
+    assert is_xpac_annotation is not None, "is_xpac annotation should be present"
+    assert is_xpac_annotation.scheme == "openalex", "Scheme should be 'openalex'"
+    assert is_xpac_annotation.value is True, "Value should be True"
+
+
+@pytest.mark.parametrize("is_xpac_value", [False, None])
+def test_is_xpac_annotation_not_created_when_false_or_none(
+    openalex_work_dict: dict,
+    *,
+    is_xpac_value: bool | None,
+) -> None:
+    """Test that is_xpac annotation is not created when is_xpac is False or None."""
+    test_work_dict = openalex_work_dict.copy()
+    test_work_dict["is_xpac"] = is_xpac_value
+
+    destiny_work = convert_openalex_to_destiny(test_work_dict)
+
+    # Collect all annotation labels and verify is_xpac is not among them
+    annotation_labels = [
+        annotation.label
+        for enhancement in destiny_work.enhancements
+        if isinstance(enhancement.content, AnnotationEnhancement)
+        for annotation in enhancement.content.annotations
+    ]
+    assert (
+        "is_xpac" not in annotation_labels
+    ), f"is_xpac annotation should not be present when is_xpac is {is_xpac_value}"
