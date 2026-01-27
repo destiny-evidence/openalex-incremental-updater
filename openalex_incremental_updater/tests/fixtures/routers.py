@@ -1,11 +1,11 @@
 """Define fixtures for router tests."""
 
+import copy
 import json
 from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import pytest
-from destiny_sdk.references import ReferenceFileInput
 
 from openalex_incremental_updater.models.destiny import convert_openalex_to_destiny
 
@@ -119,7 +119,7 @@ def single_openalex_work_response(set_test_environment_variables: None) -> dict:
 @pytest.fixture
 def single_destinyopenalex_work_response(
     single_openalex_work_response: dict, set_test_environment_variables: None
-) -> ReferenceFileInput:
+) -> dict:
     """Return a single OpenAlex work."""
     return json.loads(
         convert_openalex_to_destiny(single_openalex_work_response).model_dump_json()
@@ -131,7 +131,7 @@ def double_openalex_work_response(
     single_openalex_work_response: dict, set_test_environment_variables: None
 ) -> list[dict]:
     """Return two OpenAlex works."""
-    return [single_openalex_work_response, single_openalex_work_response]
+    return [copy.deepcopy(single_openalex_work_response) for _ in range(2)]
 
 
 @pytest.fixture
