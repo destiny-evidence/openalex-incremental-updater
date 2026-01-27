@@ -16,6 +16,7 @@ pytest_plugins = [
     "tests.fixtures.openalex_schema",
     "tests.fixtures.solr_schema",
     "tests.fixtures.auth",
+    "tests.fixtures.models",
 ]
 
 
