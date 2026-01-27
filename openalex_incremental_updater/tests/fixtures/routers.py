@@ -73,7 +73,12 @@ def single_openalex_work_response(set_test_environment_variables: None) -> dict:
         "has_fulltext": None,
         "cited_by_count": None,
         "citation_normalized_percentile": None,
-        "biblio": None,
+        "biblio": {
+            "volume": "999",
+            "issue": "999",
+            "first_page": "1",
+            "last_page": "10",
+        },
         "is_retracted": None,
         "is_paratext": None,
         "primary_topic": {

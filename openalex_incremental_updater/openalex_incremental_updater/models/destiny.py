@@ -14,6 +14,7 @@ from destiny_sdk.enhancements import (
     EnhancementFileInput,
     Location,
     LocationEnhancement,
+    Pagination,
 )
 from destiny_sdk.identifiers import (
     DOIIdentifier,
@@ -103,6 +104,10 @@ class DestinyOpenAlexWorkMetadata(BaseModel):
         default=None,
         description="A list of topics for the work.",
     )
+    pagination: dict | None = Field(
+        default=None,
+        description="Pagination details for the work.",
+    )
     processor_version: str = Field(
         default="initial_openalex_import",
         description="The version of the processor that created this metadata.",
@@ -171,6 +176,7 @@ def convert_openalex_to_destiny(
     primary_location = openalex_work.get("primary_location")
     source = primary_location.get("source") if primary_location else None
     host_organisation_name = source.get("host_organization_name") if source else None
+    pagination = openalex_work.get("biblio") if openalex_work.get("biblio") else None
 
     locations = openalex_work.get("locations")
     topics = openalex_work.get("topics")
@@ -213,6 +219,7 @@ def convert_openalex_to_destiny(
         host_organisation_name=host_organisation_name,
         locations=locations,
         topics=topics,
+        pagination=pagination,
         processor_version=processor_version,
     )
 
@@ -240,6 +247,7 @@ def create_core_destiny_openalex_work(
         ReferenceFileInput: An instance of ReferenceFileInput populated with the metadata and core identifiers.
 
     """
+    pagination_data = prepare_destiny_pagination(metadata)
     bibliographic_enhancement = BibliographicMetadataEnhancement(
         title=source_document.get("title"),
         cited_by_count=source_document.get("cited_by_count"),
@@ -247,6 +255,7 @@ def create_core_destiny_openalex_work(
         publication_date=source_document.get("publication_date"),
         publication_year=source_document.get("publication_year"),
         publisher=metadata.host_organisation_name,
+        pagination=pagination_data,
     )
 
     return ReferenceFileInput(
@@ -368,6 +377,36 @@ def prepare_destiny_locations(metadata: DestinyOpenAlexWorkMetadata) -> list[Loc
         )
         locations.append(loc)
     return locations
+
+
+def prepare_destiny_pagination(
+    metadata: DestinyOpenAlexWorkMetadata,
+) -> Pagination:
+    """
+    Prepare a list of pagination details for the Destiny OpenAlex work.
+
+    Paginations map to OpenAlex's `Work.biblio` object.
+
+    Args:
+        metadata (DestinyOpenAlexWorkMetadata): The metadata containing pagination details.
+
+    Returns:
+        Pagination: A Pagination object with pagination
+            information for journal articles.
+
+    """
+    pagination_dict = metadata.pagination or {}
+    volume = pagination_dict.get("volume", None)
+    issue = pagination_dict.get("issue", None)
+    first_page = pagination_dict.get("first_page", None)
+    last_page = pagination_dict.get("last_page", None)
+
+    return Pagination(
+        first_page=first_page if is_valid_nonempty_string(first_page) else None,
+        issue=issue if is_valid_nonempty_string(issue) else None,
+        last_page=last_page if is_valid_nonempty_string(last_page) else None,
+        volume=volume if is_valid_nonempty_string(volume) else None,
+    )
 
 
 def prepare_destiny_annotations(
