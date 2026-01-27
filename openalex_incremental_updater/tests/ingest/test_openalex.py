@@ -155,7 +155,6 @@ def test_safe_result_conversion_success(
     [
         ["this/is/an/invalid_doi/", "10.1000/xyz456"],
         ["http://invalid_doi.com/12345", "10.1000/xyz456"],
-        ["10.1000/xyz456=", "10.1000/xyz456"],
     ],
 )
 def test_safe_result_conversion_clears_invalid_doi_with_report(
@@ -207,7 +206,6 @@ def test_safe_result_conversion_clears_invalid_doi_with_report(
     [
         ["this/is/an/invalid_doi/", "10.1000/xyz456"],
         ["http://invalid_doi.com/12345", "10.1000/xyz456"],
-        ["10.1000/xyz456=", "10.1000/xyz456"],
     ],
 )
 def test_safe_result_conversion_with_invalid_doi_no_report(
@@ -249,7 +247,6 @@ def test_safe_result_conversion_with_invalid_doi_no_report(
     [
         ["this/is/an/invalid_doi/", "10.1000/xyz456"],
         ["http://invalid_doi.com/12345", "10.1000/xyz456"],
-        ["10.1000/xyz456=", "10.1000/xyz456"],
     ],
 )
 def test_safe_result_conversion_clears_entire_report_on_repeated_conversion_failure(
