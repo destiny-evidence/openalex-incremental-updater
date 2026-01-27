@@ -71,8 +71,7 @@ lint.ignore = [
 lint.per-file-ignores = {"openalex_incremental_updater/openalex_incremental_updater/ingest/__init__.py" = [
   "PERF203" # `try`-`except` within a loop incurs performance overhead
 ], "openalex_incremental_updater/ingest/openalex.py" = [
-  "DTZ007", # Naive datetime constructed using `datetime.datetime.strptime()` without %z
-  "PLR0915" # Too many statements
+  "DTZ007" # Naive datetime constructed using `datetime.datetime.strptime()` without %z
 ], "openalex_incremental_updater/openalex_incremental_updater/core/jobs.py" = [
   "PLR0913" # Too many arguments in function definition
 ], "openalex_incremental_updater/openalex_incremental_updater/ingest/blob_storage.py" = [
