@@ -28,6 +28,10 @@ from loguru import logger
 from pydantic import AnyHttpUrl, BaseModel, Field, ValidationError, model_validator
 
 
+class DESTINYReferenceDOIIdentifierError(Exception):
+    """Exception raised for invalid DOI identifiers."""
+
+
 class UrlModel(BaseModel):
     """
     A model for validating URLs.
@@ -285,7 +289,14 @@ def prepare_destiny_identifiers(
             OpenAlexIdentifier(identifier=metadata.openalex_id)
         )
     if is_valid_nonempty_string(metadata.doi):
-        destiny_work_identifiers.append(DOIIdentifier(identifier=metadata.doi))
+        try:
+            destiny_work_identifiers.append(DOIIdentifier(identifier=metadata.doi))
+        except ValidationError as doi_validation_error:
+            error_message = f"Invalid DOI: {metadata.doi}"
+            logger.warning(error_message)
+            raise DESTINYReferenceDOIIdentifierError(
+                error_message
+            ) from doi_validation_error
     if metadata.pubmed_id is not None:
         destiny_work_identifiers.append(PubMedIdentifier(identifier=metadata.pubmed_id))
 

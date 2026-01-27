@@ -3,6 +3,7 @@
 import time
 import traceback
 import uuid
+from collections.abc import Callable
 from enum import StrEnum
 from typing import Any
 
@@ -121,13 +122,32 @@ class JobManager:
         job["error"] = f"{type(exc).__name__}: {exc}"
         job["traceback"] = traceback.format_exc()
 
-    def set_progress(self, job_id: str, **fields: str) -> None:
+    def set_progress(self, job_id: str, **fields: dict) -> None:
         """
         Update the progress of a job.
 
         Args:
             job_id (str): The ID of the job to update.
-            fields (str): Key-value pairs representing progress updates.
+            fields (dict): Key-value pairs representing progress updates.
 
         """
         self._jobs[job_id]["progress"].update(**fields)
+
+
+def report_status(job_manager: JobManager, job_id: str) -> Callable:
+    """
+    Create a report function for updating the status and progress of a job.
+
+    Args:
+        job_manager (JobManager): The job manager instance.
+        job_id (str): The ID of the job to report status for.
+
+    Returns:
+        Callable: A function that can be called to update job progress.
+
+    """
+
+    def report(**fields: dict) -> None:
+        job_manager.set_progress(job_id, **fields)
+
+    return report
