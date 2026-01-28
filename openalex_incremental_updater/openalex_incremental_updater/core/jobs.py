@@ -10,6 +10,7 @@ from openalex_incremental_updater.core.job_state import JobManager
 from openalex_incremental_updater.core.logger import logger
 from openalex_incremental_updater.ingest.blob_storage import blob_upload
 from openalex_incremental_updater.ingest.data import (
+    JSONLConversionError,
     convert_destinyworks_to_jsonl_string,
 )
 from openalex_incremental_updater.ingest.openalex import (
@@ -59,7 +60,7 @@ async def run_background_openalex_ingest_job(
         job_progress = job_manager.get(job_id).get("progress", {})
         total_ingested = job_progress.get("total_works", 0)
         logger.info(f"Upload complete. {job_progress=}, {total_ingested=}")
-    except UpstreamOpenAlexError as error:
+    except (UpstreamOpenAlexError, JSONLConversionError) as error:
         error_message = str(error)
         logger.error("Ingest job failed: {}", error_message)
         job_manager.set_progress(job_id, status="failed", progress="failed")
@@ -119,12 +120,19 @@ async def openalex_works_ingest_date_range(
             works_retrieved_limit=limit,
             report=report,
         )
+
         async for item in convert_destinyworks_to_jsonl_string(results):
             yield item
-    except UpstreamOpenAlexError as error:
-        error_message = str(error)
+
+    except UpstreamOpenAlexError as ingest_error:
+        error_message = str(ingest_error)
         logger.error("Error fetching OpenAlex works: {}", error_message)
-        raise error from error
+        raise
+
+    except JSONLConversionError as jsonl_error:
+        error_message = str(jsonl_error)
+        logger.error("Error converting works to JSONL: {}", error_message)
+        raise
 
 
 async def run_openalex_refresh_blob_upload_job(

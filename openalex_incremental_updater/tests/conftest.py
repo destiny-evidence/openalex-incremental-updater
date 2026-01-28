@@ -2,13 +2,19 @@
 
 import logging
 from collections.abc import AsyncIterator, Generator
+from datetime import datetime
 from typing import Any
+from zoneinfo import ZoneInfo
 
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
+from freezegun import freeze_time
 from httpx import ASGITransport, AsyncClient
 from loguru import logger
+
+from openalex_incremental_updater.core.job_state import JobManager, report_status
+from openalex_incremental_updater.ingest import CreatedOrUpdated
 
 pytest_plugins = [
     "tests.fixtures.routers",
@@ -99,3 +105,26 @@ async def async_test_client(
         transport=ASGITransport(app=app_instance), base_url="http://test"
     ) as client:
         yield client
+
+
+@pytest.fixture
+@freeze_time("2025-08-18")
+def job_report_dict() -> dict:
+    """Fixture to create a job report function."""
+    start_date = datetime.now(ZoneInfo("UTC")).date()
+    end_date = datetime.now(ZoneInfo("UTC")).date()
+    job_manager = JobManager()
+    ingest_type = CreatedOrUpdated("created")
+    job_id = job_manager.create(
+        meta={
+            "start_date": start_date,
+            "end_date": end_date,
+            "ingest_type": ingest_type,
+            "limit": None,
+        }
+    )
+    return {
+        "job_manager": job_manager,
+        "job_id": job_id,
+        "report": report_status(job_manager, job_id),
+    }
