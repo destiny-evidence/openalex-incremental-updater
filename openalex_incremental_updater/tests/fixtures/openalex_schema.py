@@ -103,6 +103,7 @@ def openalex_work_dict() -> dict:
         },
         "is_retracted": False,
         "is_paratext": False,
+        "is_xpac": False,
         "primary_topic": {
             "id": "https://openalex.org/example-primary-topic-id",
             "display_name": "Example Primary Topic",

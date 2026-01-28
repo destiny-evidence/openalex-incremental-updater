@@ -71,6 +71,10 @@ class DestinyOpenAlexWorkMetadata(BaseModel):
         default=False,
         description="Indicates whether the work has been retracted.",
     )
+    is_xpac: bool | None = Field(
+        default=None,
+        description="Indicates whether the work is from the OpenAlex expansion pac (xpac) dataset.",
+    )
     openalex_id: str | None = Field(
         default=None,
         description="The OpenAlex ID of the work.",
@@ -218,6 +222,7 @@ def convert_openalex_to_destiny(
         locations=locations,
         topics=topics,
         processor_version=processor_version,
+        is_xpac=openalex_work.get("is_xpac"),
     )
 
     return get_destiny_openalex_work(
@@ -395,6 +400,17 @@ def prepare_destiny_annotations(
 
     """
     annotations: list[BooleanAnnotation] = []
+
+    # Add is_xpac annotation only when True (absence implies not xpac)
+    if metadata.is_xpac:
+        annotations.append(
+            BooleanAnnotation(
+                scheme="openalex",
+                label="is_xpac",
+                value=True,
+            )
+        )
+
     for annotation in metadata.topics or []:
         label = annotation.get("display_name", "")
         data = annotation
