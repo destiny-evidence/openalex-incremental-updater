@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from destiny_sdk.references import ReferenceFileInput
 from pytest_mock import MockerFixture
@@ -20,7 +22,125 @@ async def test_convert_destinyworks_to_jsonl_string_valid_json(destiny_work_dict
             ReferenceFileInput.model_validate(destiny_work_dict),
         ],
     ]
-    expected_jsonl = '{"visibility":"public","identifiers":[{"identifier":"10.1234/sampledoi","identifier_type":"doi"},{"identifier":"W1234567890","identifier_type":"open_alex"}],"enhancements":[{"source":"openalex","visibility":"public","robot_version":"1.0.0","content":{"enhancement_type":"bibliographic","authorship":[{"display_name":"Alice Example","orcid":"0000-0001-2345-6789","position":"first"}],"cited_by_count":10,"created_date":"2020-05-01","updated_date":null,"publication_date":"2020-04-01","publication_year":2020,"publisher":"Example Publisher","title":null,"pagination":null}}]}\n{"visibility":"public","identifiers":[{"identifier":"10.1234/sampledoi","identifier_type":"doi"},{"identifier":"W1234567890","identifier_type":"open_alex"}],"enhancements":[{"source":"openalex","visibility":"public","robot_version":"1.0.0","content":{"enhancement_type":"bibliographic","authorship":[{"display_name":"Alice Example","orcid":"0000-0001-2345-6789","position":"first"}],"cited_by_count":10,"created_date":"2020-05-01","updated_date":null,"publication_date":"2020-04-01","publication_year":2020,"publisher":"Example Publisher","title":null,"pagination":null}}]}\n{"visibility":"public","identifiers":[{"identifier":"10.1234/sampledoi","identifier_type":"doi"},{"identifier":"W1234567890","identifier_type":"open_alex"}],"enhancements":[{"source":"openalex","visibility":"public","robot_version":"1.0.0","content":{"enhancement_type":"bibliographic","authorship":[{"display_name":"Alice Example","orcid":"0000-0001-2345-6789","position":"first"}],"cited_by_count":10,"created_date":"2020-05-01","updated_date":null,"publication_date":"2020-04-01","publication_year":2020,"publisher":"Example Publisher","title":null,"pagination":null}}]}\n'
+    expected_jsonl_dict = [
+        {
+            "visibility": "public",
+            "identifiers": [
+                {"identifier": "10.1234/sampledoi", "identifier_type": "doi"},
+                {"identifier": "W1234567890", "identifier_type": "open_alex"},
+            ],
+            "enhancements": [
+                {
+                    "source": "openalex",
+                    "visibility": "public",
+                    "robot_version": "1.0.0",
+                    "content": {
+                        "enhancement_type": "bibliographic",
+                        "authorship": [
+                            {
+                                "display_name": "Alice Example",
+                                "orcid": "0000-0001-2345-6789",
+                                "position": "first",
+                            }
+                        ],
+                        "cited_by_count": 10,
+                        "created_date": "2020-05-01",
+                        "updated_date": None,
+                        "publication_date": "2020-04-01",
+                        "publication_year": 2020,
+                        "publisher": "Example Publisher",
+                        "title": None,
+                        "pagination": {
+                            "volume": "123",
+                            "issue": "456",
+                            "first_page": "789",
+                            "last_page": "999",
+                        },
+                    },
+                }
+            ],
+        },
+        {
+            "visibility": "public",
+            "identifiers": [
+                {"identifier": "10.1234/sampledoi", "identifier_type": "doi"},
+                {"identifier": "W1234567890", "identifier_type": "open_alex"},
+            ],
+            "enhancements": [
+                {
+                    "source": "openalex",
+                    "visibility": "public",
+                    "robot_version": "1.0.0",
+                    "content": {
+                        "enhancement_type": "bibliographic",
+                        "authorship": [
+                            {
+                                "display_name": "Alice Example",
+                                "orcid": "0000-0001-2345-6789",
+                                "position": "first",
+                            }
+                        ],
+                        "cited_by_count": 10,
+                        "created_date": "2020-05-01",
+                        "updated_date": None,
+                        "publication_date": "2020-04-01",
+                        "publication_year": 2020,
+                        "publisher": "Example Publisher",
+                        "title": None,
+                        "pagination": {
+                            "volume": "123",
+                            "issue": "456",
+                            "first_page": "789",
+                            "last_page": "999",
+                        },
+                    },
+                }
+            ],
+        },
+        {
+            "visibility": "public",
+            "identifiers": [
+                {"identifier": "10.1234/sampledoi", "identifier_type": "doi"},
+                {"identifier": "W1234567890", "identifier_type": "open_alex"},
+            ],
+            "enhancements": [
+                {
+                    "source": "openalex",
+                    "visibility": "public",
+                    "robot_version": "1.0.0",
+                    "content": {
+                        "enhancement_type": "bibliographic",
+                        "authorship": [
+                            {
+                                "display_name": "Alice Example",
+                                "orcid": "0000-0001-2345-6789",
+                                "position": "first",
+                            }
+                        ],
+                        "cited_by_count": 10,
+                        "created_date": "2020-05-01",
+                        "updated_date": None,
+                        "publication_date": "2020-04-01",
+                        "publication_year": 2020,
+                        "publisher": "Example Publisher",
+                        "title": None,
+                        "pagination": {
+                            "volume": "123",
+                            "issue": "456",
+                            "first_page": "789",
+                            "last_page": "999",
+                        },
+                    },
+                }
+            ],
+        },
+    ]
+    expected_jsonl = "".join(
+        [
+            json.dumps(sub_dict, separators=(",", ":")) + "\n"
+            for sub_dict in expected_jsonl_dict
+        ]
+    )
 
     async def async_gen(data):
         for item in data:

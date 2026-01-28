@@ -98,8 +98,8 @@ def openalex_work_dict() -> dict:
         "biblio": {
             "volume": "999",
             "issue": "01/2025",
-            "first_page": None,
-            "last_page": None,
+            "first_page": "1",
+            "last_page": "999",
         },
         "is_retracted": False,
         "is_paratext": False,
