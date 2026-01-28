@@ -81,6 +81,7 @@ def single_openalex_work_response(set_test_environment_variables: None) -> dict:
         },
         "is_retracted": None,
         "is_paratext": None,
+        "is_xpac": None,
         "primary_topic": {
             "id": "https://openalex.org/T10430",
             "display_name": "Software Engineering Techniques and Practices",
