@@ -125,6 +125,52 @@ def test_build_range_query(
     assert query == expected_output
 
 
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    "created_or_updated", [CreatedOrUpdated("created"), CreatedOrUpdated("updated")]
+)
+async def test_works_filter_date_range_works_requested_limit_respected(
+    double_openalex_work_response: list[dict],
+    created_or_updated: CreatedOrUpdated,
+) -> None:
+    fetcher = OpenAlexDataFetcher(retries=0)
+
+    four_item_response = double_openalex_work_response * 2
+    works_retrieved_limit = 2
+    expected_response = {
+        "meta": {
+            "count": 4,
+            "next_cursor": None,
+        },
+        "results": four_item_response,
+    }
+    mock_url = "https://api.openalex.org/works"
+
+    test_date = double_openalex_work_response[0]["publication_date"]
+    mock_url = "https://api.openalex.org/works"
+
+    openalex_query = OpenAlexDataFetcher.build_range_query(
+        test_date, test_date, created_or_updated
+    )
+    with respx.mock:
+        respx.get(mock_url).mock(
+            return_value=httpx.Response(status.HTTP_200_OK, json=expected_response)
+        )
+
+        response = fetcher.fetch_works_filter(
+            openalex_filter=openalex_query,
+            works_retrieved_limit=works_retrieved_limit,
+        )
+
+        results = [item async for item in response]
+        flat_results = [work for batch in results for work in batch]
+        assert len(flat_results) == works_retrieved_limit
+        assert flat_results == [
+            convert_openalex_to_destiny(response_item)
+            for response_item in four_item_response[:works_retrieved_limit]
+        ]
+
+
 def test_safe_result_conversion_success(
     single_openalex_work_response: list[dict],
     job_report_dict: dict,
