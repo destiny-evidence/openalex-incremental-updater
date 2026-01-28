@@ -356,17 +356,23 @@ def prepare_destiny_locations(metadata: DestinyOpenAlexWorkMetadata) -> list[Loc
         license_val = location.get("license")
         extra = location.get("source")
 
-        loc = Location(
-            is_oa=is_oa,
-            version=version if is_valid_nonempty_string(version) else None,
-            landing_page_url=landing_page_url
-            if is_valid_nonempty_string(landing_page_url)
-            else None,
-            pdf_url=pdf_url if is_valid_nonempty_string(pdf_url) else None,
-            license=license_val if is_valid_nonempty_string(license_val) else None,
-            extra=extra if extra else None,
-        )
-        locations.append(loc)
+        try:
+            loc = Location(
+                is_oa=is_oa,
+                version=version if is_valid_nonempty_string(version) else None,
+                landing_page_url=landing_page_url
+                if is_valid_nonempty_string(landing_page_url)
+                else None,
+                pdf_url=pdf_url if is_valid_nonempty_string(pdf_url) else None,
+                license=license_val if is_valid_nonempty_string(license_val) else None,
+                extra=extra if extra else None,
+            )
+            locations.append(loc)
+        except ValidationError:
+            logger.warning(
+                f"Skipping location with invalid URL: "
+                f"landing_page={landing_page_url!r}, pdf={pdf_url!r}"
+            )
     return locations
 
 
