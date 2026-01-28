@@ -555,23 +555,27 @@ def test_prepare_destiny_locations_skips_invalid_urls(invalid_url: str) -> None:
 
 def test_prepare_destiny_locations_preserves_valid_locations_when_one_invalid() -> None:
     """Test that valid locations are preserved when one location has invalid URL."""
+    valid_urls = [
+        "https://valid.example.com/paper.pdf",
+        "https://another-valid.org/doc",
+    ]
+    invalid_urls = [
+        "www.invalid-no-scheme.org/file.pdf",
+    ]
     metadata = DestinyOpenAlexWorkMetadata(
         openalex_id="W1234567890",  # required identifier
         locations=[
-            {"landing_page_url": "https://valid.example.com/paper.pdf", "is_oa": True},
-            {"landing_page_url": "www.invalid-no-scheme.org/file.pdf", "is_oa": False},
-            {"landing_page_url": "https://another-valid.org/doc", "is_oa": True},
+            {"landing_page_url": valid_urls[0], "is_oa": True},
+            {"landing_page_url": invalid_urls[0], "is_oa": False},
+            {"landing_page_url": valid_urls[1], "is_oa": True},
         ],
         processor_version="test",
     )
     locations = prepare_destiny_locations(metadata)
-    expected_valid_count = 2
-    assert (
-        len(locations) == expected_valid_count
-    ), "Expected 2 valid locations, 1 invalid skipped"
-    urls = [str(loc.landing_page_url) for loc in locations]
-    assert "https://valid.example.com/paper.pdf" in urls
-    assert "https://another-valid.org/doc" in urls
+    assert len(locations) == len(valid_urls), "Only valid locations should be kept"
+    result_urls = [str(loc.landing_page_url) for loc in locations]
+    for url in valid_urls:
+        assert url in result_urls
 
 
 def test_prepare_destiny_pagination_success_pagination_available(
