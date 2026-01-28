@@ -1,7 +1,6 @@
 import copy
 from datetime import datetime
 from typing import Any
-from zoneinfo import ZoneInfo
 
 import pytest
 from destiny_sdk.enhancements import (
@@ -35,9 +34,13 @@ from openalex_incremental_updater.models.destiny import (
 def test_destiny_openalex_work_valid_from_valid_openalex_work_dict(
     openalex_work_dict: dict,
 ) -> None:
-    expected_creation_date = datetime(2025, 1, 1, tzinfo=ZoneInfo("UTC")).date()
-    expected_creation_date_string = expected_creation_date.isoformat()
-    expected_publication_year = expected_creation_date.year
+    expected_creation_date = openalex_work_dict.get("created_date")
+    expected_update_date = (
+        datetime.fromisoformat(openalex_work_dict.get("updated_date", ""))
+        .date()
+        .isoformat()
+    )
+    expected_publication_year = openalex_work_dict.get("publication_year")
     expected_openalex_id = openalex_work_dict["ids"]["openalex"].rsplit("/", 1)[-1]
     expected_abstract = convert_inverted_abstract(
         openalex_work_dict["abstract_inverted_index"]
@@ -55,6 +58,7 @@ def test_destiny_openalex_work_valid_from_valid_openalex_work_dict(
     abstract = None
     publication_year = None
     created_date = None
+    updated_date = None
     pagination = None
     for enhancement in destiny_work.enhancements:
         content = enhancement.content
@@ -63,6 +67,7 @@ def test_destiny_openalex_work_valid_from_valid_openalex_work_dict(
         elif isinstance(content, BibliographicMetadataEnhancement):
             publication_year = content.publication_year
             created_date = str(content.created_date) if content.created_date else None
+            updated_date = str(content.updated_date) if content.updated_date else None
             pagination = content.pagination if content.pagination else None
 
     assert (
@@ -76,8 +81,11 @@ def test_destiny_openalex_work_valid_from_valid_openalex_work_dict(
         publication_year == expected_publication_year
     ), "Expect that the test publication year is set correctly"
     assert (
-        created_date == expected_creation_date_string
+        created_date == expected_creation_date
     ), "Expect that the test created date is set correctly"
+    assert (
+        updated_date == expected_update_date
+    ), "Expect that the test updated date is set correctly"
     assert (
         pagination == expected_pagination_dict
     ), "Expect that the test pagination is set correctly"

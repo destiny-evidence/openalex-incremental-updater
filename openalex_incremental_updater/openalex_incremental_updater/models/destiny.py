@@ -1,5 +1,6 @@
 """Models associated with references."""
 
+from datetime import datetime
 from enum import StrEnum
 from typing import Self
 
@@ -144,6 +145,32 @@ class DestinyOpenAlexWorkMetadata(BaseModel):
         return self
 
 
+def retrieve_isoformat_date_string_from_datetime_string(
+    datetime_string: str | None,
+) -> str | None:
+    """
+    Retrieve the date as an ISO string from an ISO-format datetime string.
+
+    N.B. OpenAlex provides datetime strings in ISO 8601 format.
+
+    Args:
+        datetime_string (str | None): The datetime string to convert.
+
+    Returns:
+        str | None: The date string extracted from the datetime string, or None if input is None.
+
+    """
+    if datetime_string is None:
+        return None
+
+    try:
+        datetime_object = datetime.fromisoformat(datetime_string)
+        return datetime_object.date().isoformat()
+    except ValueError:
+        logger.warning(f"Invalid datetime string: {datetime_string}")
+        return None
+
+
 def strip_url_prefix(url: AnyHttpUrl | None) -> str | None:
     """
     Strip the URL prefix from a given URL.
@@ -257,10 +284,14 @@ def create_core_destiny_openalex_work(
 
     """
     pagination_data = prepare_destiny_pagination(metadata)
+    updated_date_string = retrieve_isoformat_date_string_from_datetime_string(
+        source_document.get("updated_date")
+    )
     bibliographic_enhancement = BibliographicMetadataEnhancement(
         title=source_document.get("title"),
         cited_by_count=source_document.get("cited_by_count"),
         created_date=source_document.get("created_date"),
+        updated_date=updated_date_string,
         publication_date=source_document.get("publication_date"),
         publication_year=source_document.get("publication_year"),
         publisher=metadata.host_organisation_name,
