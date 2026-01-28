@@ -43,6 +43,7 @@ def test_destiny_openalex_work_valid_from_valid_openalex_work_dict(
         openalex_work_dict["abstract_inverted_index"]
     )
     expected_publication_year = 2025
+    expected_pagination_dict = Pagination(**openalex_work_dict.get("biblio", {}))
     destiny_work = convert_openalex_to_destiny(openalex_work_dict)
 
     openalex_id = None
@@ -54,6 +55,7 @@ def test_destiny_openalex_work_valid_from_valid_openalex_work_dict(
     abstract = None
     publication_year = None
     created_date = None
+    pagination = None
     for enhancement in destiny_work.enhancements:
         content = enhancement.content
         if isinstance(content, AbstractContentEnhancement):
@@ -61,6 +63,7 @@ def test_destiny_openalex_work_valid_from_valid_openalex_work_dict(
         elif isinstance(content, BibliographicMetadataEnhancement):
             publication_year = content.publication_year
             created_date = str(content.created_date) if content.created_date else None
+            pagination = content.pagination if content.pagination else None
 
     assert (
         openalex_id == expected_openalex_id
@@ -75,6 +78,9 @@ def test_destiny_openalex_work_valid_from_valid_openalex_work_dict(
     assert (
         created_date == expected_creation_date_string
     ), "Expect that the test created date is set correctly"
+    assert (
+        pagination == expected_pagination_dict
+    ), "Expect that the test pagination is set correctly"
 
 
 def test_destiny_openalex_work_missing_required_identifiers_failure(
@@ -524,7 +530,7 @@ def test_strip_url_prefix(url: str, expected_output: str) -> None:
 
 def test_prepare_destiny_pagination_success_pagination_available(
     destiny_openalex_work_metadata: DestinyOpenAlexWorkMetadata,
-) -> Pagination:
+) -> None:
     """Test the prepare_destiny_pagination function."""
     pagination = prepare_destiny_pagination(destiny_openalex_work_metadata)
 
@@ -547,7 +553,7 @@ def test_prepare_destiny_pagination_success_pagination_available(
 
 def test_prepare_destiny_pagination_success_pagination_unavailable(
     destiny_openalex_work_metadata: DestinyOpenAlexWorkMetadata,
-) -> Pagination:
+) -> None:
     """Test the prepare_destiny_pagination function."""
     work_metadata = copy.deepcopy(destiny_openalex_work_metadata)
     work_metadata.pagination = {}
