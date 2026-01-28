@@ -1,3 +1,4 @@
+import copy
 from datetime import datetime
 from typing import Any
 from zoneinfo import ZoneInfo
@@ -8,6 +9,7 @@ from destiny_sdk.enhancements import (
     AnnotationEnhancement,
     BibliographicMetadataEnhancement,
     LocationEnhancement,
+    Pagination,
 )
 from destiny_sdk.identifiers import (
     DOIIdentifier,
@@ -26,6 +28,7 @@ from openalex_incremental_updater.models.destiny import (
     get_destiny_openalex_work,
     is_valid_nonempty_string,
     prepare_destiny_locations,
+    prepare_destiny_pagination,
     strip_url_prefix,
 )
 
@@ -41,6 +44,7 @@ def test_destiny_openalex_work_valid_from_valid_openalex_work_dict(
         openalex_work_dict["abstract_inverted_index"]
     )
     expected_publication_year = 2025
+    expected_pagination_dict = Pagination(**openalex_work_dict.get("biblio", {}))
     destiny_work = convert_openalex_to_destiny(openalex_work_dict)
 
     openalex_id = None
@@ -52,6 +56,7 @@ def test_destiny_openalex_work_valid_from_valid_openalex_work_dict(
     abstract = None
     publication_year = None
     created_date = None
+    pagination = None
     for enhancement in destiny_work.enhancements:
         content = enhancement.content
         if isinstance(content, AbstractContentEnhancement):
@@ -59,6 +64,7 @@ def test_destiny_openalex_work_valid_from_valid_openalex_work_dict(
         elif isinstance(content, BibliographicMetadataEnhancement):
             publication_year = content.publication_year
             created_date = str(content.created_date) if content.created_date else None
+            pagination = content.pagination if content.pagination else None
 
     assert (
         openalex_id == expected_openalex_id
@@ -73,6 +79,9 @@ def test_destiny_openalex_work_valid_from_valid_openalex_work_dict(
     assert (
         created_date == expected_creation_date_string
     ), "Expect that the test created date is set correctly"
+    assert (
+        pagination == expected_pagination_dict
+    ), "Expect that the test pagination is set correctly"
 
 
 def test_destiny_openalex_work_missing_required_identifiers_failure(
@@ -154,6 +163,7 @@ def test_destiny_openalex_work_missing_identifier_fields_ignored(
 
 def test_get_destiny_openalex_work_success(
     openalex_work_dict: dict,
+    destiny_openalex_work_metadata: DestinyOpenAlexWorkMetadata,
 ) -> None:
     """Test that the get_destiny_openalex_work function returns a ReferenceFileInput object."""
     correct_source_for_openalex_input = DataSource.OPEN_ALEX
@@ -161,42 +171,10 @@ def test_get_destiny_openalex_work_success(
     expected_abstract = "This is an example abstract"
     expected_abstract_process = "uninverted"
 
-    ids_dict = openalex_work_dict.get("ids") if openalex_work_dict.get("ids") else None
-    authorships_dict = openalex_work_dict.get("authorships")
-    primary_location = openalex_work_dict.get("primary_location")
-    source = primary_location.get("source") if primary_location else None
-    host_organisation_name = source.get("host_organization_name") if source else None
-
-    locations = openalex_work_dict.get("locations")
-    topics = openalex_work_dict.get("topics")
-    processor_version = "initial_openalex_import"
-    if ids_dict:
-        doi = ids_dict.get("doi")
-        openalex_id = ids_dict.get("openalex").rsplit("/", 1)[-1]
-        microsoft_academic_graph = ids_dict.get("mag")
-        pubmed_id = ids_dict.get("pmid")
-        pubmed_central_id = ids_dict.get("pmcid")
-    else:
-        doi = None
-        openalex_id = None
-        microsoft_academic_graph = None
-        pubmed_id = None
-        pubmed_central_id = None
-
-    work_metadata = DestinyOpenAlexWorkMetadata(
-        doi=doi,
-        openalex_id=openalex_id,
-        microsoft_academic_graph=microsoft_academic_graph,
-        pubmed_id=pubmed_id,
-        pubmed_central_id=pubmed_central_id,
-        authorships_dict=authorships_dict,
-        host_organisation_name=host_organisation_name,
-        locations=locations,
-        topics=topics,
-        processor_version=processor_version,
-    )
     work = get_destiny_openalex_work(
-        work_metadata, openalex_work_dict, data_source=correct_source_for_openalex_input
+        destiny_openalex_work_metadata,
+        openalex_work_dict,
+        data_source=correct_source_for_openalex_input,
     )
 
     assert isinstance(
@@ -224,8 +202,9 @@ def test_get_destiny_openalex_work_success(
     ), "Expect that the abstract process is set correctly"
 
 
-def test_get_destiny_openalex_work_blank_abstract_from_openalex_input_with_incorrect_source(  # noqa: PLR0915
+def test_get_destiny_openalex_work_blank_abstract_from_openalex_input_with_incorrect_source(
     openalex_work_dict: dict,
+    destiny_openalex_work_metadata: DestinyOpenAlexWorkMetadata,
 ) -> None:
     """
     Test that the get_destiny_openalex_work function returns a ReferenceFileInput object.
@@ -258,42 +237,10 @@ def test_get_destiny_openalex_work_blank_abstract_from_openalex_input_with_incor
         expected_locations["extra"] = expected_locations.pop("source")
     expected_annotations = next(iter(openalex_work_dict.get("topics", [])))
 
-    ids_dict = openalex_work_dict.get("ids") if openalex_work_dict.get("ids") else None
-    authorships_dict = openalex_work_dict.get("authorships")
-    primary_location = openalex_work_dict.get("primary_location")
-    source = primary_location.get("source") if primary_location else None
-    host_organisation_name = source.get("host_organization_name") if source else None
-
-    locations = openalex_work_dict.get("locations")
-    topics = openalex_work_dict.get("topics")
-    processor_version = "initial_openalex_import"
-    if ids_dict:
-        doi = ids_dict.get("doi")
-        openalex_id = ids_dict.get("openalex").rsplit("/", 1)[-1]
-        microsoft_academic_graph = ids_dict.get("mag")
-        pubmed_id = ids_dict.get("pmid")
-        pubmed_central_id = ids_dict.get("pmcid")
-    else:
-        doi = None
-        openalex_id = None
-        microsoft_academic_graph = None
-        pubmed_id = None
-        pubmed_central_id = None
-
-    work_metadata = DestinyOpenAlexWorkMetadata(
-        doi=doi,
-        openalex_id=openalex_id,
-        microsoft_academic_graph=microsoft_academic_graph,
-        pubmed_id=pubmed_id,
-        pubmed_central_id=pubmed_central_id,
-        authorships_dict=authorships_dict,
-        host_organisation_name=host_organisation_name,
-        locations=locations,
-        topics=topics,
-        processor_version=processor_version,
-    )
     work = get_destiny_openalex_work(
-        work_metadata, openalex_work_dict, data_source=bad_source_for_openalex_input
+        destiny_openalex_work_metadata,
+        openalex_work_dict,
+        data_source=bad_source_for_openalex_input,
     )
 
     work_annotations = None
@@ -625,3 +572,95 @@ def test_prepare_destiny_locations_preserves_valid_locations_when_one_invalid() 
     urls = [str(loc.landing_page_url) for loc in locations]
     assert "https://valid.example.com/paper.pdf" in urls
     assert "https://another-valid.org/doc" in urls
+
+
+def test_prepare_destiny_pagination_success_pagination_available(
+    destiny_openalex_work_metadata: DestinyOpenAlexWorkMetadata,
+) -> None:
+    """Test the prepare_destiny_pagination function."""
+    pagination = prepare_destiny_pagination(destiny_openalex_work_metadata)
+
+    assert isinstance(
+        pagination, Pagination
+    ), "Expect that the returned object is of type Pagination"
+    assert pagination.first_page == destiny_openalex_work_metadata.pagination.get(
+        "first_page"
+    ), "Expect that the first_page is set correctly"
+    assert pagination.last_page == destiny_openalex_work_metadata.pagination.get(
+        "last_page"
+    ), "Expect that the last_page is set correctly"
+    assert pagination.volume == destiny_openalex_work_metadata.pagination.get(
+        "volume"
+    ), "Expect that the volume is set correctly"
+    assert pagination.issue == destiny_openalex_work_metadata.pagination.get(
+        "issue"
+    ), "Expect that the issue is set correctly"
+
+
+def test_prepare_destiny_pagination_success_pagination_unavailable(
+    destiny_openalex_work_metadata: DestinyOpenAlexWorkMetadata,
+) -> None:
+    """Test the prepare_destiny_pagination function."""
+    work_metadata = copy.deepcopy(destiny_openalex_work_metadata)
+    work_metadata.pagination = {}
+    pagination = prepare_destiny_pagination(work_metadata)
+
+    assert isinstance(
+        pagination, Pagination
+    ), "Expect that the returned object is of type Pagination"
+    assert all(
+        value is None
+        for value in [
+            pagination.first_page,
+            pagination.last_page,
+            pagination.volume,
+            pagination.issue,
+        ]
+    ), "Expect that all pagination fields are None when pagination data is unavailable"
+
+
+def test_is_xpac_annotation_created_when_true(
+    openalex_work_dict: dict,
+) -> None:
+    """Test that is_xpac annotation is created when is_xpac is True."""
+    test_work_dict = openalex_work_dict.copy()
+    test_work_dict["is_xpac"] = True
+
+    destiny_work = convert_openalex_to_destiny(test_work_dict)
+
+    # Find the annotation enhancement
+    is_xpac_annotation = None
+    for enhancement in destiny_work.enhancements:
+        if isinstance(enhancement.content, AnnotationEnhancement):
+            for annotation in enhancement.content.annotations:
+                if annotation.label == "is_xpac":
+                    is_xpac_annotation = annotation
+                    break
+
+    assert is_xpac_annotation is not None, "is_xpac annotation should be present"
+    assert is_xpac_annotation.scheme == "openalex", "Scheme should be 'openalex'"
+    assert is_xpac_annotation.value is True, "Value should be True"
+
+
+@pytest.mark.parametrize("is_xpac_value", [False, None])
+def test_is_xpac_annotation_not_created_when_false_or_none(
+    openalex_work_dict: dict,
+    *,
+    is_xpac_value: bool | None,
+) -> None:
+    """Test that is_xpac annotation is not created when is_xpac is False or None."""
+    test_work_dict = openalex_work_dict.copy()
+    test_work_dict["is_xpac"] = is_xpac_value
+
+    destiny_work = convert_openalex_to_destiny(test_work_dict)
+
+    # Collect all annotation labels and verify is_xpac is not among them
+    annotation_labels = [
+        annotation.label
+        for enhancement in destiny_work.enhancements
+        if isinstance(enhancement.content, AnnotationEnhancement)
+        for annotation in enhancement.content.annotations
+    ]
+    assert (
+        "is_xpac" not in annotation_labels
+    ), f"is_xpac annotation should not be present when is_xpac is {is_xpac_value}"

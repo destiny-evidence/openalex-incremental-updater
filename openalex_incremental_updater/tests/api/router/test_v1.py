@@ -12,7 +12,11 @@ from freezegun import freeze_time
 from httpx import AsyncClient
 from pytest_mock import MockerFixture
 
-from openalex_incremental_updater.core.job_state import JobManager, JobState
+from openalex_incremental_updater.core.job_state import (
+    JobManager,
+    JobState,
+    report_status,
+)
 from openalex_incremental_updater.ingest import CreatedOrUpdated
 from openalex_incremental_updater.models.auth import DestinyRepoToken
 
@@ -208,8 +212,6 @@ async def test_run_with_tracking_async_exception_raised(
 
 
 def test_report_status(set_test_environment_variables: Generator):
-    from openalex_incremental_updater.api.routers.v1 import report_status
-
     expected_progress_fields = {
         "status": "test",
         "progress": {"progress": 100, "total_works": 1000},

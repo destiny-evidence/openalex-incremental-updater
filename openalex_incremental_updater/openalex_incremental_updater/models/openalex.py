@@ -36,6 +36,7 @@ class OpenAlexWork(BaseModel):
     biblio: dict | None = None
     is_retracted: bool | None = None
     is_paratext: bool | None = None
+    is_xpac: bool | None = None
     primary_topic: dict | None = None
     topics: list[dict] | None = None
     keywords: list[dict] | None = None

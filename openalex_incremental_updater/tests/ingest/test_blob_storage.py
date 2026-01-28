@@ -138,3 +138,55 @@ async def test_blob_upload_failure(
     with pytest.raises(BlobUploadError) as error:
         await blob_upload(test_data_bytes_iter, test_filename, chunk_size=chunk_size)
     assert "Test uploading error" in str(error.value)
+
+
+@pytest.mark.parametrize(
+    "original_exception",
+    [
+        AzureError("Azure error during upload"),
+        ClientAuthenticationError("Auth error during upload"),
+        HttpResponseError("HTTP error during upload"),
+        ResourceExistsError("Resource exists error during upload"),
+        ResourceNotFoundError("Resource not found error during upload"),
+        ServiceRequestError("Service request error during upload"),
+    ],
+)
+@pytest.mark.asyncio
+async def test_blob_upload_failure_delete_raises(
+    mocker: MockerFixture,
+    set_test_environment_variables: Generator,
+    original_exception: Exception,
+):
+    """If deleting the blob raises, ensure original upload error is still raised."""
+    test_data = '{"key1": "value1"}\n'
+
+    async def async_gen(data):
+        for line in data.splitlines(keepends=True):
+            yield line.encode("utf-8")
+
+    test_data_bytes_iter = async_gen(test_data)
+    chunk_size = len(test_data.encode("utf-8"))
+
+    test_filename = "a_test_path/to_a/test_blob.jsonl"
+
+    mock_blob_client = mocker.AsyncMock()
+    mock_blob_client.stage_block.side_effect = original_exception
+    mock_blob_client.delete_blob.side_effect = Exception("Delete failed")
+
+    mock_blob_service_instance = mocker.MagicMock()
+    mock_blob_service_instance.close = mocker.AsyncMock()
+    mock_blob_service_instance.get_blob_client.return_value = mock_blob_client
+    mocker.patch(
+        "openalex_incremental_updater.ingest.blob_storage.BlobServiceClient",
+        return_value=mock_blob_service_instance,
+    )
+
+    with pytest.raises(BlobUploadError) as error:
+        await blob_upload(test_data_bytes_iter, test_filename, chunk_size=chunk_size)
+
+    assert str(original_exception) in str(
+        error.value
+    ), "Check that the original error message is in the raised BlobUploadError"
+    assert (
+        mock_blob_client.delete_blob.await_count == 1
+    ), "Check that delete_blob was attempted exactly once"

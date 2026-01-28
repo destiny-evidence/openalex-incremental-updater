@@ -14,6 +14,7 @@ from destiny_sdk.enhancements import (
     EnhancementFileInput,
     Location,
     LocationEnhancement,
+    Pagination,
 )
 from destiny_sdk.identifiers import (
     DOIIdentifier,
@@ -26,6 +27,10 @@ from destiny_sdk.references import ReferenceFileInput
 from destiny_sdk.visibility import Visibility
 from loguru import logger
 from pydantic import AnyHttpUrl, BaseModel, Field, ValidationError, model_validator
+
+
+class DESTINYReferenceDOIIdentifierError(Exception):
+    """Exception raised for invalid DOI identifiers."""
 
 
 class UrlModel(BaseModel):
@@ -67,6 +72,10 @@ class DestinyOpenAlexWorkMetadata(BaseModel):
         default=False,
         description="Indicates whether the work has been retracted.",
     )
+    is_xpac: bool | None = Field(
+        default=None,
+        description="Indicates whether the work is from the OpenAlex expansion pac (xpac) dataset.",
+    )
     openalex_id: str | None = Field(
         default=None,
         description="The OpenAlex ID of the work.",
@@ -102,6 +111,10 @@ class DestinyOpenAlexWorkMetadata(BaseModel):
     topics: list[dict] | None = Field(
         default=None,
         description="A list of topics for the work.",
+    )
+    pagination: dict | None = Field(
+        default=None,
+        description="Pagination details for the work.",
     )
     processor_version: str = Field(
         default="initial_openalex_import",
@@ -171,6 +184,7 @@ def convert_openalex_to_destiny(
     primary_location = openalex_work.get("primary_location")
     source = primary_location.get("source") if primary_location else None
     host_organisation_name = source.get("host_organization_name") if source else None
+    pagination = openalex_work.get("biblio") if openalex_work.get("biblio") else None
 
     locations = openalex_work.get("locations")
     topics = openalex_work.get("topics")
@@ -213,7 +227,9 @@ def convert_openalex_to_destiny(
         host_organisation_name=host_organisation_name,
         locations=locations,
         topics=topics,
+        pagination=pagination,
         processor_version=processor_version,
+        is_xpac=openalex_work.get("is_xpac"),
     )
 
     return get_destiny_openalex_work(
@@ -240,6 +256,7 @@ def create_core_destiny_openalex_work(
         ReferenceFileInput: An instance of ReferenceFileInput populated with the metadata and core identifiers.
 
     """
+    pagination_data = prepare_destiny_pagination(metadata)
     bibliographic_enhancement = BibliographicMetadataEnhancement(
         title=source_document.get("title"),
         cited_by_count=source_document.get("cited_by_count"),
@@ -247,6 +264,7 @@ def create_core_destiny_openalex_work(
         publication_date=source_document.get("publication_date"),
         publication_year=source_document.get("publication_year"),
         publisher=metadata.host_organisation_name,
+        pagination=pagination_data,
     )
 
     return ReferenceFileInput(
@@ -285,7 +303,14 @@ def prepare_destiny_identifiers(
             OpenAlexIdentifier(identifier=metadata.openalex_id)
         )
     if is_valid_nonempty_string(metadata.doi):
-        destiny_work_identifiers.append(DOIIdentifier(identifier=metadata.doi))
+        try:
+            destiny_work_identifiers.append(DOIIdentifier(identifier=metadata.doi))
+        except ValidationError as doi_validation_error:
+            error_message = f"Invalid DOI: {metadata.doi}"
+            logger.warning(error_message)
+            raise DESTINYReferenceDOIIdentifierError(
+                error_message
+            ) from doi_validation_error
     if metadata.pubmed_id is not None:
         destiny_work_identifiers.append(PubMedIdentifier(identifier=metadata.pubmed_id))
 
@@ -376,6 +401,36 @@ def prepare_destiny_locations(metadata: DestinyOpenAlexWorkMetadata) -> list[Loc
     return locations
 
 
+def prepare_destiny_pagination(
+    metadata: DestinyOpenAlexWorkMetadata,
+) -> Pagination:
+    """
+    Prepare a list of pagination details for the Destiny OpenAlex work.
+
+    Paginations map to OpenAlex's `Work.biblio` object.
+
+    Args:
+        metadata (DestinyOpenAlexWorkMetadata): The metadata containing pagination details.
+
+    Returns:
+        Pagination: A Pagination object with pagination
+            information for journal articles.
+
+    """
+    pagination_dict = metadata.pagination or {}
+    volume = pagination_dict.get("volume", None)
+    issue = pagination_dict.get("issue", None)
+    first_page = pagination_dict.get("first_page", None)
+    last_page = pagination_dict.get("last_page", None)
+
+    return Pagination(
+        first_page=first_page if is_valid_nonempty_string(first_page) else None,
+        issue=issue if is_valid_nonempty_string(issue) else None,
+        last_page=last_page if is_valid_nonempty_string(last_page) else None,
+        volume=volume if is_valid_nonempty_string(volume) else None,
+    )
+
+
 def prepare_destiny_annotations(
     metadata: DestinyOpenAlexWorkMetadata,
 ) -> list[BooleanAnnotation]:
@@ -390,6 +445,17 @@ def prepare_destiny_annotations(
 
     """
     annotations: list[BooleanAnnotation] = []
+
+    # Add is_xpac annotation only when True (absence implies not xpac)
+    if metadata.is_xpac:
+        annotations.append(
+            BooleanAnnotation(
+                scheme="openalex",
+                label="is_xpac",
+                value=True,
+            )
+        )
+
     for annotation in metadata.topics or []:
         label = annotation.get("display_name", "")
         data = annotation
