@@ -26,6 +26,7 @@ from openalex_incremental_updater.models.destiny import (
     convert_openalex_to_destiny,
     get_destiny_openalex_work,
     is_valid_nonempty_string,
+    prepare_destiny_locations,
     prepare_destiny_pagination,
     strip_url_prefix,
 )
@@ -534,6 +535,55 @@ def test_strip_url_prefix(url: str, expected_output: str) -> None:
     assert (
         strip_url_prefix(url) == expected_output
     ), f"Expected {expected_output} for {url}"
+
+
+@pytest.mark.parametrize(
+    "invalid_url",
+    [
+        "www.example.org/file.pdf",  # missing scheme (W12561570)
+        "archive.example.org/handle/123",  # bare domain (W915423)
+        "https://",  # empty scheme (W652607350)
+        "http://[dl.example.pl/Content/123",  # invalid bracket (W7065886528)
+        "132.248.52.100:8080/path",  # IP:port without scheme (W22238915)
+        "not-a-url",  # completely invalid
+    ],
+)
+def test_prepare_destiny_locations_skips_invalid_urls(invalid_url: str) -> None:
+    """Test that invalid landing_page_url values are skipped without crashing."""
+    metadata = DestinyOpenAlexWorkMetadata(
+        openalex_id="W1234567890",  # required identifier
+        locations=[
+            {"landing_page_url": invalid_url, "is_oa": False},
+        ],
+        processor_version="test",
+    )
+    locations = prepare_destiny_locations(metadata)
+    assert len(locations) == 0, f"Expected invalid URL {invalid_url!r} to be skipped"
+
+
+def test_prepare_destiny_locations_preserves_valid_locations_when_one_invalid() -> None:
+    """Test that valid locations are preserved when one location has invalid URL."""
+    valid_urls = [
+        "https://valid.example.com/paper.pdf",
+        "https://another-valid.org/doc",
+    ]
+    invalid_urls = [
+        "www.invalid-no-scheme.org/file.pdf",
+    ]
+    metadata = DestinyOpenAlexWorkMetadata(
+        openalex_id="W1234567890",  # required identifier
+        locations=[
+            {"landing_page_url": valid_urls[0], "is_oa": True},
+            {"landing_page_url": invalid_urls[0], "is_oa": False},
+            {"landing_page_url": valid_urls[1], "is_oa": True},
+        ],
+        processor_version="test",
+    )
+    locations = prepare_destiny_locations(metadata)
+    assert len(locations) == len(valid_urls), "Only valid locations should be kept"
+    result_urls = [str(loc.landing_page_url) for loc in locations]
+    for url in valid_urls:
+        assert url in result_urls
 
 
 def test_prepare_destiny_pagination_success_pagination_available(
