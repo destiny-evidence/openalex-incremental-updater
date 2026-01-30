@@ -1,7 +1,6 @@
 import copy
 from datetime import datetime
 from typing import Any
-from zoneinfo import ZoneInfo
 
 import pytest
 from destiny_sdk.enhancements import (
@@ -30,6 +29,7 @@ from openalex_incremental_updater.models.destiny import (
     get_destiny_openalex_work,
     is_valid_nonempty_string,
     map_openalex_source_type_to_venue_type,
+    prepare_destiny_locations,
     prepare_destiny_pagination,
     strip_url_prefix,
 )
@@ -38,9 +38,13 @@ from openalex_incremental_updater.models.destiny import (
 def test_destiny_openalex_work_valid_from_valid_openalex_work_dict(
     openalex_work_dict: dict,
 ) -> None:
-    expected_creation_date = datetime(2025, 1, 1, tzinfo=ZoneInfo("UTC")).date()
-    expected_creation_date_string = expected_creation_date.isoformat()
-    expected_publication_year = expected_creation_date.year
+    expected_creation_date = openalex_work_dict.get("created_date")
+    expected_update_date = (
+        datetime.fromisoformat(openalex_work_dict.get("updated_date", ""))
+        .date()
+        .isoformat()
+    )
+    expected_publication_year = openalex_work_dict.get("publication_year")
     expected_openalex_id = openalex_work_dict["ids"]["openalex"].rsplit("/", 1)[-1]
     expected_abstract = convert_inverted_abstract(
         openalex_work_dict["abstract_inverted_index"]
@@ -58,6 +62,7 @@ def test_destiny_openalex_work_valid_from_valid_openalex_work_dict(
     abstract = None
     publication_year = None
     created_date = None
+    updated_date = None
     pagination = None
     for enhancement in destiny_work.enhancements:
         content = enhancement.content
@@ -66,6 +71,7 @@ def test_destiny_openalex_work_valid_from_valid_openalex_work_dict(
         elif isinstance(content, BibliographicMetadataEnhancement):
             publication_year = content.publication_year
             created_date = str(content.created_date) if content.created_date else None
+            updated_date = str(content.updated_date) if content.updated_date else None
             pagination = content.pagination if content.pagination else None
 
     assert (
@@ -79,8 +85,11 @@ def test_destiny_openalex_work_valid_from_valid_openalex_work_dict(
         publication_year == expected_publication_year
     ), "Expect that the test publication year is set correctly"
     assert (
-        created_date == expected_creation_date_string
+        created_date == expected_creation_date
     ), "Expect that the test created date is set correctly"
+    assert (
+        updated_date == expected_update_date
+    ), "Expect that the test updated date is set correctly"
     assert (
         pagination == expected_pagination_dict
     ), "Expect that the test pagination is set correctly"
@@ -529,6 +538,55 @@ def test_strip_url_prefix(url: str, expected_output: str) -> None:
     assert (
         strip_url_prefix(url) == expected_output
     ), f"Expected {expected_output} for {url}"
+
+
+@pytest.mark.parametrize(
+    "invalid_url",
+    [
+        "www.example.org/file.pdf",  # missing scheme (W12561570)
+        "archive.example.org/handle/123",  # bare domain (W915423)
+        "https://",  # empty scheme (W652607350)
+        "http://[dl.example.pl/Content/123",  # invalid bracket (W7065886528)
+        "132.248.52.100:8080/path",  # IP:port without scheme (W22238915)
+        "not-a-url",  # completely invalid
+    ],
+)
+def test_prepare_destiny_locations_skips_invalid_urls(invalid_url: str) -> None:
+    """Test that invalid landing_page_url values are skipped without crashing."""
+    metadata = DestinyOpenAlexWorkMetadata(
+        openalex_id="W1234567890",  # required identifier
+        locations=[
+            {"landing_page_url": invalid_url, "is_oa": False},
+        ],
+        processor_version="test",
+    )
+    locations = prepare_destiny_locations(metadata)
+    assert len(locations) == 0, f"Expected invalid URL {invalid_url!r} to be skipped"
+
+
+def test_prepare_destiny_locations_preserves_valid_locations_when_one_invalid() -> None:
+    """Test that valid locations are preserved when one location has invalid URL."""
+    valid_urls = [
+        "https://valid.example.com/paper.pdf",
+        "https://another-valid.org/doc",
+    ]
+    invalid_urls = [
+        "www.invalid-no-scheme.org/file.pdf",
+    ]
+    metadata = DestinyOpenAlexWorkMetadata(
+        openalex_id="W1234567890",  # required identifier
+        locations=[
+            {"landing_page_url": valid_urls[0], "is_oa": True},
+            {"landing_page_url": invalid_urls[0], "is_oa": False},
+            {"landing_page_url": valid_urls[1], "is_oa": True},
+        ],
+        processor_version="test",
+    )
+    locations = prepare_destiny_locations(metadata)
+    assert len(locations) == len(valid_urls), "Only valid locations should be kept"
+    result_urls = [str(loc.landing_page_url) for loc in locations]
+    for url in valid_urls:
+        assert url in result_urls
 
 
 def test_prepare_destiny_pagination_success_pagination_available(

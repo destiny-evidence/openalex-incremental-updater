@@ -77,7 +77,7 @@ def single_destiny_openalex_work_jsonl_string() -> str:
                     ],
                     "cited_by_count": None,
                     "created_date": "2025-01-01",
-                    "updated_date": None,
+                    "updated_date": "2025-01-01",
                     "publication_date": "2025-01-01",
                     "publication_year": 2025,
                     "publisher": None,

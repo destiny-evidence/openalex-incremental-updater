@@ -1,5 +1,6 @@
 """Models associated with references."""
 
+from datetime import datetime
 from enum import StrEnum
 from typing import Self
 
@@ -144,6 +145,32 @@ class DestinyOpenAlexWorkMetadata(BaseModel):
             )
             raise ValueError(error_message)
         return self
+
+
+def retrieve_isoformat_date_string_from_datetime_string(
+    datetime_string: str | None,
+) -> str | None:
+    """
+    Retrieve the date as an ISO string from an ISO-format datetime string.
+
+    N.B. OpenAlex provides datetime strings in ISO 8601 format.
+
+    Args:
+        datetime_string (str | None): The datetime string to convert.
+
+    Returns:
+        str | None: The date string extracted from the datetime string, or None if input is None.
+
+    """
+    if datetime_string is None:
+        return None
+
+    try:
+        datetime_object = datetime.fromisoformat(datetime_string)
+        return datetime_object.date().isoformat()
+    except ValueError:
+        logger.warning(f"Invalid datetime string: {datetime_string}")
+        return None
 
 
 def strip_url_prefix(url: AnyHttpUrl | None) -> str | None:
@@ -320,10 +347,14 @@ def create_core_destiny_openalex_work(
     publication_venue = prepare_destiny_publication_venue(
         primary_location.get("source")
     )
+    updated_date_string = retrieve_isoformat_date_string_from_datetime_string(
+        source_document.get("updated_date")
+    )
     bibliographic_enhancement = BibliographicMetadataEnhancement(
         title=source_document.get("title"),
         cited_by_count=source_document.get("cited_by_count"),
         created_date=source_document.get("created_date"),
+        updated_date=updated_date_string,
         publication_date=source_document.get("publication_date"),
         publication_year=source_document.get("publication_year"),
         publisher=metadata.host_organisation_name,
@@ -445,17 +476,23 @@ def prepare_destiny_locations(metadata: DestinyOpenAlexWorkMetadata) -> list[Loc
         license_val = location.get("license")
         extra = location.get("source")
 
-        loc = Location(
-            is_oa=is_oa,
-            version=version if is_valid_nonempty_string(version) else None,
-            landing_page_url=landing_page_url
-            if is_valid_nonempty_string(landing_page_url)
-            else None,
-            pdf_url=pdf_url if is_valid_nonempty_string(pdf_url) else None,
-            license=license_val if is_valid_nonempty_string(license_val) else None,
-            extra=extra if extra else None,
-        )
-        locations.append(loc)
+        try:
+            loc = Location(
+                is_oa=is_oa,
+                version=version if is_valid_nonempty_string(version) else None,
+                landing_page_url=landing_page_url
+                if is_valid_nonempty_string(landing_page_url)
+                else None,
+                pdf_url=pdf_url if is_valid_nonempty_string(pdf_url) else None,
+                license=license_val if is_valid_nonempty_string(license_val) else None,
+                extra=extra if extra else None,
+            )
+            locations.append(loc)
+        except ValidationError:
+            logger.warning(
+                f"Skipping location with invalid URL: "
+                f"landing_page={landing_page_url!r}, pdf={pdf_url!r}"
+            )
     return locations
 
 
