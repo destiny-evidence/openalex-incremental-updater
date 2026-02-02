@@ -9,6 +9,8 @@ from destiny_sdk.enhancements import (
     BibliographicMetadataEnhancement,
     LocationEnhancement,
     Pagination,
+    PublicationVenue,
+    PublicationVenueType,
 )
 from destiny_sdk.identifiers import (
     DOIIdentifier,
@@ -26,6 +28,7 @@ from openalex_incremental_updater.models.destiny import (
     convert_openalex_to_destiny,
     get_destiny_openalex_work,
     is_valid_nonempty_string,
+    map_openalex_source_type_to_venue_type,
     prepare_destiny_locations,
     prepare_destiny_pagination,
     strip_url_prefix,
@@ -676,3 +679,70 @@ def test_is_xpac_annotation_not_created_when_false_or_none(
     assert (
         "is_xpac" not in annotation_labels
     ), f"is_xpac annotation should not be present when is_xpac is {is_xpac_value}"
+
+
+@pytest.mark.parametrize(
+    ("source_type", "expected_venue_type"),
+    [
+        ("journal", PublicationVenueType.JOURNAL),
+        ("repository", PublicationVenueType.REPOSITORY),
+        ("conference", PublicationVenueType.CONFERENCE),
+        ("ebook platform", PublicationVenueType.EBOOK_PLATFORM),
+        ("book series", PublicationVenueType.BOOK_SERIES),
+        ("metadata", PublicationVenueType.OTHER),
+        ("unknown_type", PublicationVenueType.OTHER),
+        (None, PublicationVenueType.OTHER),
+        ("", PublicationVenueType.OTHER),
+    ],
+)
+def test_map_openalex_source_type_to_publication_venue_type(
+    source_type: str | None, expected_venue_type: PublicationVenueType
+) -> None:
+    """Test that OpenAlex source types are correctly mapped to DESTINY PublicationVenueType."""
+    result = map_openalex_source_type_to_venue_type(source_type)
+    assert (
+        result == expected_venue_type
+    ), f"Expected {expected_venue_type} for {source_type!r}"
+
+
+def test_destiny_openalex_work_with_publication_venue(
+    openalex_work_dict: dict,
+) -> None:
+    """Test that convert_openalex_to_destiny includes publication_venue in bibliographic metadata."""
+    destiny_work = convert_openalex_to_destiny(openalex_work_dict)
+
+    # Find the bibliographic enhancement
+    publication_venue = None
+    for enhancement in destiny_work.enhancements:
+        if isinstance(enhancement.content, BibliographicMetadataEnhancement):
+            publication_venue = enhancement.content.publication_venue
+            break
+
+    assert publication_venue is not None, "Publication venue should be present"
+    assert isinstance(publication_venue, PublicationVenue)
+    assert publication_venue.display_name == "Test source"
+    assert publication_venue.venue_type == PublicationVenueType.JOURNAL
+    assert publication_venue.issn == ["1234-5678"]
+    assert publication_venue.issn_l == "1234-5678"
+    assert publication_venue.host_organization_name == "Test host organization"
+
+
+def test_destiny_openalex_work_no_venue_when_no_primary_location(
+    openalex_work_dict: dict,
+) -> None:
+    """Test that publication_venue is None when primary_location is missing."""
+    test_work_dict = openalex_work_dict.copy()
+    test_work_dict["primary_location"] = None
+
+    destiny_work = convert_openalex_to_destiny(test_work_dict)
+
+    # Find the bibliographic enhancement
+    publication_venue = None
+    for enhancement in destiny_work.enhancements:
+        if isinstance(enhancement.content, BibliographicMetadataEnhancement):
+            publication_venue = enhancement.content.publication_venue
+            break
+
+    assert (
+        publication_venue is None
+    ), "Publication venue should be None when no primary_location"

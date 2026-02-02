@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from destiny_sdk.references import ReferenceFileInput
 
@@ -48,4 +50,47 @@ def destiny_work(destiny_work_dict: dict) -> ReferenceFileInput:
 
 @pytest.fixture
 def single_destiny_openalex_work_jsonl_string() -> str:
-    return '{"visibility":"public","identifiers":[{"identifier":"W9876543210","identifier_type":"open_alex"},{"identifier":"10.5678/test_doi","identifier_type":"doi"}],"enhancements":[{"source":"openalex","visibility":"public","robot_version":null,"content":{"enhancement_type":"bibliographic","authorship":[{"display_name":"First Author","orcid":"https://orcid.org/example-orcid-first-author","position":"first"},{"display_name":"Last Author","orcid":"https://orcid.org/example-orcid-last-author","position":"last"}],"cited_by_count":null,"created_date":"2025-01-01","updated_date":"2025-01-01","publication_date":"2025-01-01","publication_year":2025,"publisher":null,"title":"Test Title","pagination":{"volume":"999","issue":"999","first_page":"1","last_page":"10"}}}]}\n'
+    data = {
+        "visibility": "public",
+        "identifiers": [
+            {"identifier": "W9876543210", "identifier_type": "open_alex"},
+            {"identifier": "10.5678/test_doi", "identifier_type": "doi"},
+        ],
+        "enhancements": [
+            {
+                "source": "openalex",
+                "visibility": "public",
+                "robot_version": None,
+                "content": {
+                    "enhancement_type": "bibliographic",
+                    "authorship": [
+                        {
+                            "display_name": "First Author",
+                            "orcid": "https://orcid.org/example-orcid-first-author",
+                            "position": "first",
+                        },
+                        {
+                            "display_name": "Last Author",
+                            "orcid": "https://orcid.org/example-orcid-last-author",
+                            "position": "last",
+                        },
+                    ],
+                    "cited_by_count": None,
+                    "created_date": "2025-01-01",
+                    "updated_date": "2025-01-01",
+                    "publication_date": "2025-01-01",
+                    "publication_year": 2025,
+                    "publisher": None,
+                    "title": "Test Title",
+                    "pagination": {
+                        "volume": "999",
+                        "issue": "999",
+                        "first_page": "1",
+                        "last_page": "10",
+                    },
+                    "publication_venue": None,
+                },
+            }
+        ],
+    }
+    return json.dumps(data, separators=(",", ":")) + "\n"

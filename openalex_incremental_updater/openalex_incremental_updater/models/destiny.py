@@ -16,6 +16,8 @@ from destiny_sdk.enhancements import (
     Location,
     LocationEnhancement,
     Pagination,
+    PublicationVenue,
+    PublicationVenueType,
 )
 from destiny_sdk.identifiers import (
     DOIIdentifier,
@@ -193,6 +195,63 @@ def strip_url_prefix(url: AnyHttpUrl | None) -> str | None:
         return str(url)
 
 
+def map_openalex_source_type_to_venue_type(
+    source_type: str | None,
+) -> PublicationVenueType:
+    """
+    Map OpenAlex source type to DESTINY PublicationVenueType.
+
+    Args:
+        source_type (str | None): The OpenAlex source type string.
+
+    Returns:
+        PublicationVenueType: The corresponding DESTINY venue type.
+            Returns OTHER for unknown or None types.
+
+    """
+    if not source_type:
+        return PublicationVenueType.OTHER
+
+    mapping = {
+        "journal": PublicationVenueType.JOURNAL,
+        "repository": PublicationVenueType.REPOSITORY,
+        "conference": PublicationVenueType.CONFERENCE,
+        "ebook platform": PublicationVenueType.EBOOK_PLATFORM,
+        "book series": PublicationVenueType.BOOK_SERIES,
+    }
+    return mapping.get(source_type, PublicationVenueType.OTHER)
+
+
+def prepare_destiny_publication_venue(source: dict | None) -> PublicationVenue | None:
+    """
+    Prepare PublicationVenue from OpenAlex primary_location.source.
+
+    Args:
+        source (dict | None): The source dict from OpenAlex primary_location.
+
+    Returns:
+        PublicationVenue | None: The prepared PublicationVenue or None if source
+            is missing or empty.
+
+    """
+    if not source:
+        return None
+
+    return PublicationVenue(
+        display_name=source.get("display_name")
+        if is_valid_nonempty_string(source.get("display_name"))
+        else None,
+        venue_type=map_openalex_source_type_to_venue_type(source.get("type")),
+        issn=source.get("issn"),
+        issn_l=source.get("issn_l")
+        if is_valid_nonempty_string(source.get("issn_l"))
+        else None,
+        host_organization_name=source.get("host_organization_name")
+        if is_valid_nonempty_string(source.get("host_organization_name"))
+        else None,
+    )
+
+
 def convert_openalex_to_destiny(
     openalex_work: dict,
 ) -> ReferenceFileInput:
@@ -284,6 +343,10 @@ def create_core_destiny_openalex_work(
 
     """
     pagination_data = prepare_destiny_pagination(metadata)
+    primary_location = source_document.get("primary_location") or {}
+    publication_venue = prepare_destiny_publication_venue(
+        primary_location.get("source")
+    )
     updated_date_string = retrieve_isoformat_date_string_from_datetime_string(
         source_document.get("updated_date")
     )
@@ -296,6 +359,7 @@ def create_core_destiny_openalex_work(
         publication_year=source_document.get("publication_year"),
         publisher=metadata.host_organisation_name,
         pagination=pagination_data,
+        publication_venue=publication_venue,
     )
 
     return ReferenceFileInput(

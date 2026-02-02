@@ -1,5 +1,5 @@
 version = 1
-revision = 3
+revision = 2
 requires-python = "==3.13.*"
 
 [[package]]
@@ -291,7 +291,7 @@ wheels = [
 
 [[package]]
 name = "destiny-sdk"
-version = "0.7.6"
+version = "0.8.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "cachetools" },
@@ -301,9 +301,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "python-jose" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/81/ee/ceddc56dd8d8724a85bd61b9fff1253d12a2e343c4ce1265ca7da6243f2f/destiny_sdk-0.7.6.tar.gz", hash = "sha256:503a42f3ba4b016b84cd7ff3adabc50c87123caf99941790226e87dabc267e2c", size = 101126, upload-time = "2026-01-26T23:06:33.528Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/55/60/131330e2b56b9d7e75658c671c75a35376fc9c947f82de778e5c50b487de/destiny_sdk-0.8.0.tar.gz", hash = "sha256:73555057bbeea7eceebc180471ce6dc29c27a24dac2b7f7009ae76aca70f7c39", size = 101608, upload-time = "2026-01-30T03:18:36.106Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/ae/88/402e840b2022ec1bbcfea31015be0bb704d61a4e839dd0178f054f3c7e61/destiny_sdk-0.7.6-py3-none-any.whl", hash = "sha256:12ec2a52e2d3898dac2db1c636f84eb42227dda569dc22e5d067ae5560688456", size = 33478, upload-time = "2026-01-26T23:06:31.536Z" },
+    { url = "https://files.pythonhosted.org/packages/e2/de/01eecfa59b41fef67de1c4230446f19da5a1c5cd795e19341161af3807c5/destiny_sdk-0.8.0-py3-none-any.whl", hash = "sha256:0583e38b4578c1c688940778b99a3e77ca002b821f1cf461e905f28fd7c40088", size = 33846, upload-time = "2026-01-30T03:18:34.822Z" },
 ]
 
 [[package]]
@@ -751,7 +751,7 @@ requires-dist = [
     { name = "azure-core", specifier = ">=1.35.0" },
     { name = "azure-identity", specifier = ">=1.24.0" },
     { name = "azure-storage-blob", specifier = ">=12.26.0" },
-    { name = "destiny-sdk", specifier = ">=0.7.6,<0.8" },
+    { name = "destiny-sdk", specifier = ">=0.8,<0.9" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.115.6,<0.116" },
     { name = "httpx", specifier = ">=0.28.1,<0.29" },
     { name = "loguru", specifier = ">=0.7.3,<0.8" },

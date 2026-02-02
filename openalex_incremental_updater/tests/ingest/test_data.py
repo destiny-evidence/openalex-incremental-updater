@@ -56,6 +56,7 @@ async def test_convert_destinyworks_to_jsonl_string_valid_json(destiny_work_dict
                             "first_page": "789",
                             "last_page": "999",
                         },
+                        "publication_venue": None,
                     },
                 }
             ],
@@ -93,6 +94,7 @@ async def test_convert_destinyworks_to_jsonl_string_valid_json(destiny_work_dict
                             "first_page": "789",
                             "last_page": "999",
                         },
+                        "publication_venue": None,
                     },
                 }
             ],
@@ -130,6 +132,7 @@ async def test_convert_destinyworks_to_jsonl_string_valid_json(destiny_work_dict
                             "first_page": "789",
                             "last_page": "999",
                         },
+                        "publication_venue": None,
                     },
                 }
             ],
