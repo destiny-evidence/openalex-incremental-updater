@@ -3,6 +3,7 @@
 import time
 from enum import StrEnum
 
+from destiny_sdk import UUID
 from destiny_sdk.imports import (
     ImportBatchIn,
     ImportBatchRead,
@@ -11,7 +12,6 @@ from destiny_sdk.imports import (
     ImportRecordRead,
 )
 from loguru import logger
-from pydantic import UUID4
 from requests import Response
 from requests.exceptions import JSONDecodeError
 
@@ -181,12 +181,12 @@ class DestinyRepositoryContentUploader:
 
         return import_batch
 
-    def finalise_import_record(self, import_record_id: UUID4) -> Response:
+    def finalise_import_record(self, import_record_id: UUID) -> Response:
         """
         Finalise the import record in the DESTINY repository.
 
         Args:
-            import_record (UUID4): The import record id to finalise.
+            import_record (UUID): The import record id to finalise.
 
         Returns:
             Response: The response from the DESTINY repository after finalising the import record.
@@ -205,14 +205,14 @@ class DestinyRepositoryContentUploader:
         return response
 
     def check_if_import_batch_completed(
-        self, import_record_id: UUID4, import_batch_id: UUID4
+        self, import_record_id: UUID, import_batch_id: UUID
     ) -> bool:
         """
         Check if the import batch has completed.
 
         Args:
-            import_record_id (UUID4): The ID of the import record the batch belongs to.
-            import_batch_id (UUID4): The ID of the import batch to check.
+            import_record_id (UUID): The ID of the import record the batch belongs to.
+            import_batch_id (UUID): The ID of the import batch to check.
 
         Returns:
             bool: True if the import batch has completed, False otherwise.
@@ -228,14 +228,14 @@ class DestinyRepositoryContentUploader:
         return import_batch_status.status == "completed"
 
     def get_import_batch_summary(
-        self, import_record_id: UUID4, import_batch_id: UUID4
+        self, import_record_id: UUID, import_batch_id: UUID
     ) -> ImportBatchSummary:
         """
         Get the summary of the import batch.
 
         Args:
-            import_record_id (UUID4): The ID of the import record the batch belongs to.
-            import_batch_id (UUID4): The import batch ID.
+            import_record_id (UUID): The ID of the import record the batch belongs to.
+            import_batch_id (UUID): The import batch ID.
 
         Returns:
             ImportBatchSummary: The summary of the import batch.
@@ -251,8 +251,8 @@ class DestinyRepositoryContentUploader:
 
     def poll_import_batches_for_completion(
         self,
-        import_record_id: UUID4,
-        import_batch_ids: list[UUID4],
+        import_record_id: UUID,
+        import_batch_ids: list[UUID],
         retry_time_seconds: int = 30,
         max_retries: int = 5,
     ) -> None:
@@ -263,8 +263,8 @@ class DestinyRepositoryContentUploader:
         or the maximum number of retries is reached.
 
         Args:
-            import_record_id (UUID4): The ID of the import record the batches belong to.
-            import_batch_ids (list[UUID4]): List of import batch IDs to poll for completion.
+            import_record_id (UUID): The ID of the import record the batches belong to.
+            import_batch_ids (list[UUID]): List of import batch IDs to poll for completion.
             retry_time_seconds (int, optional): Time to wait between retries in seconds. Defaults to 30.
             max_retries (int, optional): The maximum number of retries for checking import
                 batch completion. Defaults to 5.
@@ -320,7 +320,7 @@ def upload_blob_storage_contents_to_repository(
     )
     import_record = uploader.register_new_import(source_type=blob_content_source)
 
-    import_batch_ids = []  # type: list[UUID4]
+    import_batch_ids = []  # type: list[UUID]
     for blob_url_pair in blob_url_pairs:
         blob_name = blob_url_pair["blob_name"]
         sas_url = blob_url_pair["sas_url"]
