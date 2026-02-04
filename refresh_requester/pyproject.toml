@@ -4,7 +4,7 @@ requires = ["setuptools>=45", "wheel"]
 
 [dependency-groups]
 dev = ["pre-commit>=4.2.0,<5"]
-test = ["freezegun>=1.5.2,<2"]
+test = ["freezegun>=1.5.2,<2", "pytest-asyncio>=1.1,<1.2"]
 
 [project]
 name = "refresh-requester"
