@@ -4,7 +4,7 @@ requires = ["setuptools>=45", "wheel"]
 
 [dependency-groups]
 dev = ["pre-commit>=4.2.0,<5"]
-test = ["freezegun>=1.5.2,<2"]
+test = ["freezegun>=1.5.2,<2", "pytest-asyncio>=1.1,<1.2"]
 
 [project]
 name = "refresh-requester"
@@ -17,7 +17,7 @@ dependencies = [
   "azure-core>=1.32.0,<2",
   "azure-identity>=1.20.0,<2",
   "azure-storage-blob>=12.24.1,<13",
-  "fastapi>=0.115.14,<0.116",
+  "fastapi>=0.119.1,<0.120",
   "jsonlines>=4.0.0,<5",
   "loguru>=0.7.3,<0.8",
   "pydantic>=2.10.6,<3",
@@ -26,7 +26,7 @@ dependencies = [
   "pytest-cov>=6.0.0,<7",
   "pytest-mock>=3.14.0,<4",
   "requests>=2.32.3,<3",
-  "destiny-sdk~=0.5",
+  "destiny-sdk>=0.9,<0.10",
   "uvicorn>=0.35.0,<0.36"
 ]
 
