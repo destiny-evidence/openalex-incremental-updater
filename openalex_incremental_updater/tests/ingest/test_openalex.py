@@ -109,6 +109,54 @@ async def test_fetch_works_filter_date_range_call_openalex_error(
         ), "Check that the error message contains the expected status code."
 
 
+@pytest.mark.anyio
+async def test_fetch_works_filter_incomplete_fetch_raises_error(
+    double_openalex_work_response: list[dict],
+) -> None:
+    """Test that an error is raised when pagination ends before all works are fetched."""
+    fetcher = OpenAlexDataFetcher(retries=0)
+
+    first_page_response = {
+        "meta": {
+            "count": 100,  # Claims 100 works total
+            "next_cursor": "cursor_page_2",
+        },
+        "results": double_openalex_work_response,  # 2 works
+    }
+    # Premature end — null cursor with only 4 of 100 works fetched
+    second_page_response = {
+        "meta": {
+            "count": 100,
+            "next_cursor": None,
+        },
+        "results": double_openalex_work_response,  # 2 more works (4 total, not 100)
+    }
+
+    test_date = double_openalex_work_response[0]["publication_date"]
+    mock_url = "https://api.openalex.org/works"
+
+    openalex_query = OpenAlexDataFetcher.build_range_query(
+        test_date, test_date, CreatedOrUpdated("created")
+    )
+
+    with respx.mock:
+        respx.get(mock_url).mock(
+            side_effect=[
+                httpx.Response(status.HTTP_200_OK, json=first_page_response),
+                httpx.Response(status.HTTP_200_OK, json=second_page_response),
+            ]
+        )
+
+        response = fetcher.fetch_works_filter(
+            openalex_filter=openalex_query,
+        )
+        with pytest.raises(UpstreamOpenAlexError) as exc_info:
+            _ = [item async for item in response]
+
+        assert "Incomplete fetch" in str(exc_info.value)
+        assert "4 of 100" in str(exc_info.value)
+
+
 @freeze_time("2025-08-19")
 @pytest.mark.parametrize(
     "ingest_type", [CreatedOrUpdated("created"), CreatedOrUpdated("updated")]
