@@ -179,7 +179,7 @@ class OpenAlexDataFetcher:
                 )
 
                 counter_works_retrieved = 0
-                last_known_cursor = None
+                count_works_total = 0
                 while cursor:
                     filtered_works_url = (
                         query_string + f"&cursor={cursor}&per-page={per_page}"
@@ -206,8 +206,10 @@ class OpenAlexDataFetcher:
                     logger.info(
                         f"[Instance {instance_id}] Processed {counter_works_retrieved} results of {count_works_total}"
                     )
-                    cursor = retrieved_works["meta"]["next_cursor"]
-                    logger.info(f"[Instance {instance_id}] Next cursor: {cursor}")
+                    new_cursor = retrieved_works["meta"]["next_cursor"]
+                    logger.info(f"[Instance {instance_id}] Next cursor: {new_cursor}")
+
+                    cursor = new_cursor
 
                     if report:
                         report(
@@ -215,8 +217,6 @@ class OpenAlexDataFetcher:
                             progress=f"{counter_works_retrieved}/{count_works_total}",
                             total_works=count_works_total,
                         )
-                    if cursor:
-                        last_known_cursor = cursor
 
                     this_batch_hits_requested_results_limit = (
                         works_retrieved_limit is not None
@@ -247,8 +247,22 @@ class OpenAlexDataFetcher:
                         results, report=report, errors_dict=errors_dict
                     )
                     yield converted_results
-                logger.info(f"Last known cursor: {last_known_cursor}")
                 logger.info(
                     f"Finished paging. Retrieved {counter_works_retrieved} results."
                 )
+
+                # Validate completeness (skip if we intentionally limited results)
+                exited_due_to_limit = (
+                    works_retrieved_limit is not None
+                    and counter_works_retrieved >= works_retrieved_limit
+                )
+                if (
+                    not exited_due_to_limit
+                    and counter_works_retrieved < count_works_total
+                ):
+                    msg = (
+                        f"Incomplete fetch: retrieved {counter_works_retrieved} of "
+                        f"{count_works_total} expected works"
+                    )
+                    raise UpstreamOpenAlexError(msg)
             logger.info("Completed streaming results.")
