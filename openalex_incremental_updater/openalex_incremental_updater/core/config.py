@@ -49,6 +49,7 @@ class Settings(BaseSettings):
     allow_methods: list[str] = ["*"]
     allow_headers: list[str] = ["*"]
     log_level: str = "INFO"
+    BLOB_BATCH_SIZE: int = 10_000
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

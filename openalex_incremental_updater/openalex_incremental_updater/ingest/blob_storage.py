@@ -147,3 +147,50 @@ async def blob_upload(
         await _safe_delete_blob(blob_client)
         raise BlobUploadError(error_message) from value_error
     return filename
+
+
+async def _async_iter_from_list(items: list[bytes]) -> AsyncIterator[bytes]:
+    """Wrap a list of bytes into an async iterator."""
+    for item in items:
+        yield item
+
+
+async def blob_upload_multipart(
+    data: AsyncIterator[bytes],
+    base_filename: str,
+    batch_size: int = 10_000,
+) -> list[str]:
+    """
+    Upload data to blob storage, splitting across multiple blobs.
+
+    Each blob contains at most `batch_size` JSONL lines. Blob names follow
+    the pattern: {base_filename}_part_{NNN}.jsonl
+
+    Args:
+        data (AsyncIterator[bytes]): Async iterator yielding one bytes object per JSONL line.
+        base_filename (str): Base name without extension.
+        batch_size (int): Maximum number of lines per blob part. Defaults to 10,000.
+
+    Returns:
+        list[str]: List of uploaded blob filenames.
+
+    """
+    uploaded_blob_names: list[str] = []
+    part_num = 1
+    buffer: list[bytes] = []
+
+    async for line in data:
+        buffer.append(line)
+        if len(buffer) >= batch_size:
+            part_filename = f"{base_filename}_part_{part_num:03d}.jsonl"
+            await blob_upload(_async_iter_from_list(buffer), part_filename)
+            uploaded_blob_names.append(part_filename)
+            buffer = []
+            part_num += 1
+
+    if buffer or not uploaded_blob_names:
+        part_filename = f"{base_filename}_part_{part_num:03d}.jsonl"
+        await blob_upload(_async_iter_from_list(buffer), part_filename)
+        uploaded_blob_names.append(part_filename)
+
+    return uploaded_blob_names

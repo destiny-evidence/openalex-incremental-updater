@@ -100,7 +100,14 @@ async def openalex_ingest_processing(
     )
     report = report_status(job_manager, job_id)
     coroutine = run_background_openalex_ingest_job(
-        job_manager, job_id, report, start_date, end_date, ingest_type, limit
+        job_manager,
+        job_id,
+        report,
+        start_date,
+        end_date,
+        ingest_type,
+        limit,
+        batch_size=settings.BLOB_BATCH_SIZE,
     )
     TASKS[job_id] = asyncio.create_task(_run_with_tracking_async(job_id, coroutine))
     response_content = {

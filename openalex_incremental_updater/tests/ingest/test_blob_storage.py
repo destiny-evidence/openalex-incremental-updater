@@ -14,6 +14,7 @@ from pytest_mock import MockerFixture
 from openalex_incremental_updater.ingest.blob_storage import (
     BlobUploadError,
     blob_upload,
+    blob_upload_multipart,
     get_blob_service_client,
 )
 
@@ -190,3 +191,87 @@ async def test_blob_upload_failure_delete_raises(
     assert (
         mock_blob_client.delete_blob.await_count == 1
     ), "Check that delete_blob was attempted exactly once"
+
+
+@pytest.mark.asyncio
+async def test_blob_upload_multipart_single_part(
+    mocker: MockerFixture, set_test_environment_variables: Generator
+):
+    """Test multipart upload with fewer lines than batch_size produces one part."""
+    lines = [b'{"key": "value1"}\n', b'{"key": "value2"}\n']
+    mock_blob_upload = mocker.patch(
+        "openalex_incremental_updater.ingest.blob_storage.blob_upload",
+        side_effect=lambda _, filename: filename,
+    )
+
+    async def async_gen():
+        for line in lines:
+            yield line
+
+    result = await blob_upload_multipart(async_gen(), "base_name", batch_size=10)
+    assert result == ["base_name_part_001.jsonl"]
+    assert mock_blob_upload.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_blob_upload_multipart_multiple_parts(
+    mocker: MockerFixture, set_test_environment_variables: Generator
+):
+    """Test multipart upload splits correctly across multiple parts."""
+    lines = [f'{{"key": "value{i}"}}\n'.encode() for i in range(25)]
+    mock_blob_upload = mocker.patch(
+        "openalex_incremental_updater.ingest.blob_storage.blob_upload",
+        side_effect=lambda _, filename: filename,
+    )
+
+    async def async_gen():
+        for line in lines:
+            yield line
+
+    result = await blob_upload_multipart(async_gen(), "base_name", batch_size=10)
+    assert result == [
+        "base_name_part_001.jsonl",
+        "base_name_part_002.jsonl",
+        "base_name_part_003.jsonl",
+    ]
+    expected_parts = 3
+    assert mock_blob_upload.call_count == expected_parts
+
+
+@pytest.mark.asyncio
+async def test_blob_upload_multipart_empty_input(
+    mocker: MockerFixture, set_test_environment_variables: Generator
+):
+    """Test multipart upload with empty input still produces one part."""
+    mock_blob_upload = mocker.patch(
+        "openalex_incremental_updater.ingest.blob_storage.blob_upload",
+        side_effect=lambda _, filename: filename,
+    )
+
+    async def async_gen():
+        return
+        yield
+
+    result = await blob_upload_multipart(async_gen(), "base_name", batch_size=10)
+    assert result == ["base_name_part_001.jsonl"]
+    assert mock_blob_upload.call_count == 1
+
+
+@pytest.mark.asyncio
+async def test_blob_upload_multipart_exact_boundary(
+    mocker: MockerFixture, set_test_environment_variables: Generator
+):
+    """Test multipart upload when line count exactly equals batch_size."""
+    lines = [f'{{"key": "value{i}"}}\n'.encode() for i in range(10)]
+    mock_blob_upload = mocker.patch(
+        "openalex_incremental_updater.ingest.blob_storage.blob_upload",
+        side_effect=lambda _, filename: filename,
+    )
+
+    async def async_gen():
+        for line in lines:
+            yield line
+
+    result = await blob_upload_multipart(async_gen(), "base_name", batch_size=10)
+    assert result == ["base_name_part_001.jsonl"]
+    assert mock_blob_upload.call_count == 1
