@@ -220,7 +220,7 @@ async def test_blob_upload_multipart_multiple_parts(
     """Test multipart upload splits correctly across multiple parts."""
     generated_samples = 25
     test_batch_size = 10
-    expected_parts = (generated_samples + test_batch_size -1) // test_batch_size
+    expected_parts = (generated_samples + test_batch_size - 1) // test_batch_size
     lines = [f'{{"key": "value{i}"}}\n'.encode() for i in range(generated_samples)]
     mock_blob_upload = mocker.patch(
         "openalex_incremental_updater.ingest.blob_storage.blob_upload",
@@ -231,7 +231,9 @@ async def test_blob_upload_multipart_multiple_parts(
         for line in lines:
             yield line
 
-    result = await blob_upload_multipart(async_gen(), "base_name", batch_size=test_batch_size)
+    result = await blob_upload_multipart(
+        async_gen(), "base_name", batch_size=test_batch_size
+    )
     assert result == [
         "base_name_part_001.jsonl",
         "base_name_part_002.jsonl",
@@ -275,6 +277,8 @@ async def test_blob_upload_multipart_exact_boundary(
         for line in lines:
             yield line
 
-    result = await blob_upload_multipart(async_gen(), "base_name", batch_size=test_batch_size)
+    result = await blob_upload_multipart(
+        async_gen(), "base_name", batch_size=test_batch_size
+    )
     assert result == ["base_name_part_001.jsonl"]
     assert mock_blob_upload.call_count == 1
