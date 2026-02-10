@@ -218,7 +218,10 @@ async def test_blob_upload_multipart_multiple_parts(
     mocker: MockerFixture, set_test_environment_variables: Generator
 ):
     """Test multipart upload splits correctly across multiple parts."""
-    lines = [f'{{"key": "value{i}"}}\n'.encode() for i in range(25)]
+    generated_samples = 25
+    test_batch_size = 10
+    expected_parts = (generated_samples + test_batch_size -1) // test_batch_size
+    lines = [f'{{"key": "value{i}"}}\n'.encode() for i in range(generated_samples)]
     mock_blob_upload = mocker.patch(
         "openalex_incremental_updater.ingest.blob_storage.blob_upload",
         side_effect=lambda _, filename: filename,
@@ -228,13 +231,12 @@ async def test_blob_upload_multipart_multiple_parts(
         for line in lines:
             yield line
 
-    result = await blob_upload_multipart(async_gen(), "base_name", batch_size=10)
+    result = await blob_upload_multipart(async_gen(), "base_name", batch_size=test_batch_size)
     assert result == [
         "base_name_part_001.jsonl",
         "base_name_part_002.jsonl",
         "base_name_part_003.jsonl",
     ]
-    expected_parts = 3
     assert mock_blob_upload.call_count == expected_parts
 
 
@@ -262,7 +264,8 @@ async def test_blob_upload_multipart_exact_boundary(
     mocker: MockerFixture, set_test_environment_variables: Generator
 ):
     """Test multipart upload when line count exactly equals batch_size."""
-    lines = [f'{{"key": "value{i}"}}\n'.encode() for i in range(10)]
+    test_batch_size = 10
+    lines = [f'{{"key": "value{i}"}}\n'.encode() for i in range(test_batch_size)]
     mock_blob_upload = mocker.patch(
         "openalex_incremental_updater.ingest.blob_storage.blob_upload",
         side_effect=lambda _, filename: filename,
@@ -272,6 +275,6 @@ async def test_blob_upload_multipart_exact_boundary(
         for line in lines:
             yield line
 
-    result = await blob_upload_multipart(async_gen(), "base_name", batch_size=10)
+    result = await blob_upload_multipart(async_gen(), "base_name", batch_size=test_batch_size)
     assert result == ["base_name_part_001.jsonl"]
     assert mock_blob_upload.call_count == 1
