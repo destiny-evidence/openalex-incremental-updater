@@ -8,7 +8,7 @@ from fastapi import HTTPException, status
 
 from openalex_incremental_updater.core.job_state import JobManager
 from openalex_incremental_updater.core.logger import logger
-from openalex_incremental_updater.ingest.blob_storage import blob_upload
+from openalex_incremental_updater.ingest.blob_storage import blob_upload_multipart
 from openalex_incremental_updater.ingest.data import (
     JSONLConversionError,
     convert_destinyworks_to_jsonl_string,
@@ -28,6 +28,7 @@ async def run_background_openalex_ingest_job(
     end_date: date,
     ingest_type: CreatedOrUpdated,
     limit: int | None = None,
+    batch_size: int = 10_000,
 ) -> None:
     """
     Run a background job to ingest OpenAlex works.
@@ -40,6 +41,7 @@ async def run_background_openalex_ingest_job(
         end_date (date): End date to fetch data to.
         ingest_type (CreatedOrUpdated): Method of determining ingest data. Must be one of "created" or "updated".
         limit (int | None): Maximum number of records to ingest. Defaults to None.
+        batch_size (int): Maximum number of JSONL lines per blob part. Defaults to 10,000.
 
     """
     logger.info("Starting background OpenAlex ingest job")
@@ -54,7 +56,7 @@ async def run_background_openalex_ingest_job(
         logger.info("Streaming data from ingest to blob storage")
 
         uploaded_blob_name = await run_openalex_refresh_blob_upload_job(
-            job_result, start_date, end_date, date_today
+            job_result, start_date, end_date, date_today, batch_size=batch_size
         )
 
         job_progress = job_manager.get(job_id).get("progress", {})
@@ -136,7 +138,11 @@ async def openalex_works_ingest_date_range(
 
 
 async def run_openalex_refresh_blob_upload_job(
-    data: AsyncIterator[bytes], fetch_date: date, stop_date: date, refresh_date: date
+    data: AsyncIterator[bytes],
+    fetch_date: date,
+    stop_date: date,
+    refresh_date: date,
+    batch_size: int = 10_000,
 ) -> str:
     """
     Run the blob upload job.
@@ -146,15 +152,18 @@ async def run_openalex_refresh_blob_upload_job(
         fetch_date (date): The date at which the data was fetched
         stop_date (date): The date at which the data was fetched until (inclusive)
         refresh_date (date): The date at which the data was refreshed
+        batch_size (int): Maximum number of JSONL lines per blob part. Defaults to 10,000.
 
     Returns:
-        str: The filename of the uploaded blob
+        str: The base prefix of the uploaded blob(s)
 
     """
-    blob_name = f"openalex_refresh_from_date_{fetch_date}_to_{stop_date}_refreshed_on_{refresh_date}.jsonl"
-    uploaded_blob = await blob_upload(data, blob_name)
+    base_blob_name = f"openalex_refresh_from_date_{fetch_date}_to_{stop_date}_refreshed_on_{refresh_date}"
+    uploaded_blobs = await blob_upload_multipart(
+        data, base_blob_name, batch_size=batch_size
+    )
     logger.info(
         f"Data uploaded to blob storage from {fetch_date} to {stop_date}, uploaded {refresh_date}"
     )
-    logger.info(f"Uploaded blob: {uploaded_blob}")
-    return uploaded_blob
+    logger.info(f"Uploaded {len(uploaded_blobs)} blob parts: {uploaded_blobs}")
+    return base_blob_name

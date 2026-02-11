@@ -129,9 +129,9 @@ def run_full_pipeline(settings: Settings) -> None:
         "import_record": ingestion_metadata.get("import_record").model_dump(mode="json")
         if ingestion_metadata.get("import_record")
         else None,
-        "import_batch_id": str(next(iter(ingestion_metadata["import_batch_ids"])))
+        "import_batch_ids": [str(bid) for bid in ingestion_metadata["import_batch_ids"]]
         if ingestion_metadata.get("import_batch_ids")
-        else None,
+        else [],
     }
     logger.info("Uploading ingestion metadata to blob storage.")
     uploaded_path = run_ingestion_metadata_blob_upload_job(

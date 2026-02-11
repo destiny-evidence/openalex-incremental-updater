@@ -192,12 +192,12 @@ async def test_run_openalex_refresh_blob_upload_job(mocker: MockerFixture):
     test_fetch_date = date.today()
     test_stop_date = date.today()
     test_refresh_date = date.today()
-    expected_blob_name = f"openalex_refresh_from_date_{test_fetch_date}_to_{test_stop_date}_refreshed_on_{test_refresh_date}.jsonl"
+    expected_base_name = f"openalex_refresh_from_date_{test_fetch_date}_to_{test_stop_date}_refreshed_on_{test_refresh_date}"
     mocker.patch(
-        "openalex_incremental_updater.core.jobs.blob_upload",
-        side_effect=lambda _, arg: arg,
+        "openalex_incremental_updater.core.jobs.blob_upload_multipart",
+        return_value=[f"{expected_base_name}_part_001.jsonl"],
     )
     result = await run_openalex_refresh_blob_upload_job(
         test_data, test_fetch_date, test_stop_date, test_refresh_date
     )
-    assert result == expected_blob_name
+    assert result == expected_base_name
