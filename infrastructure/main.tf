@@ -18,13 +18,7 @@ data "azurerm_key_vault" "incremental_updater_key_vault" {
 resource "azurerm_resource_group" "incremental_updater_resource_group" {
   name     = "rg-${local.app_name}-${var.deployment_environment}"
   location = var.region
-  tags = {
-    "Budget Code" = var.budget_code
-    "Created by"  = var.owner_name
-    "Owner"       = var.owner_email
-    "Environment" = var.deployment_environment
-    "Region"      = var.region_friendly_name
-  }
+  tags = local.extended_resource_tags
 }
 
 resource "azurerm_role_assignment" "github_actions_sp_contributor_role" {
@@ -37,11 +31,7 @@ resource "azurerm_network_security_group" "incremental_updater_nsg" {
   name                = "nsg-${local.app_name}-${var.deployment_environment}"
   location            = azurerm_resource_group.incremental_updater_resource_group.location
   resource_group_name = azurerm_resource_group.incremental_updater_resource_group.name
-  tags = {
-    "Created by"  = var.owner_name
-    "Environment" = var.environment_description
-    "Owner"       = var.owner_email
-  }
+  tags = local.minimum_resource_tags
 }
 
 resource "azurerm_virtual_network" "incremental_updater_vnet" {
@@ -50,11 +40,7 @@ resource "azurerm_virtual_network" "incremental_updater_vnet" {
   resource_group_name = azurerm_resource_group.incremental_updater_resource_group.name
   address_space       = ["10.0.0.0/21"]
 
-  tags = {
-    "Created by"  = var.owner_name
-    "Environment" = var.environment_description
-    "Owner"       = var.owner_email
-  }
+  tags = local.minimum_resource_tags
 }
 
 resource "azurerm_subnet" "incremental_updater_subnet" {
@@ -143,14 +129,6 @@ module "container_app_incremental_updater" {
         value       = var.tenant_id
     },
     {
-        name  = "AZURE_CLIENT_ID"
-        value = azurerm_user_assigned_identity.incremental_updater_user_assigned_identity.client_id
-    },
-    {
-        name  = "AZURE_MANAGED_IDENTITY_CLIENT_ID"
-        value = azurerm_user_assigned_identity.incremental_updater_user_assigned_identity.client_id
-    },
-    {
         name        = "STORAGE_BLOB_ACCOUNT"
         value       = var.storage_blob_account
     },
@@ -215,13 +193,7 @@ module "container_app_incremental_updater" {
     }
   ]
 
-  tags = {
-    "Budget Code" = var.budget_code
-    "Created by"  = var.owner_name
-    "Owner"       = var.owner_email
-    "Environment" = var.deployment_environment
-    "Region"      = var.region_friendly_name
-  }
+  tags = local.extended_resource_tags
 
   identity = {
     id           = azurerm_user_assigned_identity.incremental_updater_user_assigned_identity.id
@@ -237,12 +209,7 @@ resource "azurerm_container_app_job" "incremental_updater_app_job" {
   location                     = azurerm_resource_group.incremental_updater_resource_group.location
   replica_retry_limit          = 3
   replica_timeout_in_seconds   = 36000
-  tags = {
-    "Created by" = var.owner_name
-    "Environment"  = var.environment_description
-    "Owner"       = var.owner_email
-    "Region"       = var.region_friendly_name
-  }
+  tags = local.minimum_resource_tags
   secret {
     name  = "storage-blob-account-key" #pragma: allowlist secret
     value = var.storage_blob_account_key

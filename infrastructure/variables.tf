@@ -39,12 +39,6 @@ variable "owner_email" {
   type = string
 }
 
-variable "environment_description" {
-  description = "Description of the environment the incremental updater App and App Job is deployed to."
-  default     = "warm"
-  type        = string
-}
-
 variable "region" {
   description = "Azure region the App and App Job is deployed to."
   default     = "swedencentral"
@@ -130,4 +124,13 @@ variable "repository_endpoint" {
 locals {
   app_name = "incremental-updater"
   app_job_name = "job-openalex-refresh"
+  minimum_resource_tags = {
+    "Created by"  = var.owner_name
+    "Environment" = var.deployment_environment
+    "Owner"       = var.owner_email
+    "Region" = var.region_friendly_name
+  }
+  extended_resource_tags = merge(local.minimum_resource_tags, {
+    "Budget code" = var.budget_code
+  })
 }
