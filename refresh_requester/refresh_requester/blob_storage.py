@@ -213,7 +213,7 @@ def check_previous_file_dates() -> date:
     dates = []
     for blob in blob_list:
         if "openalex_refresh_" in blob:
-            date_str = blob.rsplit("_", 1)[1].removesuffix(".jsonl")
+            date_str = blob.rsplit("_to_")[0].split("refresh_from_date_")[-1]
             date_obj = date.fromisoformat(date_str)
             dates.append(date_obj)
 
