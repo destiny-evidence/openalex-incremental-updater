@@ -34,7 +34,7 @@ async def convert_destinyworks_to_jsonl_string(
                     error_message = "All items must be ReferenceFileInput instances"
                     logger.error(error_message)
                     raise JSONLConversionError(error_message)
-                jsonl_line = work.model_dump_json().encode("utf-8") + b"\n"
+                jsonl_line = work.to_jsonl().encode("utf-8") + b"\n"
                 yield jsonl_line
     except (TypeError, ValueError, AttributeError) as jsonl_conversion_error:
         error_message = f"Error converting JSON to JSONL: {jsonl_conversion_error}"

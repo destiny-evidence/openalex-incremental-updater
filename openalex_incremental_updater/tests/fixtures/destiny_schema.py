@@ -60,7 +60,6 @@ def single_destiny_openalex_work_jsonl_string() -> str:
             {
                 "source": "openalex",
                 "visibility": "public",
-                "robot_version": None,
                 "content": {
                     "enhancement_type": "bibliographic",
                     "authorship": [
@@ -75,12 +74,10 @@ def single_destiny_openalex_work_jsonl_string() -> str:
                             "position": "last",
                         },
                     ],
-                    "cited_by_count": None,
                     "created_date": "2025-01-01",
                     "updated_date": "2025-01-01",
                     "publication_date": "2025-01-01",
                     "publication_year": 2025,
-                    "publisher": None,
                     "title": "Test Title",
                     "pagination": {
                         "volume": "999",
@@ -88,7 +85,6 @@ def single_destiny_openalex_work_jsonl_string() -> str:
                         "first_page": "1",
                         "last_page": "10",
                     },
-                    "publication_venue": None,
                 },
             }
         ],
