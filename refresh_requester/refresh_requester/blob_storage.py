@@ -200,23 +200,25 @@ def list_blobs_in_storage() -> list[str]:
 
 def check_previous_file_dates() -> date:
     """
-    Determine if any previous data is in blob storage.
+    Determine the fetch date for the next refresh request.
 
-    Take the date from the filename if so. Otherwise, return yesterday's date.
+    If any data is found in blob storage, this is based on the
+    **day after** the stop date of the most recent file.
+
+    Otherwise, if no files are found, return yesterday's date.
 
     Returns:
-        date: The most recent date from the filenames
+        date: The most recent un-fetched date to request a refresh from.
 
     """
     blob_list = list_blobs_in_storage()
-
     dates = []
     for blob in blob_list:
         if "openalex_refresh_" in blob:
-            date_str = blob.rsplit("_to_")[0].split("refresh_from_date_")[-1]
+            date_str = blob.rsplit("_to_", 1)[-1].split("_refreshed_on_")[0]
             date_obj = date.fromisoformat(date_str)
             dates.append(date_obj)
 
     if len(dates) > 0:
-        return max(dates)
+        return max(dates) + timedelta(days=1)
     return datetime.now(tz=ZoneInfo("UTC")).date() - timedelta(days=1)

@@ -7,6 +7,16 @@ from loguru import logger
 from refresh_requester.config import Settings, get_settings
 
 
+def pytest_configure():
+    """
+    Configure Pytest settings for the test suite.
+
+    Currently just ignores any local .env files to ensure
+    that tests don't pull in any unexpected environment variables.
+    """
+    Settings.model_config["env_file"] = ""
+
+
 @pytest.fixture
 def caplog(caplog):
     class PropagateHandler(logging.Handler):
@@ -40,4 +50,5 @@ def set_test_environment_variables(
 
 @pytest.fixture
 def test_settings(set_test_environment_variables) -> Settings:
+    """Return Settings object with test environment variables."""
     return get_settings()

@@ -26,7 +26,7 @@ class MockBlob:
 
 
 @pytest.mark.parametrize(
-    ("blob_names", "fetch_dates_list"),
+    ("blob_names", "fetch_dates_list", "stop_dates_list"),
     [
         (
             [
@@ -34,6 +34,7 @@ class MockBlob:
                 "openalex_refresh_from_date_2025-03-02_to_2025-03-02_refreshed_on_2025-03-03.jsonl",
                 "openalex_refresh_from_date_2025-03-03_to_2025-03-03_refreshed_on_2025-03-04.jsonl",
             ],
+            [date(2025, 3, 1), date(2025, 3, 2), date(2025, 3, 3)],
             [date(2025, 3, 1), date(2025, 3, 2), date(2025, 3, 3)],
         ),
         (
@@ -44,11 +45,22 @@ class MockBlob:
                 "openalex_refresh_from_date_2025-03-03_to_2025-03-03_refreshed_on_2025-03-04_part_001.jsonl",
             ],
             [date(2025, 3, 1), date(2025, 3, 1), date(2025, 3, 2), date(2025, 3, 3)],
+            [date(2025, 3, 1), date(2025, 3, 1), date(2025, 3, 2), date(2025, 3, 3)],
+        ),
+        (
+            [
+                "openalex_refresh_from_date_2025-03-01_to_2025-03-02_refreshed_on_2025-03-03_part_001.jsonl",
+                "openalex_refresh_from_date_2025-03-01_to_2025-03-02_refreshed_on_2025-03-03_part_002.jsonl",
+                "openalex_refresh_from_date_2025-03-03_to_2025-03-03_refreshed_on_2025-03-06_part_001.jsonl",
+                "openalex_refresh_from_date_2025-03-04_to_2025-03-06_refreshed_on_2025-03-07_part_001.jsonl",
+            ],
+            [date(2025, 3, 1), date(2025, 3, 1), date(2025, 3, 3), date(2025, 3, 4)],
+            [date(2025, 3, 2), date(2025, 3, 2), date(2025, 3, 3), date(2025, 3, 6)],
         ),
     ],
 )
 def test_check_previous_file_dates_success_files_found(
-    mocker, blob_names, fetch_dates_list
+    mocker, blob_names, fetch_dates_list, stop_dates_list
 ):
     """
     Test check_previous_file_dates function returns the latest date when files are found.
@@ -59,17 +71,25 @@ def test_check_previous_file_dates_success_files_found(
         "refresh_requester.blob_storage.list_blobs_in_storage",
         return_value=blob_names,
     )
-    test_date_strings = [test_date.isoformat() for test_date in fetch_dates_list]
+    test_fetch_date_strings = [test_date.isoformat() for test_date in fetch_dates_list]
+    test_stop_date_strings = [test_date.isoformat() for test_date in stop_dates_list]
 
     result = check_previous_file_dates()
-    sorted_dates = sorted(fetch_dates_list)
+    sorted_dates = sorted(stop_dates_list)
 
     assert all(
         any(test_date_str in blob_name for blob_name in blob_names)
-        for test_date_str in test_date_strings
-    ), "Check that all expected date strings are found in the blob names"
+        for test_date_str in test_fetch_date_strings
+    ), "Check that all expected fetch date strings are found in the blob names"
+    assert all(
+        any(test_date_str in blob_name for blob_name in blob_names)
+        for test_date_str in test_stop_date_strings
+    ), "Check that all expected stop date strings are found in the blob names"
+
     latest_date = sorted_dates[-1]
-    assert result == latest_date
+    assert (
+        result == latest_date + timedelta(days=1)
+    ), "Check that the result is the day after the latest stop date found in the blob names"
 
 
 @freezegun.freeze_time("2025-06-12")
