@@ -19,7 +19,11 @@ from refresh_requester.repository import (
     ImportSourceType,
     upload_blob_storage_contents_to_repository,
 )
-from refresh_requester.utils import format_metadata_blob_name, get_fetch_date
+from refresh_requester.utils import (
+    format_metadata_blob_name,
+    get_fetch_date,
+    get_stop_date,
+)
 
 
 def run_refresh_job(
@@ -74,7 +78,7 @@ def run_full_pipeline(settings: Settings) -> None:
     """
     polling_interval = settings.polling_interval
     fetch_date = get_fetch_date(settings)
-    stop_date = settings.stop_date if settings.stop_date else fetch_date
+    stop_date = get_stop_date(settings, fetch_date)
 
     date_today = datetime.now(ZoneInfo("UTC")).date()
     data_source = ImportSourceType.OPEN_ALEX.value
