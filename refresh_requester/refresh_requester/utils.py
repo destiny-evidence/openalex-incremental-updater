@@ -49,7 +49,7 @@ def get_stop_date(settings: Settings, fetch_date: date) -> date:
     today = datetime.now(tz=ZoneInfo("UTC")).date()
     yesterday = today - timedelta(days=1)
 
-    if fetch_date in (yesterday, today):
+    if fetch_date == today:
         return fetch_date
 
     return yesterday
