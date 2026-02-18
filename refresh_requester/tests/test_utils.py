@@ -1,8 +1,13 @@
 from datetime import date
 
+import pytest
 from freezegun import freeze_time
 
-from refresh_requester.utils import format_metadata_blob_name, get_fetch_date
+from refresh_requester.utils import (
+    format_metadata_blob_name,
+    get_fetch_date,
+    get_stop_date,
+)
 
 
 @freeze_time("2025-06-18")
@@ -51,6 +56,69 @@ def test_get_fetch_date_date_set_in_settings(mocker, test_settings) -> None:
     assert (
         result == test_settings.fetch_date
     ), "get_fetch_date should return the date set in settings"
+
+
+@freeze_time("2025-06-18")
+@pytest.mark.parametrize(
+    ("fetch_date", "expected_stop_date"),
+    [
+        ("2025-06-16", "2025-06-17"),
+        ("2025-06-12", "2025-06-17"),
+        ("2025-06-17", "2025-06-17"),
+        ("2025-06-18", "2025-06-18"),
+    ],
+)
+def test_get_stop_date_no_date_set(
+    test_settings, fetch_date, expected_stop_date
+) -> None:
+    """
+    Test the get_stop_date function when no date is set in the settings.
+
+    It should return yesterday's date if the fetch date is in the past, or the fetch date if it is today or yesterday.
+    This ensures that when we request a refresh run it will process data from the last processed
+    date up to the current date, without leaving any gaps or overlaps in the data.
+    """
+    test_settings.fetch_date = None
+    test_settings.stop_date = None
+    test_fetch_date = date.fromisoformat(fetch_date)
+
+    expected_stop_date = date.fromisoformat(expected_stop_date)
+
+    result = get_stop_date(test_settings, test_fetch_date)
+
+    assert (
+        result == expected_stop_date
+    ), "get_stop_date should return yesterday's date when no stop_date is set in settings and fetch_date is in the past"
+
+
+@freeze_time("2025-06-18")
+@pytest.mark.parametrize(
+    ("fetch_date", "stop_date"),
+    [
+        ("2025-06-16", "2025-06-16"),
+        ("2025-06-12", "2025-06-14"),
+    ],
+)
+def test_get_stop_date_date_set_in_settings(
+    test_settings, fetch_date, stop_date
+) -> None:
+    """
+    Test the get_stop_date function when the date is set in the settings.
+
+    It should return the date set in the settings, regardless of the fetch date.
+    This allows us to specify a custom stop date for the refresh request if needed, such as
+    if we want to request a refresh up to a specific date in the past.
+    """
+    test_fetch_date = date.fromisoformat(fetch_date)
+    test_stop_date = date.fromisoformat(stop_date)
+
+    test_settings.stop_date = test_stop_date
+
+    result = get_stop_date(test_settings, test_fetch_date)
+
+    assert (
+        result == test_settings.stop_date
+    ), "get_stop_date should return the date set in settings"
 
 
 def test_format_metadata_blob_name_with_stop_date() -> None:

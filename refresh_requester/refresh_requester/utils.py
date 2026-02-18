@@ -1,6 +1,7 @@
 """Define common utility functions for the app."""
 
-from datetime import date
+from datetime import date, datetime, timedelta
+from zoneinfo import ZoneInfo
 
 from pydantic import HttpUrl
 
@@ -24,6 +25,34 @@ def get_fetch_date(settings: Settings) -> date:
     if settings.fetch_date:
         return settings.fetch_date
     return check_previous_file_dates()
+
+
+def get_stop_date(settings: Settings, fetch_date: date) -> date:
+    """
+    Get the stop date for the refresh request.
+
+    This is typically the same as the fetch date, but
+    may be more recent if the fetch date is in the past
+    and we want to request a refresh up to the current date.
+
+    Args:
+        settings (Settings): Pydantic settings object containing configuration.
+        fetch_date (date): The date to fetch data from.
+
+    Returns:
+        date: The stop date for the refresh request.
+
+    """
+    if settings.stop_date:
+        return settings.stop_date
+
+    today = datetime.now(tz=ZoneInfo("UTC")).date()
+    yesterday = today - timedelta(days=1)
+
+    if fetch_date == today:
+        return fetch_date
+
+    return yesterday
 
 
 def format_endpoint_url(url: HttpUrl) -> HttpUrl:

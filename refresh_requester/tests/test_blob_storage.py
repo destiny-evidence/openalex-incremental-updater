@@ -25,26 +25,71 @@ class MockBlob:
         self.name = name
 
 
-def test_check_previous_file_dates_success_files_found(mocker):
-    """Test check_previous_file_dates function returns the latest date when files are found."""
-    test_date_earliest = date(2025, 3, 1)
-    test_date_middle = date(2025, 3, 2)
-    test_date_latest = date(2025, 3, 3)
+@pytest.mark.parametrize(
+    ("blob_names", "fetch_dates_list", "stop_dates_list"),
+    [
+        (
+            [
+                "openalex_refresh_from_date_2025-03-01_to_2025-03-01_refreshed_on_2025-03-02.jsonl",
+                "openalex_refresh_from_date_2025-03-02_to_2025-03-02_refreshed_on_2025-03-03.jsonl",
+                "openalex_refresh_from_date_2025-03-03_to_2025-03-03_refreshed_on_2025-03-04.jsonl",
+            ],
+            [date(2025, 3, 1), date(2025, 3, 2), date(2025, 3, 3)],
+            [date(2025, 3, 1), date(2025, 3, 2), date(2025, 3, 3)],
+        ),
+        (
+            [
+                "openalex_refresh_from_date_2025-03-01_to_2025-03-01_refreshed_on_2025-03-02_part_001.jsonl",
+                "openalex_refresh_from_date_2025-03-01_to_2025-03-01_refreshed_on_2025-03-02_part_002.jsonl",
+                "openalex_refresh_from_date_2025-03-02_to_2025-03-02_refreshed_on_2025-03-03_part_001.jsonl",
+                "openalex_refresh_from_date_2025-03-03_to_2025-03-03_refreshed_on_2025-03-04_part_001.jsonl",
+            ],
+            [date(2025, 3, 1), date(2025, 3, 1), date(2025, 3, 2), date(2025, 3, 3)],
+            [date(2025, 3, 1), date(2025, 3, 1), date(2025, 3, 2), date(2025, 3, 3)],
+        ),
+        (
+            [
+                "openalex_refresh_from_date_2025-03-01_to_2025-03-02_refreshed_on_2025-03-03_part_001.jsonl",
+                "openalex_refresh_from_date_2025-03-01_to_2025-03-02_refreshed_on_2025-03-03_part_002.jsonl",
+                "openalex_refresh_from_date_2025-03-03_to_2025-03-03_refreshed_on_2025-03-06_part_001.jsonl",
+                "openalex_refresh_from_date_2025-03-04_to_2025-03-06_refreshed_on_2025-03-07_part_001.jsonl",
+            ],
+            [date(2025, 3, 1), date(2025, 3, 1), date(2025, 3, 3), date(2025, 3, 4)],
+            [date(2025, 3, 2), date(2025, 3, 2), date(2025, 3, 3), date(2025, 3, 6)],
+        ),
+    ],
+)
+def test_check_previous_file_dates_success_files_found(
+    mocker, blob_names, fetch_dates_list, stop_dates_list
+):
+    """
+    Test check_previous_file_dates function returns the latest date when files are found.
 
-    mock_blob_names = [
-        f"openalex_refresh_{test_date_earliest.isoformat()}.jsonl",
-        f"openalex_refresh_{test_date_middle.isoformat()}.jsonl",
-        f"openalex_refresh_{test_date_latest.isoformat()}.jsonl",
-    ]
-
+    Files can have one or multiple parts and we need to handle both naming conventions.
+    """
     mocker.patch(
         "refresh_requester.blob_storage.list_blobs_in_storage",
-        return_value=mock_blob_names,
+        return_value=blob_names,
     )
+    test_fetch_date_strings = [test_date.isoformat() for test_date in fetch_dates_list]
+    test_stop_date_strings = [test_date.isoformat() for test_date in stop_dates_list]
 
     result = check_previous_file_dates()
+    sorted_dates = sorted(stop_dates_list)
 
-    assert result == test_date_latest
+    assert all(
+        any(test_date_str in blob_name for blob_name in blob_names)
+        for test_date_str in test_fetch_date_strings
+    ), "Check that all expected fetch date strings are found in the blob names"
+    assert all(
+        any(test_date_str in blob_name for blob_name in blob_names)
+        for test_date_str in test_stop_date_strings
+    ), "Check that all expected stop date strings are found in the blob names"
+
+    latest_date = sorted_dates[-1]
+    assert (
+        result == latest_date + timedelta(days=1)
+    ), "Check that the result is the day after the latest stop date found in the blob names"
 
 
 @freezegun.freeze_time("2025-06-12")
@@ -61,7 +106,22 @@ def test_check_previous_file_dates_success_no_files_found_return_yesterday(mocke
     assert result == test_date_yesterday
 
 
-def test_list_blobs_in_storage(mocker, test_settings):
+@pytest.mark.parametrize(
+    "blob_name_list",
+    [
+        [
+            "openalex_refresh_2025-03-01.jsonl",
+            "openalex_refresh_2025-03-02.jsonl",
+            "openalex_refresh_2025-03-03.jsonl",
+        ],
+        [
+            "openalex_refresh_2025-03-01_part1.jsonl",
+            "openalex_refresh_2025-03-01_part2.jsonl",
+            "openalex_refresh_2025-03-02_part1.jsonl",
+        ],
+    ],
+)
+def test_list_blobs_in_storage(mocker, blob_name_list, test_settings):
     """Test list_blobs_in_storage function works as expected."""
     mock_container_client = mocker.Mock()
     mock_blob_service = mocker.patch("refresh_requester.blob_storage.BlobServiceClient")
@@ -70,11 +130,7 @@ def test_list_blobs_in_storage(mocker, test_settings):
         mock_container_client
     )
 
-    mock_blob_names = [
-        MockBlob("openalex_refresh_2025-03-01.jsonl"),
-        MockBlob("openalex_refresh_2025-03-02.jsonl"),
-        MockBlob("openalex_refresh_2025-03-03.jsonl"),
-    ]
+    mock_blob_names = [MockBlob(name) for name in blob_name_list]
 
     mock_container_client.list_blobs.return_value = mock_blob_names
 
