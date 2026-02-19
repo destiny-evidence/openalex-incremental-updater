@@ -1,0 +1,1 @@
+"""Openalex full snapshot processing."""
