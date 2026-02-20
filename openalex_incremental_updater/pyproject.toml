@@ -113,6 +113,8 @@ lint.per-file-ignores = {"openalex_incremental_updater/openalex_incremental_upda
   "S101", # Use of `assert` detected
   "TRY002", # Create your own exception
   "TRY003" # Avoid specifying long messages outside the exception class
+], "openalex_snapshot_processor/dags/*" = [
+  "INP001" # File is part of an implicit namespace package.
 ], "openalex_snapshot_processor/tests*" = [
   "ANN001", # Missing type annotation for function argument
   "ANN401", # Dynamically typed expressions disallowed

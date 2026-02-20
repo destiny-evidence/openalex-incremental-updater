@@ -7,9 +7,11 @@ from destiny_sdk.references import ReferenceFileInput
 from openalex_incremental_updater.ingest.blob_storage import blob_upload_multipart
 from openalex_incremental_updater.ingest.data import JSONLConversionError
 from openalex_snapshot_processor.file_processor import (
+    ProcessedFile,
+    ProcessedFileMetadata,
     _as_async_batches,
     _derive_base_blob_name,
-    _gz_to_jsonl_stream,
+    gz_to_jsonl_stream,
     process_file,
 )
 
@@ -47,7 +49,7 @@ async def test_gz_to_jsonl_stream_success(test_jsonl_gz_file):
         for candidate_identifier in possible_identifiers
     ]
 
-    async for line in _gz_to_jsonl_stream(str(gz_file_path)):
+    async for line in gz_to_jsonl_stream(gz_file_path, {}):
         destiny_reference = ReferenceFileInput.from_jsonl(line)
         assert isinstance(
             destiny_reference, ReferenceFileInput
@@ -68,7 +70,7 @@ async def test_gz_to_jsonl_stream_invalid_json(mocker, tmp_path):
         gz_file.write("A test jsonl file\n\n")
 
     errors = {}
-    async for line in _gz_to_jsonl_stream(str(gz_file_path)):
+    async for line in gz_to_jsonl_stream(str(gz_file_path), errors):
         if line.startswith(b'{"errors":'):
             errors = json.loads(line.decode("utf-8"))["errors"]
 
@@ -87,7 +89,7 @@ async def test_gz_to_jsonl_stream_jsonl_conversion_error(mocker, tmp_path):
         side_effect=JSONLConversionError("Test conversion error"),
     )
     errors = {}
-    async for line in _gz_to_jsonl_stream(str(gz_file_path)):
+    async for line in gz_to_jsonl_stream(str(gz_file_path), errors):
         if line.startswith(b'{"errors":'):
             errors = json.loads(line.decode("utf-8"))["errors"]
 
@@ -98,7 +100,7 @@ async def test_gz_to_jsonl_stream_jsonl_conversion_error(mocker, tmp_path):
 
 async def test_process_file_async(mocker, test_settings, test_jsonl_gz_file):
     gz_file_path, _file_contents = test_jsonl_gz_file
-    stream = _gz_to_jsonl_stream(gz_file_path)
+    stream = gz_to_jsonl_stream(gz_file_path, {})
     base_blob_name = _derive_base_blob_name(gz_file_path)
     mocker.patch("openalex_incremental_updater.ingest.blob_storage.blob_upload")
 
@@ -116,16 +118,20 @@ async def test_process_file_async(mocker, test_settings, test_jsonl_gz_file):
 
 def test_process_file(mocker, test_jsonl_gz_file, set_test_environment_variables):
     gz_file_path, _file_contents = test_jsonl_gz_file
+    expected_processed_file_report = ProcessedFileMetadata(
+        blob_names=["test_blob_name"],
+        record_count=10,
+        error_log=None,
+    )
     mocker.patch(
         "openalex_snapshot_processor.file_processor._process_file_async",
-        return_value=["test_blob_name"],
+        return_value=expected_processed_file_report,
     )
     result = process_file(str(gz_file_path))
-    assert (
-        result
-        == {
-            "file_path": str(gz_file_path),
-            "base_blob_name": _derive_base_blob_name(gz_file_path),
-            "blob_names": ["test_blob_name"],
-        }
-    ), "The process_file function should return the expected dictionary with file path, base blob name, and blob names."
+    assert result == ProcessedFile(
+        blob_names=expected_processed_file_report.blob_names,
+        record_count=expected_processed_file_report.record_count,
+        error_log=expected_processed_file_report.error_log,
+        file_path=str(gz_file_path),
+        base_blob_name=_derive_base_blob_name(gz_file_path),
+    ), "The process_file function should return the expected ProcessedFile object."

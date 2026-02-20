@@ -29,8 +29,8 @@ dependencies = [
   "destiny-sdk>=0.9,<0.10",
   "azure-identity>=1.24.0",
   "azure-storage-blob>=12.26.0",
-  "openalex-incremental-updater @ git+ssh://github.com/destiny-evidence/openalex-incremental-updater/#egg=aac85b6&subdirectory=openalex_incremental_updater",
-  "refresh-requester @ git+ssh://github.com/destiny-evidence/openalex-incremental-updater/#egg=aac85b6&subdirectory=refresh_requester"
+  "openalex-incremental-updater",
+  "refresh-requester"
 ]
 
 [tool.pytest]
@@ -68,6 +68,9 @@ lint.pep8-naming.classmethod-decorators = [
   "pydantic.field_validator" # Allow Pydantic's `@field_validator` decorator to trigger class method treatment.
 ]
 lint.pycodestyle.max-line-length = 120
+
+[tool.setuptools]
+packages = ["openalex_snapshot_processor"]
 
 [tool.tomlsort]
 all = true
