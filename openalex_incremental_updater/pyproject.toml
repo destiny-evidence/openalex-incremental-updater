@@ -114,6 +114,14 @@ lint.per-file-ignores = {"openalex_incremental_updater/openalex_incremental_upda
   "S101", # Use of `assert` detected
   "TRY002", # Create your own exception
   "TRY003" # Avoid specifying long messages outside the exception class
+], "openalex_snapshot_processor/tests/*" = [
+  "ANN001", # Missing type annotation for function argument
+  "ANN201", # Missing return type annotation for public function
+  "ANN202", # Missing return type annotation for private function
+  "ARG001", # Unused function argument
+  "PLR2004", # Magic value used in comparison
+  "S101", # Use of `assert` detected
+  "SLF001" # Private member accessed
 ], "destiny_solr_setup/*" = [
   "BLE001" # Do not catch blind exception: Exception
 ]}

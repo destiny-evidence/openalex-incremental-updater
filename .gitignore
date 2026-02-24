@@ -173,3 +173,8 @@ cython_debug/
 
 # VSCode config directory
 .vscode/
+
+# Snapshot processor local dev
+.env.dev
+.test-data/
+state.json
