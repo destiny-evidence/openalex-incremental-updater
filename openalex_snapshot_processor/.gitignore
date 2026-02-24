@@ -173,3 +173,8 @@ cython_debug/
 
 # VSCode config directory
 .vscode/
+
+# logs directory
+logs/**
+prefect_config/logs/**
+prefect_config/output/**

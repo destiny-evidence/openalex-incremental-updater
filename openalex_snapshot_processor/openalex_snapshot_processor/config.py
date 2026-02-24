@@ -52,6 +52,12 @@ class Settings(BaseSettings):
             " an access token for the Destiny Repository API."
         ),
     )
+    request_timeout: int = Field(
+        default=30,
+        description=(
+            "Number of seconds to wait for DESTINY repository API to return a token."
+        ),
+    )
     APP_REGISTRATION_APP_ID: str = Field(
         ...,
         description=(
@@ -90,9 +96,19 @@ class Settings(BaseSettings):
         default="unused",
         description=("Unused, placeholder for another settings object."),
     )
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    POLL_INTERVAL_SECONDS: int = Field(
+        default=300,
+        description="The number of seconds to wait between polling import batches.",
+    )
+    MAX_POLL_ATTEMPTS: int = Field(
+        default=120,
+        description="The maximum number of attempts to make when polling import batches.",
+    )
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
 
 
 def get_settings() -> Settings:
-    """Get the (cached) settings for the app."""
+    """Get the settings for the app."""
     return Settings()

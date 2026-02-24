@@ -1,20 +1,43 @@
-FROM apache/airflow:3.1.7-python3.13
+FROM python:3.13-slim-bookworm
 
-USER root
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1
 
-COPY ../openalex_incremental_updater /opt/packages/openalex_incremental_updater
-COPY ../refresh_requester /opt/packages/refresh_requester
-COPY ../openalex_snapshot_processor /opt/packages/openalex_snapshot_processor
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ca-certificates \
+    curl \
+    gcc \
+    gpg \
+    git \
+    openssh-client \
+    python3-dev \
+    && mkdir -p /etc/apt/keyrings \
+    && curl -fsSL https://packages.microsoft.com/keys/microsoft.asc \
+      | gpg --dearmor -o /etc/apt/keyrings/microsoft.gpg \
+    && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/microsoft.gpg] \
+      https://packages.microsoft.com/repos/azure-cli/ $(. /etc/os-release && echo $VERSION_CODENAME) main" \
+      > /etc/apt/sources.list.d/azure-cli.list \
+    && apt-get update && apt-get install -y --no-install-recommends azure-cli \
+    && apt-get purge -y gpg && apt-get autoremove -y \
+    && apt-get clean \
+    && rm -rf /var/lib/apt/lists/*
 
-RUN chown -R airflow /opt/packages
+# Install uv
+ADD https://astral.sh/uv/install.sh /uv-installer.sh
+# Run uv installer and remove it
+RUN sh /uv-installer.sh && rm /uv-installer.sh
 
-USER airflow
+ENV PATH="/root/.local/bin:$PATH"
 
-RUN pip install\
-    msal \
-    psycopg2-binary \
-    --constraint "https://raw.githubusercontent.com/apache/airflow/constraints-3.1.7/constraints-3.13.txt"
-RUN pip install --no-cache-dir --no-deps \
-    /opt/packages/openalex_incremental_updater \
-    /opt/packages/refresh_requester \
-    /opt/packages/openalex_snapshot_processor
+
+
+COPY openalex_incremental_updater /opt/packages/openalex_incremental_updater
+COPY refresh_requester /opt/packages/refresh_requester
+COPY openalex_snapshot_processor /opt/packages/openalex_snapshot_processor
+
+WORKDIR /opt/packages/openalex_snapshot_processor
+
+RUN uv sync --locked
+
+RUN chmod +x /opt/packages/openalex_snapshot_processor/register_deployments.sh
+ENTRYPOINT ["/opt/packages/openalex_snapshot_processor/register_deployments.sh"]

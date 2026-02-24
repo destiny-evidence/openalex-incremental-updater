@@ -11,9 +11,35 @@ from openalex_snapshot_processor.file_processor import (
     ProcessedFileMetadata,
     _as_async_batches,
     _derive_base_blob_name,
+    _log_errors,
     gz_to_jsonl_stream,
     process_file,
+    transform_file,
 )
+
+
+def test_log_errors(tmp_path):
+    file_path = tmp_path / "test_file.gz"
+    log_dir = tmp_path / "logs"
+    log_dir.mkdir(parents=True, exist_ok=True)
+    expected_errors = {
+        "json_decode_errors": {"total": 3, "examples": ["foo", "bar", "baz"]},
+        "jsonl_conversion_errors": {"total": 2, "examples": ["qux", "quux"]},
+    }
+    error_log_path = _log_errors(file_path, expected_errors, log_dir)
+    assert (
+        error_log_path is not None
+    ), "Error log path should not be None when errors are present."
+    assert error_log_path.exists(), "Error log file should be created."
+    assert (
+        f"{file_path.stem}.errors.json" in error_log_path.name
+    ), "Error log file name should include the source file name."
+    with error_log_path.open("r", encoding="utf-8") as f:
+        logged_errors = json.load(f)
+    assert (
+        logged_errors["errors"] == expected_errors
+    ), "Logged errors should match the input errors."
+    assert logged_errors["source"] == str(file_path)
 
 
 def test_derive_base_blob_name():
@@ -96,6 +122,35 @@ async def test_gz_to_jsonl_stream_jsonl_conversion_error(mocker, tmp_path):
     assert (
         "jsonl_conversion_errors" in errors
     ), "Errors dictionary should contain 'jsonl_conversion_errors' key for invalid JSONL conversion errors."
+
+
+async def test_transform_file_success_no_errors(test_jsonl_gz_file):
+    gz_file_path, _file_contents = test_jsonl_gz_file
+    lines, errors = await transform_file(str(gz_file_path))
+    assert len(lines) == len(
+        _file_contents
+    ), "The number of transformed lines should match the number of input records."
+
+    assert all(
+        errors[error_type]["total"] == 0 for error_type in errors
+    ), "There should be no errors for valid input data."
+
+
+async def test_transform_file_success_with_errors(test_jsonl_gz_file):
+    gz_file_path, _file_contents = test_jsonl_gz_file
+    lines, errors = await transform_file(str(gz_file_path))
+    expected_error_examples = ["foo", "bar", "baz"]
+    errors["json_decode_errors"] = {
+        "total": len(expected_error_examples),
+        "examples": expected_error_examples,
+    }
+    assert len(lines) == len(
+        _file_contents
+    ), "The number of transformed lines should match the number of input records."
+
+    assert sum([errors[error_type]["total"] for error_type in errors]) == len(
+        expected_error_examples
+    ), "There should be 3 errors for the test data."
 
 
 async def test_process_file_async(mocker, test_settings, test_jsonl_gz_file):

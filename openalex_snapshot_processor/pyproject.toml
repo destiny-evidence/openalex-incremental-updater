@@ -29,8 +29,9 @@ dependencies = [
   "destiny-sdk>=0.9,<0.10",
   "azure-identity>=1.24.0",
   "azure-storage-blob>=12.26.0",
-  "openalex-incremental-updater",
-  "refresh-requester"
+  "openalex-incremental-updater @ file://${PROJECT_ROOT}/../openalex_incremental_updater",
+  "refresh-requester @ file://${PROJECT_ROOT}/../refresh_requester",
+  "prefect>=3.6.18"
 ]
 
 [tool.pytest]

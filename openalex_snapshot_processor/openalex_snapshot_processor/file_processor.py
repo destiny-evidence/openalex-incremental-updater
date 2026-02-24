@@ -262,7 +262,7 @@ async def _process_file_async(
 
 def process_file(file_path: str) -> ProcessedFile:
     """
-    Define the Airflow task entry point — runs the async pipeline synchronously.
+    Define the task entry point — runs the async pipeline synchronously.
 
     Args:
         file_path (str): The local file path of the source .gz file being processed.
@@ -285,3 +285,17 @@ def process_file(file_path: str) -> ProcessedFile:
         file_path=file_path,
         base_blob_name=base_blob_name,
     )
+
+
+def process_file_batch(file_paths: list[str]) -> list[dict]:
+    """
+    Process a batch of files, return one result dict per file.
+
+    Args:
+        file_paths (list[str]): A list of local file paths to process.
+
+    Returns:
+        list[dict]: A list of ProcessedFile metadata dicts, one per file.
+
+    """
+    return [process_file(file_path).model_dump() for file_path in file_paths]
