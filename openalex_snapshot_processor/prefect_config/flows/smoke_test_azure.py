@@ -11,79 +11,73 @@ from pathlib import Path
 
 from prefect import flow, task
 
-from openalex_snapshot_processor.registration import register_all_blobs_in_serial
+from openalex_snapshot_processor.config import get_settings
+from openalex_snapshot_processor.enumeration import (
+    batch_files_by_record_count,
+    enumerate_work_files,
+)
+from openalex_snapshot_processor.registration import (
+    RegistrationSummary,
+    register_all_blobs_in_serial,
+)
 from prefect_config.flows.openalex_snapshot_flow import (
-    enumerate_files,
     flatten_results,
     process_file_batch_task,
     report,
-    serial_register_all_processed_files,
 )
-from prefect_config.flows.smoke_test_local import select_files
+
+MAXIMUM_BATCH_SIZE = 100_000
 
 
 @task(retries=3, retry_delay_seconds=60)
-def select_mini_batch(n_files: int) -> list[Path]:
+def enumerate_files(n_files: int) -> list[list[Path]]:
     """
-    Select a small number of files to process in the smoke test.
+    Enumerate and batch the OpenAlex snapshot works files to be processed.
+
+    Batches files by record count to avoid inefficiently processing
+    many small files.
 
     Args:
-        n_files (int): The number of files to select for processing.
+        n_files (int): The number of files to select for processing in the smoke test.
 
     Returns:
-        list[Path]: A list of file paths to be processed in the smoke test.
+        list[list[Path]]: List of file paths and their record counts to be processed.
 
     """
-    file_path_strings = select_files(n_files)
-    file_paths = [Path(file_path_string) for file_path_string in file_path_strings]
-    all_batched_files = enumerate_files()
-    return [
-        file_path
-        for batch in all_batched_files
-        for file_path in batch
-        if file_path in file_paths
-    ]
+    settings = get_settings()
+    file_paths_with_counts = enumerate_work_files(settings.SNAPSHOT_ROOT)[:n_files]
+    return batch_files_by_record_count(file_paths_with_counts, MAXIMUM_BATCH_SIZE)
 
 
 @task(retries=3, retry_delay_seconds=60)
-def register_blobs(processed_file: dict) -> dict:
+def serial_register_all_blobs(processed_files: list[dict]) -> RegistrationSummary:
     """
     Register uploaded blobs with the DESTINY repository.
 
     Args:
-        processed_file (dict): Processed file metadata.
+        processed_files (list[dict]): List of processed file metadata dicts.
 
     Returns:
-        dict: Summary of registration results.
+        RegistrationSummary: Summary of registration results.
 
     """
     progress_file_directory = Path(__file__).parent.parent / "logs"
     progress_file_directory.mkdir(exist_ok=True, parents=True)
-
     progress_file = (
         progress_file_directory / "smoke_test_azure_registration_progress.json"
     )
-    summary = register_all_blobs_in_serial([processed_file], progress_file)
-
-    return {
-        "base_blob_name": processed_file["base_blob_name"],
-        "blob_count": len(processed_file.get("blob_names") or []),
-        "record_count": processed_file.get("record_count"),
-        "error_log": processed_file.get("error_log"),
-        "total_batches": summary.get("total_batches_registered"),
-        "results": summary.get("results", {}),
-    }
+    return register_all_blobs_in_serial(processed_files, progress_file)
 
 
 @flow(name="smoke-test-azure", log_prints=True)
 def smoke_test_azure() -> None:
     """Run end to end Azure smoke test for a single file."""
-    n_files_to_process = 1
-    batched_files = select_mini_batch(n_files_to_process)
+    n_files_to_process = 3
+    batched_files = enumerate_files(n_files_to_process)
     processed_batches = process_file_batch_task.map(batched_files)
     all_processed = flatten_results(processed_batches)
-    registration_summary = serial_register_all_processed_files(all_processed)
-    report(registration_summary)
+    registration_summary = serial_register_all_blobs(all_processed)
+    report(all_processed, registration_summary)
 
 
 if __name__ == "__main__":

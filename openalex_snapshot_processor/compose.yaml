@@ -6,9 +6,12 @@ x-common: &common
     dockerfile: openalex_snapshot_processor/Dockerfile
   env_file:
     - .env
+  environment:
+    AZURE_CONFIG_DIR: /azcfg
   volumes:
     - ./prefect_config:/opt/packages/openalex_snapshot_processor/prefect_config
     - ${SNAPSHOT_ROOT_LOCAL}:${SNAPSHOT_ROOT}:ro
+    - "${HOME}/.azure:/azcfg:rw"
 
 services:
   postgres:
@@ -108,6 +111,8 @@ services:
     depends_on:
       prefect-server:
         condition: service_healthy
+    env_file:
+      - .env
     environment:
       PREFECT_API_URL: ${PREFECT_API_URL}
     command: uv run prefect worker start --pool local-pool

@@ -45,12 +45,12 @@ class ProcessedFile(ProcessedFileMetadata):
     Data model representing the result of processing a single OpenAlex snapshot file.
 
     Attributes:
-        file_path (str): The original file path of the processed .gz file.
+        file_path (Path): The original file path of the processed .gz file.
         base_blob_name (str): The derived base blob name used for uploaded files.
 
     """
 
-    file_path: str = Field(
+    file_path: Path = Field(
         ..., description="The original file path of the processed .gz file."
     )
     base_blob_name: str = Field(
@@ -172,12 +172,12 @@ async def gz_to_jsonl_stream(file_path: Path, errors: dict) -> AsyncIterator[byt
                     entry["examples"].append(str(json_conversion_error))
 
 
-async def transform_file(file_path: str) -> tuple[list[bytes], dict]:
+async def transform_file(file_path: Path) -> tuple[list[bytes], dict]:
     """
     Transform a file and return the resulting JSONL lines and any errors.
 
     Args:
-        file_path (str): The absolute local file path of the source .gz file being processed.
+        file_path (Path): The absolute local file path of the source .gz file being processed.
 
     Returns:
         tuple[list[bytes], dict]: A tuple containing a list of JSONL lines as bytes
@@ -185,7 +185,7 @@ async def transform_file(file_path: str) -> tuple[list[bytes], dict]:
 
     """
     errors: dict = {}
-    lines = [line async for line in gz_to_jsonl_stream(Path(file_path), errors)]
+    lines = [line async for line in gz_to_jsonl_stream(file_path, errors)]
     return lines, errors
 
 
@@ -229,7 +229,7 @@ async def _upload(
 
 
 async def _process_file_async(
-    settings: Settings, file_path: str, base_blob_name: str, log_directory: Path
+    settings: Settings, file_path: Path, base_blob_name: str, log_directory: Path
 ) -> ProcessedFileMetadata:
     """
     Process a single file asynchronously: stream, convert, and upload to blob storage.
@@ -244,9 +244,7 @@ async def _process_file_async(
 
     """
     lines, errors = await transform_file(file_path)
-    error_log_path = (
-        _log_errors(Path(file_path), errors, log_directory) if errors else None
-    )
+    error_log_path = _log_errors(file_path, errors, log_directory) if errors else None
     if error_log_path:
         logger.warning(
             f"Errors encountered while transforming file {file_path}: {errors}"
@@ -260,19 +258,19 @@ async def _process_file_async(
     )
 
 
-def process_file(file_path: str) -> ProcessedFile:
+def process_file(file_path: Path) -> ProcessedFile:
     """
     Define the task entry point — runs the async pipeline synchronously.
 
     Args:
-        file_path (str): The local file path of the source .gz file being processed.
+        file_path (Path): The local file path of the source .gz file being processed.
 
     Returns:
         ProcessedFile: A ProcessedFile object.
 
     """
     settings = get_settings()
-    base_blob_name = _derive_base_blob_name(Path(file_path))
+    base_blob_name = _derive_base_blob_name(file_path)
     log_directory = Path(__file__).parent / "logs"
     result = asyncio.run(
         _process_file_async(settings, file_path, base_blob_name, log_directory)
@@ -287,12 +285,12 @@ def process_file(file_path: str) -> ProcessedFile:
     )
 
 
-def process_file_batch(file_paths: list[str]) -> list[dict]:
+def process_file_batch(file_paths: list[Path]) -> list[dict]:
     """
     Process a batch of files, return one result dict per file.
 
     Args:
-        file_paths (list[str]): A list of local file paths to process.
+        file_paths (list[Path]): A list of local file paths to process.
 
     Returns:
         list[dict]: A list of ProcessedFile metadata dicts, one per file.

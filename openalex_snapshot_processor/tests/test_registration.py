@@ -73,6 +73,7 @@ def test_save_progress_success(tmp_path):
 
 
 def test_register_single_file_success(
+    tmp_path,
     mocker,
     test_settings,
     test_destiny_repository_content_uploader,
@@ -81,8 +82,8 @@ def test_register_single_file_success(
     test_import_record_id = uuid4()
     test_batch_id = uuid4()
     poll_interval = 1
-    max_poll_attempts = 3
     test_blob_storage_client = test_destiny_blob_storage_client
+    test_progress_file = tmp_path / "progress.json"
     test_upload_result = {
         "import_record": ImportRecordRead(
             id=test_import_record_id,
@@ -94,6 +95,7 @@ def test_register_single_file_success(
         ),
         "import_batch_ids": [test_batch_id],
     }
+    test_progress = RegistrationProgress()
 
     mocker.patch.object(
         DestinyBlobStorageClient,
@@ -122,9 +124,8 @@ def test_register_single_file_success(
         ),
     )
     mocker.patch("requests.Session.patch", return_value=mocker.MagicMock(spec=Response))
-    mocker.patch.object(
-        DestinyRepositoryContentUploader,
-        "poll_import_batches_for_completion",
+    mocker.patch(
+        "openalex_snapshot_processor.registration.poll_registration_status",
         return_value=None,
     )
     result = _register_single_file(
@@ -132,7 +133,8 @@ def test_register_single_file_success(
         test_blob_storage_client,
         "test_base_blob_name",
         poll_interval,
-        max_poll_attempts,
+        progress=test_progress,
+        progress_file=test_progress_file,
     )
     assert isinstance(
         result, RegistrationReport
@@ -146,13 +148,15 @@ def test_register_single_file_success(
 
 
 def test_register_single_file_failure_token_refresh(
+    tmp_path,
     mocker,
     test_settings,
     test_destiny_repository_content_uploader,
     test_destiny_blob_storage_client,
 ):
     poll_interval = 1
-    max_poll_attempts = 3
+    test_progress = RegistrationProgress()
+    test_progress_file = tmp_path / "progress.json"
     test_blob_storage_client = test_destiny_blob_storage_client
 
     expected_error_message = "Mocked token refresh error"
@@ -169,20 +173,22 @@ def test_register_single_file_failure_token_refresh(
             test_blob_storage_client,
             "test_base_blob_name",
             poll_interval,
-            max_poll_attempts,
+            test_progress,
+            test_progress_file,
         )
     assert expected_error_message in str(error_info.value)
 
 
 def test_register_single_file_failure_register_new_import(
+    tmp_path,
     mocker,
     test_destiny_repository_content_uploader,
     test_destiny_blob_storage_client,
 ):
     poll_interval = 1
-    max_poll_attempts = 3
+    test_progress = RegistrationProgress()
+    test_progress_file = tmp_path / "progress.json"
     test_blob_storage_client = test_destiny_blob_storage_client
-
     expected_error_message = "Mocked token refresh error"
 
     mocker.patch.object(
@@ -206,12 +212,14 @@ def test_register_single_file_failure_register_new_import(
             test_blob_storage_client,
             "test_base_blob_name",
             poll_interval,
-            max_poll_attempts,
+            progress=test_progress,
+            progress_file=test_progress_file,
         )
     assert expected_error_message in str(error_info.value)
 
 
 def test_register_single_file_failure_batch_import(
+    tmp_path,
     mocker,
     test_destiny_repository_content_uploader,
     test_destiny_blob_storage_client,
@@ -219,8 +227,10 @@ def test_register_single_file_failure_batch_import(
     test_import_record_id = uuid4()
     test_batch_id = uuid4()
     poll_interval = 1
-    max_poll_attempts = 3
     test_blob_storage_client = test_destiny_blob_storage_client
+    test_progress = RegistrationProgress()
+    test_progress_file = tmp_path / "progress.json"
+
     test_upload_result = {
         "import_record": ImportRecordRead(
             id=test_import_record_id,
@@ -260,12 +270,14 @@ def test_register_single_file_failure_batch_import(
             test_blob_storage_client,
             "test_base_blob_name",
             poll_interval,
-            max_poll_attempts,
+            test_progress,
+            test_progress_file,
         )
     assert expected_error_message in str(error_info.value)
 
 
 def test_register_single_file_failure_finalise_import_record(
+    tmp_path,
     mocker,
     test_destiny_repository_content_uploader,
     test_destiny_blob_storage_client,
@@ -273,8 +285,9 @@ def test_register_single_file_failure_finalise_import_record(
     test_import_record_id = uuid4()
     test_batch_id = uuid4()
     poll_interval = 1
-    max_poll_attempts = 3
     test_blob_storage_client = test_destiny_blob_storage_client
+    test_progress = RegistrationProgress()
+    test_progress_file = tmp_path / "progress.json"
     test_upload_result = {
         "import_record": ImportRecordRead(
             id=test_import_record_id,
@@ -330,21 +343,37 @@ def test_register_single_file_failure_finalise_import_record(
             test_blob_storage_client,
             "test_base_blob_name",
             poll_interval,
-            max_poll_attempts,
+            progress=test_progress,
+            progress_file=test_progress_file,
         )
     assert expected_error_message in str(error_info.value)
 
 
+@pytest.mark.parametrize(
+    ("polling_error", "expected_error_message"),
+    [
+        (HTTPError("Mocked polling HTTP error"), "Mocked polling HTTP error"),
+        (
+            RepositoryRegistrationError("Mocked polling registration error"),
+            "Mocked polling registration error",
+        ),
+    ],
+)
 def test_register_single_file_failure_finalise_poll_batches_for_completion(
+    tmp_path,
     mocker,
     test_destiny_repository_content_uploader,
     test_destiny_blob_storage_client,
+    polling_error,
+    expected_error_message,
 ):
     test_import_record_id = uuid4()
     test_batch_id = uuid4()
     poll_interval = 1
-    max_poll_attempts = 3
     test_blob_storage_client = test_destiny_blob_storage_client
+    test_progress = RegistrationProgress()
+    test_progress_file = tmp_path / "progress.json"
+
     test_upload_result = {
         "import_record": ImportRecordRead(
             id=test_import_record_id,
@@ -357,7 +386,6 @@ def test_register_single_file_failure_finalise_poll_batches_for_completion(
         "import_batch_ids": [test_batch_id],
     }
 
-    expected_error_message = "Mocked polling error"
     mocker.patch.object(
         DestinyBlobStorageClient,
         "get_all_blob_url_pairs",
@@ -385,10 +413,9 @@ def test_register_single_file_failure_finalise_poll_batches_for_completion(
         ),
     )
     mocker.patch("requests.Session.patch", return_value=mocker.MagicMock(spec=Response))
-    mocker.patch.object(
-        DestinyRepositoryContentUploader,
-        "poll_import_batches_for_completion",
-        side_effect=HTTPError(expected_error_message),
+    mocker.patch(
+        "openalex_snapshot_processor.registration.poll_registration_status",
+        side_effect=polling_error,
     )
     with pytest.raises(RepositoryRegistrationError) as error_info:
         _register_single_file(
@@ -396,7 +423,8 @@ def test_register_single_file_failure_finalise_poll_batches_for_completion(
             test_blob_storage_client,
             "test_base_blob_name",
             poll_interval,
-            max_poll_attempts,
+            progress=test_progress,
+            progress_file=test_progress_file,
         )
     assert expected_error_message in str(error_info.value)
 

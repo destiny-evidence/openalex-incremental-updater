@@ -88,7 +88,7 @@ class Settings(BaseSettings):
         default="unused",
         description=("Unused, placeholder for another settings object."),
     )
-    CORS_ORIGINS: str = Field(
+    cors_origins: str = Field(
         default='["http://localhost:3000"]',
         description=("Unused, placeholder for another settings object."),
     )
@@ -99,10 +99,6 @@ class Settings(BaseSettings):
     POLL_INTERVAL_SECONDS: int = Field(
         default=300,
         description="The number of seconds to wait between polling import batches.",
-    )
-    MAX_POLL_ATTEMPTS: int = Field(
-        default=120,
-        description="The maximum number of attempts to make when polling import batches.",
     )
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"

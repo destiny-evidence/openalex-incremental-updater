@@ -1,8 +1,10 @@
 """Register uploaded blobs with the DESTINY Repository."""
 
+import time
 from pathlib import Path
 from uuid import UUID
 
+from destiny_sdk.imports import ImportBatchStatus, ImportBatchSummary
 from loguru import logger
 from pydantic import BaseModel, Field, ValidationError
 from requests import HTTPError
@@ -14,6 +16,23 @@ from refresh_requester.repository import (
     DestinyRepositoryImportError,
     ImportSourceType,
 )
+
+
+class InProgressRecord(BaseModel):
+    """Tracks in-flight registration for reconciliation in cause of pause/failure/cancellation."""
+
+    import_record_id: UUID = Field(
+        ...,
+        description=(
+            "The import record ID created in the DESTINY Repository for this import."
+        ),
+    )
+    import_batch_ids: list[UUID] = Field(
+        ...,
+        description=(
+            "A list of the IDs of the import batches created in the DESTINY Repository for this import process."
+        ),
+    )
 
 
 class RepositoryRegistrationError(Exception):
@@ -81,7 +100,93 @@ class RegistrationSummary(BaseModel):
 class RegistrationProgress(BaseModel):
     """Model to track the progress of the registration process for a file's blobs."""
 
-    completed: list[str] = []
+    completed: list[str] = Field(
+        default_factory=list,
+        description=("Base blob names that have been successfully registered."),
+    )
+    in_progress: dict[str, InProgressRecord] = Field(
+        default_factory=dict,
+        description=(
+            "A mapping of base blob names to their in-progress registration details."
+        ),
+    )
+    failed: list[str] = Field(
+        default_factory=list,
+        description=("A list of base blob names that failed registration."),
+    )
+
+
+def _status_check(
+    summary: ImportBatchSummary, status: ImportBatchStatus, import_batch_id: UUID
+) -> None:
+    """
+    Check the status of an import batch and raise an error if it has failed.
+
+    Args:
+        summary (ImportBatchSummary): The summary object for the import batch being checked.
+        status (ImportBatchStatus): The current status of the import batch.
+        import_batch_id (UUID): The ID of the import batch being checked.
+
+    Raises:
+        RepositoryRegistrationError: If the batch has failed or partially failed.
+
+    """
+    if status == ImportBatchStatus.COMPLETED:
+        success_message = f"Batch {import_batch_id} completed."
+        logger.info(success_message)
+        return
+
+    if status in {ImportBatchStatus.FAILED, ImportBatchStatus.PARTIALLY_FAILED}:
+        details = summary.failure_details or []
+        error_message = (
+            f"Batch {import_batch_id} reached terminal state {status}. "
+            f"Failure details: {details}"
+        )
+        logger.error(error_message)
+        raise RepositoryRegistrationError(error_message)
+
+
+def poll_registration_status(
+    uploader: DestinyRepositoryContentUploader,
+    import_record_id: UUID,
+    import_batch_id: UUID,
+    poll_interval: int,
+) -> None:
+    """
+    Poll a single import batch until it reaches a terminal state.
+
+    Uses ImportBatchSummary.import_batch_status (typed enum) so terminal
+    failure states are detected immediately rather than exhausting retries.
+
+    Args:
+        uploader (DestinyRepositoryContentUploader): The uploader instance to use for polling.
+        import_record_id (UUID): The ID of the import record to which the batch belongs.
+        import_batch_id (UUID): The ID of the import batch to poll.
+        poll_interval (int): The number of seconds to wait between polling attempts.
+
+    Raises:
+        RepositoryRegistrationError: If the batch fails or partially fails.
+
+    """
+    summary = uploader.get_import_batch_summary(import_record_id, import_batch_id)
+    status = summary.import_batch_status
+
+    _status_check(summary, status, import_batch_id)
+
+    terminal_or_completed_states = {
+        ImportBatchStatus.COMPLETED,
+        ImportBatchStatus.FAILED,
+        ImportBatchStatus.PARTIALLY_FAILED,
+    }
+    while status not in terminal_or_completed_states:
+        summary = uploader.get_import_batch_summary(import_record_id, import_batch_id)
+        status = summary.import_batch_status
+
+        _status_check(summary, status, import_batch_id)
+        logger.info(
+            f"Batch {import_batch_id} status={status} " f"Waiting {poll_interval}s..."
+        )
+        time.sleep(poll_interval)
 
 
 def _load_progress(progress_file: Path) -> RegistrationProgress:
@@ -130,7 +235,8 @@ def _register_single_file(
     blob_storage_client: DestinyBlobStorageClient,
     base_blob_name: str,
     poll_interval: int,
-    max_poll_attempts: int,
+    progress: RegistrationProgress,
+    progress_file: Path,
 ) -> RegistrationReport:
     """
     Register all blobs for a single file and poll until batches complete.
@@ -149,7 +255,8 @@ def _register_single_file(
         blob_storage_client (DestinyBlobStorageClient): Azure Blob Storage client.
         base_blob_name (str): Prefix of the blob names to register.
         poll_interval (int): Seconds between polling attempts.
-        max_poll_attempts (int): Maximum number of polling attempts before giving up.
+        progress (RegistrationProgress): Current registration progress state.
+        progress_file (Path): Path to the JSON file where progress should be saved.
 
     Returns:
         RegistrationReport: Summary with import record ID and import batch IDs.
@@ -161,57 +268,81 @@ def _register_single_file(
         logger.exception("Failed to refresh token")
         raise
 
-    blob_url_pairs = blob_storage_client.get_all_blob_url_pairs(base_blob_name)
-    if len(blob_url_pairs) == 0:
-        logger.warning(f"No blobs found to register for {base_blob_name}")
-    logger.info(f"Found {len(blob_url_pairs)} blobs to register for {base_blob_name}")
-
-    try:
-        import_record = uploader.register_new_import(
-            source_type=ImportSourceType.OPEN_ALEX
-        )
-    except DestinyRepositoryImportError as new_import_registration_error:
-        error_message = (
-            f"Failed to register new import for {base_blob_name}"
-            f": {new_import_registration_error}"
-        )
-        logger.exception(error_message)
-        raise RepositoryRegistrationError(
-            error_message
-        ) from new_import_registration_error
-    logger.info(f"Created ImportRecord {import_record.id} for {base_blob_name}")
-
+    in_progress = progress.in_progress.get(base_blob_name)
     import_batch_ids: list[UUID] = []
-    try:
-        for pair in blob_url_pairs:
-            batch = uploader.register_import_batch_for_single_blob(
-                pair.get("blob_name", ""), pair.get("sas_url", ""), import_record
+
+    if in_progress:
+        logger.info(
+            f"Resuming in-progress registration for {base_blob_name}"
+            f" (import record={in_progress.import_record_id})"
+        )
+        import_record_id = in_progress.import_record_id
+        import_batch_ids = in_progress.import_batch_ids
+    else:
+        blob_url_pairs = blob_storage_client.get_all_blob_url_pairs(base_blob_name)
+        if len(blob_url_pairs) == 0:
+            logger.warning(f"No blobs found to register for {base_blob_name}")
+        logger.info(
+            f"Found {len(blob_url_pairs)} blobs to register for {base_blob_name}"
+        )
+
+        try:
+            import_record = uploader.register_new_import(
+                source_type=ImportSourceType.BULK_IMPORTER
             )
-            import_batch_ids.append(batch.id)
-    except HTTPError as batch_registration_error:
-        error_message = f"Failed to register import batch for {base_blob_name}: {batch_registration_error}"
-        logger.exception(error_message)
-        raise RepositoryRegistrationError(error_message) from batch_registration_error
+        except DestinyRepositoryImportError as new_import_registration_error:
+            error_message = (
+                f"Failed to register new import for {base_blob_name}"
+                f": {new_import_registration_error}"
+            )
+            logger.exception(error_message)
+            raise RepositoryRegistrationError(
+                error_message
+            ) from new_import_registration_error
+        logger.info(f"Created ImportRecord {import_record.id} for {base_blob_name}")
 
-    try:
-        uploader.finalise_import_record(import_record.id)
-    except HTTPError as finalise_error:
-        error_message = (
-            f"Failed to finalise ImportRecord {import_record.id}: {finalise_error}"
-        )
-        logger.exception(error_message)
-        raise RepositoryRegistrationError(error_message) from finalise_error
-    logger.info(f"Finalised ImportRecord {import_record.id}.")
-    logger.info(f"Polling {len(import_batch_ids)} batches...")
+        try:
+            for pair in blob_url_pairs:
+                batch = uploader.register_import_batch_for_single_blob(
+                    pair.get("blob_name", ""), pair.get("sas_url", ""), import_record
+                )
+                import_batch_ids.append(batch.id)
+        except HTTPError as batch_registration_error:
+            error_message = f"Failed to register import batch for {base_blob_name}: {batch_registration_error}"
+            logger.exception(error_message)
+            raise RepositoryRegistrationError(
+                error_message
+            ) from batch_registration_error
 
-    try:
-        uploader.poll_import_batches_for_completion(
-            import_record_id=import_record.id,
+        try:
+            uploader.finalise_import_record(import_record.id)
+        except HTTPError as finalise_error:
+            error_message = (
+                f"Failed to finalise ImportRecord {import_record.id}: {finalise_error}"
+            )
+            logger.exception(error_message)
+            raise RepositoryRegistrationError(error_message) from finalise_error
+        logger.info(f"Finalised ImportRecord {import_record.id}.")
+
+        import_record_id = import_record.id
+
+        progress.in_progress[base_blob_name] = InProgressRecord(
+            import_record_id=import_record_id,
             import_batch_ids=import_batch_ids,
-            retry_time_seconds=poll_interval,
-            max_retries=max_poll_attempts,
         )
-    except HTTPError as polling_error:
+        _save_progress(progress_file, progress)
+        logger.info(f"ImportRecord {import_record_id} registered for {base_blob_name}.")
+        logger.info(f"Polling {len(import_batch_ids)} batches...")
+
+    try:
+        for batch_id in import_batch_ids:
+            poll_registration_status(
+                uploader, import_record_id, batch_id, poll_interval
+            )
+    except (HTTPError, RepositoryRegistrationError) as polling_error:
+        progress.in_progress.pop(base_blob_name, None)
+        progress.failed.append(base_blob_name)
+        _save_progress(progress_file, progress)
         error_message = (
             f"Error while polling import batches for {base_blob_name}: {polling_error}"
         )
@@ -219,7 +350,7 @@ def _register_single_file(
         raise RepositoryRegistrationError(error_message) from polling_error
 
     return RegistrationReport(
-        import_record_id=import_record.id,
+        import_record_id=import_record_id,
         import_batch_ids=import_batch_ids,
         batch_count=len(import_batch_ids),
     )
@@ -271,16 +402,24 @@ def register_all_blobs_in_serial(
         logger.info(
             f"[{n}/{total_files_to_register}] Registering file {base_blob_name}"
         )
-        result = _register_single_file(
-            uploader=uploader,
-            blob_storage_client=blob_storage_client,
-            base_blob_name=base_blob_name,
-            poll_interval=settings.POLL_INTERVAL_SECONDS,
-            max_poll_attempts=settings.MAX_POLL_ATTEMPTS,
-        )
+        try:
+            result = _register_single_file(
+                uploader=uploader,
+                blob_storage_client=blob_storage_client,
+                base_blob_name=base_blob_name,
+                poll_interval=settings.POLL_INTERVAL_SECONDS,
+                progress=progress,
+                progress_file=progress_file,
+            )
+        except RepositoryRegistrationError as registration_error:
+            logger.error(
+                f"Registration failed for {base_blob_name}: {registration_error}"
+            )
+            continue
         total_batches_registered += result.batch_count
         results.append(result)
 
+        progress.in_progress.pop(base_blob_name, None)
         progress.completed.append(base_blob_name)
         _save_progress(progress_file, progress)
 
@@ -293,7 +432,7 @@ def register_all_blobs_in_serial(
     completed_count = len(progress.completed)
     logger.success(
         f"Registration complete: {completed_count}/{total_files_to_register} files registered"
-        f"{skipped_files} skipped, {total_batches_registered} total batches."
+        f" {skipped_files} skipped, {total_batches_registered} total batches."
     )
     return RegistrationSummary(
         total_files=total_files_to_register,

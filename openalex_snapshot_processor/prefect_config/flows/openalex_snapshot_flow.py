@@ -22,7 +22,10 @@ from openalex_snapshot_processor.enumeration import (
     enumerate_work_files,
 )
 from openalex_snapshot_processor.file_processor import process_file_batch
-from openalex_snapshot_processor.registration import register_all_blobs_in_serial
+from openalex_snapshot_processor.registration import (
+    RegistrationSummary,
+    register_all_blobs_in_serial,
+)
 
 MAXIMUM_BATCH_SIZE = 100_000
 
@@ -85,7 +88,9 @@ def flatten_results(batched_results: list[list[dict]]) -> list[dict]:
 
 
 @task(retries=1, retry_delay_seconds=300)
-def serial_register_all_processed_files(processed_file: list[dict]) -> dict:
+def serial_register_all_processed_files(
+    processed_files: list[dict],
+) -> RegistrationSummary:
     """
     Register all processed files in blob storage against the DESTINY repository.
 
@@ -96,26 +101,30 @@ def serial_register_all_processed_files(processed_file: list[dict]) -> dict:
     to the queue.
 
     Args:
-        processed_file[list[dict]]: List of processed file metadata dicts.
+        processed_files (list[dict]): List of processed file metadata dicts.
 
     Returns:
-        dict: Registration results as dictionaries.
+        RegistrationSummary: The registration summary object.
 
     """
     progress_file_directory = Path(__file__).parent.parent / "logs"
     progress_file_directory.mkdir(exist_ok=True, parents=True)
     progress_file = progress_file_directory / "registration_progress.json"
-    return register_all_blobs_in_serial(processed_file, progress_file)
+    return register_all_blobs_in_serial(processed_files, progress_file)
 
 
 @task
-def report(processed_files: list[dict], registration_summary: dict) -> None:
+def report(
+    processed_files: list[dict],
+    registration_summary: RegistrationSummary,
+    artifact_key: str = "snapshot-ingest",
+) -> None:
     """
     Log a summary of the full snapshot ingest run.
 
     Args:
         processed_files (list[dict]): A list of processed file metadata dicts.
-        registration_summary (dict): The registration summary dict.
+        registration_summary (RegistrationSummary): The registration summary object.
 
     """
     total_records = sum(record.get("record_count", 0) for record in processed_files)
@@ -127,23 +136,21 @@ def report(processed_files: list[dict], registration_summary: dict) -> None:
         record["file_path"] for record in processed_files if record.get("error_log")
     ]
 
-    error_log_content = (
-        "\n".join(
-            f"{record['file_path']}: {record.get('errors')}"
-            for record in processed_files
-            if record.get("errors")
+    error_log_content = "\n".join(
+        f"{record['file_path']}: {record.get('errors')}"
+        for record in processed_files
+        if record.get("errors")
+    )
+    if error_log_content:
+        error_log_content_markdown = f"```json\n{error_log_content}\n```"
+        create_markdown_artifact(
+            markdown=error_log_content_markdown,
+            key=f"{artifact_key}-error-log",
+            description="Error log.",
         )
-        or "No errors found."
-    )
-    error_log_content_markdown = f"```json\n{error_log_content}\n```"
-    create_markdown_artifact(
-        markdown=error_log_content_markdown,
-        key="snapshot-ingest-error-log",
-        description="Error log.",
-    )
     logger.success(
         "Snapshot ingest complete!\n"
-        f"{registration_summary.get("total_files")} files processed\n"
+        f"{registration_summary.total_files} files processed\n"
         f"{total_records} records processed\n"
         f"{total_blobs} blobs uploaded\n"
         f"{total_batches} import batches generated"

@@ -52,7 +52,9 @@ lint.ignore = [
   "D407", # removed dashes lines under sections
   "D417", # argument description in docstring (unreliable)
   "FA102", # missing from __future__ import annotations, but we don't support python < 3.10
-  "ISC001" # simplify implicit str concatenation (ruff-format recommended)
+  "ISC001", # simplify implicit str concatenation (ruff-format recommended)
+  "PLR0913", # too many arguments
+  "PLR0915" # too many statements
 ]
 lint.per-file-ignores = {"openalex_snapshot_processor/tests/*" = [
   "ANN001", # Missing type annotation for function argument
