@@ -27,7 +27,7 @@ from openalex_snapshot_processor.registration import (
     register_all_blobs_in_serial,
 )
 
-MAXIMUM_BATCH_SIZE = 100_000
+MAXIMUM_BATCH_SIZE = 500_000
 
 
 @task(retries=3, retry_delay_seconds=60)

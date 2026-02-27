@@ -26,7 +26,7 @@ from prefect_config.flows.openalex_snapshot_flow import (
     report,
 )
 
-MAXIMUM_BATCH_SIZE = 100_000
+MAXIMUM_BATCH_SIZE = 500_000
 
 
 @task(retries=3, retry_delay_seconds=60)
