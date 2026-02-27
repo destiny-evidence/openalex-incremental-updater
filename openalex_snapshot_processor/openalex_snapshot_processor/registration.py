@@ -351,7 +351,7 @@ def _register_single_file(
             poll_registration_status(
                 uploader, import_record_id, batch_id, poll_interval
             )
-    except (HTTPError, RepositoryRegistrationError) as polling_error:
+    except RepositoryRegistrationError as polling_error:
         progress.in_progress.pop(base_blob_name, None)
         progress.failed.append(base_blob_name)
         _save_progress(progress_file, progress)
@@ -360,12 +360,90 @@ def _register_single_file(
         )
         logger.exception(error_message)
         raise RepositoryRegistrationError(error_message) from polling_error
+    except HTTPError as polling_http_error:
+        error_message = (
+            f"HTTP error while polling import batches for {base_blob_name}: {polling_http_error}"
+            " - this may be transient. Waiting for next retry..."
+        )
+        logger.error(error_message)
+        raise
 
     return RegistrationReport(
         import_record_id=import_record_id,
         import_batch_ids=import_batch_ids,
         batch_count=len(import_batch_ids),
     )
+
+
+def _reconcile_in_progress(
+    progress: RegistrationProgress,
+    uploader: DestinyRepositoryContentUploader,
+    progress_file: Path,
+) -> None:
+    """
+    Check ingestion status of in-progress batches after a restart.
+
+    Base blob names that moved to a terminal state (completed/failed)
+    during down time are moved to an appropriate list based on their current status.
+
+    Args:
+        progress (RegistrationProgress): Current registration progress state.
+        uploader (DestinyRepositoryContentUploader): Destiny Repository uploader instance.
+        progress_file (Path): Path to the progress file.
+
+    """
+    if not progress.in_progress:
+        return
+
+    logger.info(
+        f"Checking status of {len(progress.in_progress)} in-progress registrations..."
+    )
+
+    resolved = []
+    for base_blob_name, record in progress.in_progress.items():
+        all_completed = True
+        any_failed = False
+
+        for batch_id in record.import_batch_ids:
+            try:
+                summary = uploader.get_import_batch_summary(
+                    record.import_record_id, batch_id
+                )
+                status = summary.import_batch_status
+
+                if status in {
+                    ImportBatchStatus.FAILED,
+                    ImportBatchStatus.PARTIALLY_FAILED,
+                }:
+                    any_failed = True
+                    all_completed = False
+                    break
+                if status != ImportBatchStatus.COMPLETED:
+                    all_completed = False
+            except HTTPError as http_error:
+                logger.warning(
+                    f"HTTP error while checking batch {batch_id} for {base_blob_name}: {http_error}"
+                    " - this may be transient. Will check again on next reconciliation."
+                )
+                all_completed = False
+                break
+        if any_failed:
+            warning_message = f"Registration for {base_blob_name} failed during downtime. Marking as failed."
+            logger.warning(warning_message)
+            progress.failed.append(base_blob_name)
+            resolved.append(base_blob_name)
+        elif all_completed:
+            success_message = f"Registration for {base_blob_name} completed during downtime. Marking as completed."
+            logger.info(success_message)
+            progress.completed.append(base_blob_name)
+            resolved.append(base_blob_name)
+
+    for base_blob_name in resolved:
+        progress.in_progress.pop(base_blob_name)
+
+    if resolved:
+        logger.info(f"Reconciled {len(resolved)} in-progress registrations: {resolved}")
+        _save_progress(progress_file, progress)
 
 
 def register_all_blobs_in_serial(
@@ -394,6 +472,9 @@ def register_all_blobs_in_serial(
     progress = _load_progress(progress_file)
     uploader = DestinyRepositoryContentUploader(settings=settings)
     blob_storage_client = DestinyBlobStorageClient()
+
+    logger.info("Checking status of any in-progress registrations from previous runs.")
+    _reconcile_in_progress(progress, uploader, progress_file)
 
     total_files_to_register = len(processed_files)
     skipped_files = 0
