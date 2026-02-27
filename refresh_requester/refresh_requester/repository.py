@@ -26,6 +26,7 @@ class ImportSourceType(StrEnum):
 
     OPEN_ALEX = "openalex"
     SOLR = "solr"
+    BULK_IMPORTER = "openalex_bulk_import"
 
 
 class DestinyRepositoryImportError(Exception):
