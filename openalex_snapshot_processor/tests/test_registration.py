@@ -500,6 +500,9 @@ def test_register_all_blobs_in_serial_success(
     assert result.skipped_count == len(
         test_already_completed_files
     ), "Skipped count should be equal to the number of already completed files."
+    assert (
+        result.retried_count == 0
+    ), "Retried count should be 0 when there are no retries."
     assert result.total_batches_registered == sum(
         len(b) for b in test_batch_ids_to_register
     ), "Total batches registered should match the sum of batches for non-skipped files."
@@ -509,3 +512,157 @@ def test_register_all_blobs_in_serial_success(
     assert all(
         isinstance(r, RegistrationReport) for r in result.results
     ), "All results should be RegistrationReport instances."
+
+
+def test_register_all_blobs_in_serial_previously_failed_succeeds_on_retry(
+    tmp_path,
+    mocker,
+    test_settings,
+    test_destiny_repository_content_uploader,
+    test_destiny_blob_storage_client,
+):
+    test_processed_files = [
+        {"base_blob_name": "test_base_blob_name_part0001"},
+        {"base_blob_name": "test_base_blob_name_part0002"},
+        {"base_blob_name": "test_base_blob_name_part0003"},
+    ]
+    test_import_record_ids = [uuid4() for _ in test_processed_files]
+    # assumes two batches per file for testing purposes
+    test_batch_ids = [[uuid4(), uuid4()] for _ in test_processed_files]
+
+    # simulate one previously failed file that will now succeed upon retry
+
+    test_previously_failed_files = [
+        f["base_blob_name"] for f in test_processed_files[:1]
+    ]
+    test_files_to_register = [f["base_blob_name"] for f in test_processed_files]
+    test_batch_ids_to_register = test_batch_ids
+
+    test_progress_data = {"failed": test_previously_failed_files}
+    progress_file_path = tmp_path / "progress.json"
+    progress = RegistrationProgress(**test_progress_data)
+    _save_progress(progress_file_path, progress)
+
+    expected_single_file_registration_result = [
+        RegistrationReport(
+            import_record_id=test_import_record_ids[i],
+            import_batch_ids=test_batch_ids_to_register[i],
+            batch_count=len(test_batch_ids_to_register[i]),
+        )
+        for i in range(len(test_files_to_register))
+    ]
+
+    mocker.patch(
+        "openalex_snapshot_processor.registration.get_settings",
+        return_value=test_settings,
+    )
+    mocked_single_file_registration_call = mocker.patch(
+        "openalex_snapshot_processor.registration._register_single_file",
+        side_effect=expected_single_file_registration_result,
+    )
+    mocker.patch(
+        "openalex_snapshot_processor.registration.DestinyBlobStorageClient",
+        return_value=test_destiny_blob_storage_client,
+    )
+
+    result = register_all_blobs_in_serial(
+        processed_files=test_processed_files,
+        progress_file=progress_file_path,
+    )
+    assert (
+        mocked_single_file_registration_call.call_count == len(test_files_to_register)
+    ), "Single file registration should be called for each file that needs to be registered, including previously failed files."
+    assert isinstance(
+        result, RegistrationSummary
+    ), "Result should be an instance of RegistrationSummary."
+    assert result.total_files == len(
+        test_processed_files
+    ), "Total files should match the total number of files _ever_ processed."
+    assert (
+        result.completed_count == len(test_files_to_register)
+    ), "Completed count should match the number of files registered in this run since all files were either previously failed or not marked at all."
+    assert (
+        result.skipped_count == 0
+    ), "Skipped count should be 0 when there are no previously completed files."
+    assert (
+        result.retried_count == len(test_previously_failed_files)
+    ), "Retried count should match the number of previously failed files that are now completed."
+    assert (
+        result.total_batches_registered
+        == sum(len(b) for b in test_batch_ids_to_register)
+    ), "Total batches registered should match the sum of batches for all files since there are no skipped files."
+    assert len(result.results) == len(
+        test_files_to_register
+    ), "Number of results should match the number of files registered in this run."
+    assert all(
+        isinstance(r, RegistrationReport) for r in result.results
+    ), "All results should be RegistrationReport instances."
+
+
+def test_register_all_blobs_in_serial_fresh_file_not_counted_as_retry(
+    tmp_path,
+    mocker,
+    test_settings,
+    test_destiny_repository_content_uploader,
+    test_destiny_blob_storage_client,
+):
+    test_failed_blob = "test_failed_blob"
+    test_fresh_blob = "test_fresh_blob"
+
+    progress = RegistrationProgress(failed=[test_failed_blob])
+    progress_file_path = tmp_path / "progress.json"
+    _save_progress(progress_file_path, progress)
+
+    test_processed_files = [
+        {"base_blob_name": test_failed_blob},
+        {"base_blob_name": test_fresh_blob},
+    ]
+
+    mocker.patch(
+        "openalex_snapshot_processor.registration.get_settings",
+        return_value=test_settings,
+    )
+    mocker.patch(
+        "openalex_snapshot_processor.registration.DestinyBlobStorageClient",
+        return_value=test_destiny_blob_storage_client,
+    )
+    mocker.patch(
+        "openalex_snapshot_processor.registration._register_single_file",
+        side_effect=[
+            RegistrationReport(
+                import_record_id=uuid4(), import_batch_ids=[uuid4()], batch_count=1
+            ),
+            RegistrationReport(
+                import_record_id=uuid4(), import_batch_ids=[uuid4()], batch_count=1
+            ),
+        ],
+    )
+
+    result = register_all_blobs_in_serial(
+        processed_files=test_processed_files,
+        progress_file=progress_file_path,
+    )
+
+    assert (
+        result.retried_count == len([test_failed_blob])
+    ), "Retried count should only include previously failed files that were completed, not fresh files that were never marked as failed."
+    assert (
+        result.completed_count == len(test_processed_files)
+    ), "Completed count should include all files that were completed, including both previously failed and fresh files."
+
+    saved_progress = _load_progress(progress_file_path)
+    assert (
+        test_failed_blob in saved_progress.retried_completed
+    ), "Previously failed blob should be marked as retried and completed in progress."
+    assert (
+        test_fresh_blob not in saved_progress.retried_completed
+    ), "Fresh blob should not be marked as retried since it was never failed."
+    assert (
+        test_fresh_blob in saved_progress.completed
+    ), "Fresh blob should be marked as completed in progress."
+    assert (
+        test_failed_blob not in saved_progress.failed
+    ), "Previously failed blob should no longer be marked as failed in progress."
+    assert (
+        len(saved_progress.failed) == 0
+    ), "Failed list in progress should be empty after retrying and completing previously failed files."

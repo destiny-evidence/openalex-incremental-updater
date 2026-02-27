@@ -83,6 +83,12 @@ class RegistrationSummary(BaseModel):
         ...,
         description=("Number of files skipped as already marked as completed."),
     )
+    retried_count: int = Field(
+        ...,
+        description=(
+            "Number of files that were initially marked as failed but later completed upon retry."
+        ),
+    )
     total_batches_registered: int = Field(
         ...,
         description=(
@@ -113,6 +119,12 @@ class RegistrationProgress(BaseModel):
     failed: list[str] = Field(
         default_factory=list,
         description=("A list of base blob names that failed registration."),
+    )
+    retried_completed: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Base blob names that were previously marked as failed but later completed upon retry."
+        ),
     )
 
 
@@ -420,24 +432,33 @@ def register_all_blobs_in_serial(
         results.append(result)
 
         progress.in_progress.pop(base_blob_name, None)
+        if base_blob_name in progress.failed:
+            progress.failed.remove(base_blob_name)
+            progress.retried_completed.append(base_blob_name)
         progress.completed.append(base_blob_name)
         _save_progress(progress_file, progress)
 
         progress_message = (
-            f"{n}/{total_files_to_register} registered ({skipped_files} skipped)"
+            f"{n}/{total_files_to_register} registered\n"
+            f"({skipped_files} skipped\n"
+            f"{len(progress.retried_completed)} retried and completed)"
         )
 
         logger.info(progress_message)
 
     completed_count = len(progress.completed)
+    retried_completed_count = len(progress.retried_completed)
     logger.success(
-        f"Registration complete: {completed_count}/{total_files_to_register} files registered"
-        f" {skipped_files} skipped, {total_batches_registered} total batches."
+        f"Registration complete: {completed_count}/{total_files_to_register} files registered\n"
+        f"{skipped_files} skipped\n"
+        f"{retried_completed_count} retried and completed\n"
+        f"{total_batches_registered} total batches."
     )
     return RegistrationSummary(
         total_files=total_files_to_register,
         completed_count=completed_count,
         skipped_count=skipped_files,
+        retried_count=retried_completed_count,
         total_batches_registered=total_batches_registered,
         results=results,
     )
