@@ -51,7 +51,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     BLOB_BATCH_SIZE: int = 10_000
 
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
+    model_config = SettingsConfigDict(
+        env_file=".env", env_file_encoding="utf-8", extra="ignore"
+    )
 
     @field_validator("cors_origins", mode="before")
     def parse_cors_origins(cls, cors_origins: str | list[str]) -> list[HttpUrl]:
