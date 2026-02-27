@@ -258,42 +258,62 @@ async def _process_file_async(
     )
 
 
-def process_file(file_path: Path) -> ProcessedFile:
+async def process_files_async(
+    file_paths: list[Path], log_directory: Path
+) -> list[ProcessedFile]:
     """
-    Define the task entry point — runs the async pipeline synchronously.
+    Process a batch of files asynchronously.
+
+    Overlapping upload I/O across files to speed up the full batch processing time.
 
     Args:
-        file_path (Path): The local file path of the source .gz file being processed.
+        file_paths (list[Path]): The local file paths of the source .gz files being processed.
 
     Returns:
-        ProcessedFile: A ProcessedFile object.
+        list[ProcessedFile]: A list of ProcessedFile objects.
 
     """
     settings = get_settings()
-    base_blob_name = _derive_base_blob_name(file_path)
-    log_directory = Path(__file__).parent / "logs"
-    result = asyncio.run(
-        _process_file_async(settings, file_path, base_blob_name, log_directory)
-    )
+    base_blob_names = [_derive_base_blob_name(file_path) for file_path in file_paths]
 
-    return ProcessedFile(
-        blob_names=result.blob_names,
-        record_count=result.record_count,
-        error_log=result.error_log,
-        file_path=file_path,
-        base_blob_name=base_blob_name,
-    )
+    tasks = [
+        _process_file_async(settings, path, base_blob_name, log_directory)
+        for path, base_blob_name in zip(file_paths, base_blob_names, strict=False)
+    ]
+    results = await asyncio.gather(*tasks)
+
+    return [
+        ProcessedFile(
+            blob_names=result.blob_names,
+            record_count=result.record_count,
+            error_log=result.error_log,
+            file_path=file_path,
+            base_blob_name=base_blob_name,
+        )
+        for file_path, base_blob_name, result in zip(
+            file_paths, base_blob_names, results, strict=False
+        )
+    ]
 
 
-def process_file_batch(file_paths: list[Path]) -> list[dict]:
+def process_file_batch(file_paths: list[Path], log_directory: Path) -> list[dict]:
     """
     Process a batch of files, return one result dict per file.
 
+    Upload I/O overlaps across files within a batch
+    to speed up the full batch processing time.
+
     Args:
         file_paths (list[Path]): A list of local file paths to process.
+        log_directory (Path): The directory to use for logging errors.
 
     Returns:
         list[dict]: A list of ProcessedFile metadata dicts, one per file.
 
     """
-    return [process_file(file_path).model_dump() for file_path in file_paths]
+    return [
+        processed_file.model_dump()
+        for processed_file in asyncio.run(
+            process_files_async(file_paths, log_directory)
+        )
+    ]

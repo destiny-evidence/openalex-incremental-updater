@@ -17,6 +17,10 @@ from refresh_requester.repository import (
     ImportSourceType,
 )
 
+MAXIMUM_POLL_LIMIT_SECONDS = (
+    21600  # 6 hour maximum poll limit for a single set of batches
+)
+
 
 class InProgressRecord(BaseModel):
     """Tracks in-flight registration for reconciliation in cause of pause/failure/cancellation."""
@@ -83,6 +87,12 @@ class RegistrationSummary(BaseModel):
         ...,
         description=("Number of files skipped as already marked as completed."),
     )
+    retried_count: int = Field(
+        ...,
+        description=(
+            "Number of files that were initially marked as failed but later completed upon retry."
+        ),
+    )
     total_batches_registered: int = Field(
         ...,
         description=(
@@ -114,11 +124,17 @@ class RegistrationProgress(BaseModel):
         default_factory=list,
         description=("A list of base blob names that failed registration."),
     )
+    retried_completed: list[str] = Field(
+        default_factory=list,
+        description=(
+            "Base blob names that were previously marked as failed but later completed upon retry."
+        ),
+    )
 
 
-def _status_check(
+def _has_exit_status(
     summary: ImportBatchSummary, status: ImportBatchStatus, import_batch_id: UUID
-) -> None:
+) -> bool:
     """
     Check the status of an import batch and raise an error if it has failed.
 
@@ -127,6 +143,9 @@ def _status_check(
         status (ImportBatchStatus): The current status of the import batch.
         import_batch_id (UUID): The ID of the import batch being checked.
 
+    Returns:
+        bool: True if the batch has reached a terminal state, False otherwise.
+
     Raises:
         RepositoryRegistrationError: If the batch has failed or partially failed.
 
@@ -134,7 +153,7 @@ def _status_check(
     if status == ImportBatchStatus.COMPLETED:
         success_message = f"Batch {import_batch_id} completed."
         logger.info(success_message)
-        return
+        return True
 
     if status in {ImportBatchStatus.FAILED, ImportBatchStatus.PARTIALLY_FAILED}:
         details = summary.failure_details or []
@@ -145,12 +164,15 @@ def _status_check(
         logger.error(error_message)
         raise RepositoryRegistrationError(error_message)
 
+    return False
+
 
 def poll_registration_status(
     uploader: DestinyRepositoryContentUploader,
     import_record_id: UUID,
     import_batch_id: UUID,
     poll_interval: int,
+    max_poll_limit_seconds: int = MAXIMUM_POLL_LIMIT_SECONDS,
 ) -> None:
     """
     Poll a single import batch until it reaches a terminal state.
@@ -163,29 +185,49 @@ def poll_registration_status(
         import_record_id (UUID): The ID of the import record to which the batch belongs.
         import_batch_id (UUID): The ID of the import batch to poll.
         poll_interval (int): The number of seconds to wait between polling attempts.
+        max_poll_limit_seconds (int): The maximum allowable time spent polling, used to avoid polling endlessly.
+            Defaults to MAXIMUM_POLL_LIMIT_SECONDS.
 
     Raises:
         RepositoryRegistrationError: If the batch fails or partially fails.
 
     """
+    if poll_interval <= 0:
+        poll_interval = 1
+    maximum_poll_limit_number = max_poll_limit_seconds // poll_interval
+    times_polled = 0
+
     summary = uploader.get_import_batch_summary(import_record_id, import_batch_id)
     status = summary.import_batch_status
 
-    _status_check(summary, status, import_batch_id)
+    stop_polling = _has_exit_status(summary, status, import_batch_id)
 
-    terminal_or_completed_states = {
-        ImportBatchStatus.COMPLETED,
-        ImportBatchStatus.FAILED,
-        ImportBatchStatus.PARTIALLY_FAILED,
-    }
-    while status not in terminal_or_completed_states:
+    remain_polling = (not stop_polling) and (times_polled <= maximum_poll_limit_number)
+    while remain_polling:
         summary = uploader.get_import_batch_summary(import_record_id, import_batch_id)
+        times_polled += 1
+
         status = summary.import_batch_status
 
-        _status_check(summary, status, import_batch_id)
+        stop_polling = _has_exit_status(summary, status, import_batch_id)
+        remain_polling = (not stop_polling) and (
+            times_polled <= maximum_poll_limit_number
+        )
+
+        if stop_polling:
+            break
+        if not remain_polling:
+            warning_message = (
+                f"Batch {import_batch_id} has not reached a terminal state after polling "
+                f"{times_polled} times over {times_polled * poll_interval} seconds. "
+                f"Last known status: {status}. Stopping polling to avoid infinite loop."
+            )
+            logger.warning(warning_message)
+            break
         logger.info(
             f"Batch {import_batch_id} status={status} " f"Waiting {poll_interval}s..."
         )
+
         time.sleep(poll_interval)
 
 
@@ -339,7 +381,7 @@ def _register_single_file(
             poll_registration_status(
                 uploader, import_record_id, batch_id, poll_interval
             )
-    except (HTTPError, RepositoryRegistrationError) as polling_error:
+    except RepositoryRegistrationError as polling_error:
         progress.in_progress.pop(base_blob_name, None)
         progress.failed.append(base_blob_name)
         _save_progress(progress_file, progress)
@@ -348,12 +390,90 @@ def _register_single_file(
         )
         logger.exception(error_message)
         raise RepositoryRegistrationError(error_message) from polling_error
+    except HTTPError as polling_http_error:
+        error_message = (
+            f"HTTP error while polling import batches for {base_blob_name}: {polling_http_error}"
+            " - this may be transient. Waiting for next retry..."
+        )
+        logger.error(error_message)
+        raise
 
     return RegistrationReport(
         import_record_id=import_record_id,
         import_batch_ids=import_batch_ids,
         batch_count=len(import_batch_ids),
     )
+
+
+def _reconcile_in_progress(
+    progress: RegistrationProgress,
+    uploader: DestinyRepositoryContentUploader,
+    progress_file: Path,
+) -> None:
+    """
+    Check ingestion status of in-progress batches after a restart.
+
+    Base blob names that moved to a terminal state (completed/failed)
+    during down time are moved to an appropriate list based on their current status.
+
+    Args:
+        progress (RegistrationProgress): Current registration progress state.
+        uploader (DestinyRepositoryContentUploader): Destiny Repository uploader instance.
+        progress_file (Path): Path to the progress file.
+
+    """
+    if not progress.in_progress:
+        return
+
+    logger.info(
+        f"Checking status of {len(progress.in_progress)} in-progress registrations..."
+    )
+
+    resolved = []
+    for base_blob_name, record in progress.in_progress.items():
+        all_completed = True
+        any_failed = False
+
+        for batch_id in record.import_batch_ids:
+            try:
+                summary = uploader.get_import_batch_summary(
+                    record.import_record_id, batch_id
+                )
+                status = summary.import_batch_status
+
+                if status in {
+                    ImportBatchStatus.FAILED,
+                    ImportBatchStatus.PARTIALLY_FAILED,
+                }:
+                    any_failed = True
+                    all_completed = False
+                    break
+                if status != ImportBatchStatus.COMPLETED:
+                    all_completed = False
+            except HTTPError as http_error:
+                logger.warning(
+                    f"HTTP error while checking batch {batch_id} for {base_blob_name}: {http_error}"
+                    " - this may be transient. Will check again on next reconciliation."
+                )
+                all_completed = False
+                break
+        if any_failed:
+            warning_message = f"Registration for {base_blob_name} failed during downtime. Marking as failed."
+            logger.warning(warning_message)
+            progress.failed.append(base_blob_name)
+            resolved.append(base_blob_name)
+        elif all_completed:
+            success_message = f"Registration for {base_blob_name} completed during downtime. Marking as completed."
+            logger.info(success_message)
+            progress.completed.append(base_blob_name)
+            resolved.append(base_blob_name)
+
+    for base_blob_name in resolved:
+        progress.in_progress.pop(base_blob_name)
+
+    if resolved:
+        logger.info(f"Reconciled {len(resolved)} in-progress registrations: {resolved}")
+        _save_progress(progress_file, progress)
 
 
 def register_all_blobs_in_serial(
@@ -382,6 +502,9 @@ def register_all_blobs_in_serial(
     progress = _load_progress(progress_file)
     uploader = DestinyRepositoryContentUploader(settings=settings)
     blob_storage_client = DestinyBlobStorageClient()
+
+    logger.info("Checking status of any in-progress registrations from previous runs.")
+    _reconcile_in_progress(progress, uploader, progress_file)
 
     total_files_to_register = len(processed_files)
     skipped_files = 0
@@ -420,24 +543,33 @@ def register_all_blobs_in_serial(
         results.append(result)
 
         progress.in_progress.pop(base_blob_name, None)
+        if base_blob_name in progress.failed:
+            progress.failed.remove(base_blob_name)
+            progress.retried_completed.append(base_blob_name)
         progress.completed.append(base_blob_name)
         _save_progress(progress_file, progress)
 
         progress_message = (
-            f"{n}/{total_files_to_register} registered ({skipped_files} skipped)"
+            f"{n}/{total_files_to_register} registered\n"
+            f"({skipped_files} skipped\n"
+            f"{len(progress.retried_completed)} retried and completed)"
         )
 
         logger.info(progress_message)
 
     completed_count = len(progress.completed)
+    retried_completed_count = len(progress.retried_completed)
     logger.success(
-        f"Registration complete: {completed_count}/{total_files_to_register} files registered"
-        f" {skipped_files} skipped, {total_batches_registered} total batches."
+        f"Registration complete: {completed_count}/{total_files_to_register} files registered\n"
+        f"{skipped_files} skipped\n"
+        f"{retried_completed_count} retried and completed\n"
+        f"{total_batches_registered} total batches."
     )
     return RegistrationSummary(
         total_files=total_files_to_register,
         completed_count=completed_count,
         skipped_count=skipped_files,
+        retried_count=retried_completed_count,
         total_batches_registered=total_batches_registered,
         results=results,
     )
