@@ -13,7 +13,7 @@ from openalex_snapshot_processor.file_processor import (
     _derive_base_blob_name,
     _log_errors,
     gz_to_jsonl_stream,
-    process_file,
+    process_files_async,
     transform_file,
 )
 
@@ -171,7 +171,9 @@ async def test_process_file_async(mocker, test_settings, test_jsonl_gz_file):
     ), "Uploaded blob name should start with the base blob name."
 
 
-def test_process_file(mocker, test_jsonl_gz_file, set_test_environment_variables):
+async def test_process_files_async(
+    mocker, test_jsonl_gz_file, set_test_environment_variables
+):
     gz_file_path, _file_contents = test_jsonl_gz_file
     expected_processed_file_report = ProcessedFileMetadata(
         blob_names=["test_blob_name"],
@@ -182,11 +184,13 @@ def test_process_file(mocker, test_jsonl_gz_file, set_test_environment_variables
         "openalex_snapshot_processor.file_processor._process_file_async",
         return_value=expected_processed_file_report,
     )
-    result = process_file(gz_file_path)
-    assert result == ProcessedFile(
-        blob_names=expected_processed_file_report.blob_names,
-        record_count=expected_processed_file_report.record_count,
-        error_log=expected_processed_file_report.error_log,
-        file_path=gz_file_path,
-        base_blob_name=_derive_base_blob_name(gz_file_path),
-    ), "The process_file function should return the expected ProcessedFile object."
+    result = await process_files_async([gz_file_path])
+    assert result == [
+        ProcessedFile(
+            blob_names=expected_processed_file_report.blob_names,
+            record_count=expected_processed_file_report.record_count,
+            error_log=expected_processed_file_report.error_log,
+            file_path=str(gz_file_path),
+            base_blob_name=_derive_base_blob_name(gz_file_path),
+        )
+    ], "Should return the expected list of ProcessedFile objects."

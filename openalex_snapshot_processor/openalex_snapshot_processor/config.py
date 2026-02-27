@@ -76,26 +76,6 @@ class Settings(BaseSettings):
 
     TENANT_ID: str = Field(..., description=("Azure tenant ID for authentication."))
 
-    API_ENDPOINT: HttpUrl = Field(
-        default=HttpUrl("http://example.com/api"),
-        description=("Unused, placeholder for another settings object."),
-    )
-    OPENALEX_API_KEY: SecretStr = Field(
-        default=SecretStr("unused"),
-        description=("Unused, placeholder for another settings object."),
-    )
-    USER_EMAIL: str = Field(
-        default="unused",
-        description=("Unused, placeholder for another settings object."),
-    )
-    cors_origins: str = Field(
-        default='["http://localhost:3000"]',
-        description=("Unused, placeholder for another settings object."),
-    )
-    AZURE_AUTH_ENVIRONMENT_ID: str = Field(
-        default="unused",
-        description=("Unused, placeholder for another settings object."),
-    )
     POLL_INTERVAL_SECONDS: int = Field(
         default=300,
         description="The number of seconds to wait between polling import batches.",

@@ -12,7 +12,7 @@ def test_enumerate_work_files_success(mocker):
     ]
     dummy_manifest = {
         "entries": [
-            {"url": f"s3://openalex-snapshot/works/{file_name}"}
+            {"url": f"s3://openalex/data/works/{file_name}"}
             for file_name in expected_files
         ]
     }
@@ -72,8 +72,7 @@ def test_enumerate_work_files_partial_success_missing_files(
     excluded_files = test_files[2:]
     dummy_manifest = {
         "entries": [
-            {"url": f"s3://openalex-snapshot/works/{file_name}"}
-            for file_name in test_files
+            {"url": f"s3://openalex/data/works/{file_name}"} for file_name in test_files
         ]
     }
 

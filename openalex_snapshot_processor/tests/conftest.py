@@ -58,7 +58,6 @@ def set_test_environment_variables(
         "APP_REGISTRATION_SECRET", "a-fake-app-registration-secret"
     )  # pragma: allowlist secret
     monkeypatch.setenv("TENANT_ID", "a-fake-tenant-id")
-    monkeypatch.setenv("API_ENDPOINT", "https://fake-api-endpoint.com")
 
     yield
     monkeypatch.delenv("SNAPSHOT_ROOT")
@@ -71,7 +70,6 @@ def set_test_environment_variables(
     monkeypatch.delenv("APP_REGISTRATION_APP_ID")
     monkeypatch.delenv("APP_REGISTRATION_SECRET")
     monkeypatch.delenv("TENANT_ID")
-    monkeypatch.delenv("API_ENDPOINT")
 
 
 @pytest.fixture(scope="session", autouse=True)
