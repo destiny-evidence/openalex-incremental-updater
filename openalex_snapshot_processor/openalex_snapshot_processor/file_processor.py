@@ -258,7 +258,9 @@ async def _process_file_async(
     )
 
 
-async def process_files_async(file_paths: list[Path]) -> list[ProcessedFile]:
+async def process_files_async(
+    file_paths: list[Path], log_directory: Path
+) -> list[ProcessedFile]:
     """
     Process a batch of files asynchronously.
 
@@ -272,7 +274,6 @@ async def process_files_async(file_paths: list[Path]) -> list[ProcessedFile]:
 
     """
     settings = get_settings()
-    log_directory = Path(__file__).parent / "logs"
     base_blob_names = [_derive_base_blob_name(file_path) for file_path in file_paths]
 
     tasks = [
@@ -295,7 +296,7 @@ async def process_files_async(file_paths: list[Path]) -> list[ProcessedFile]:
     ]
 
 
-def process_file_batch(file_paths: list[Path]) -> list[dict]:
+def process_file_batch(file_paths: list[Path], log_directory: Path) -> list[dict]:
     """
     Process a batch of files, return one result dict per file.
 
@@ -304,6 +305,7 @@ def process_file_batch(file_paths: list[Path]) -> list[dict]:
 
     Args:
         file_paths (list[Path]): A list of local file paths to process.
+        log_directory (Path): The directory to use for logging errors.
 
     Returns:
         list[dict]: A list of ProcessedFile metadata dicts, one per file.
@@ -311,5 +313,7 @@ def process_file_batch(file_paths: list[Path]) -> list[dict]:
     """
     return [
         processed_file.model_dump()
-        for processed_file in asyncio.run(process_files_async(file_paths))
+        for processed_file in asyncio.run(
+            process_files_async(file_paths, log_directory)
+        )
     ]

@@ -130,6 +130,7 @@ def serial_register_all_blobs(processed_files: list[dict]) -> RegistrationSummar
 def smoke_test_azure() -> None:
     """Run end to end Azure smoke test for a single file."""
     n_files_to_process = 3
+
     file_paths_with_counts = enumerate_files(n_files_to_process)
     unprocessed_files = filter_already_uploaded(file_paths_with_counts)
     batched_files = batch_files(unprocessed_files)

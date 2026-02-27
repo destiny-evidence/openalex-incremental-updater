@@ -127,7 +127,8 @@ def process_file_batch_task(file_paths: list[Path]) -> list[dict]:
 
 
     """
-    return process_file_batch(file_paths)
+    log_directory = Path(__file__).parent.parent / "logs"
+    return process_file_batch(file_paths, log_directory)
 
 
 @task
