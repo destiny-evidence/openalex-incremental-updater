@@ -44,4 +44,6 @@ def destiny_openalex_work_metadata(
         topics=topics,
         processor_version=processor_version,
         pagination=pagination,
+        referenced_works=openalex_work_dict.get("referenced_works"),
+        related_works=openalex_work_dict.get("related_works"),
     )

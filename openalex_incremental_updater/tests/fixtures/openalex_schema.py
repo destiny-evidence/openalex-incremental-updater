@@ -207,11 +207,14 @@ def openalex_work_dict() -> dict:
         "grants": [],
         "datasets": [],
         "versions": [],
-        "referenced_works_count": 0,
-        "referenced_works": [],
+        "referenced_works_count": 2,
+        "referenced_works": [
+            "https://openalex.org/W111111111",
+            "https://openalex.org/W222222222",
+        ],
         "related_works": [
-            "https://openalex.org/first-related-work",
-            "https://openalex.org/second-related-work",
+            "https://openalex.org/W123456789",
+            "https://openalex.org/W987654321",
         ],
         "abstract_inverted_index": {
             "This": [0],
