@@ -5,7 +5,7 @@ from pathlib import Path
 
 from loguru import logger
 
-MAX_BATCH_SIZE = 100_000
+DEFAULT_MAX_BATCH_SIZE = 100_000
 
 
 def _read_manifest_content(manifest_path: Path) -> dict:
@@ -86,7 +86,8 @@ def enumerate_work_files(snapshot_works_root: str) -> list[tuple[Path, int]]:
 
 
 def batch_files_by_record_count(
-    file_path_counts: list[tuple[Path, int]], max_batch_size: int = MAX_BATCH_SIZE
+    file_path_counts: list[tuple[Path, int]],
+    max_batch_size: int = DEFAULT_MAX_BATCH_SIZE,
 ) -> list[list[Path]]:
     """
     Batch records within files into batches that stay under max_batch_size records.
