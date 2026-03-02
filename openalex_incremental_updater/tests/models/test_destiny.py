@@ -11,6 +11,8 @@ from destiny_sdk.enhancements import (
     Pagination,
     PublicationVenue,
     PublicationVenueType,
+    ReferenceAssociationEnhancement,
+    ReferenceAssociationType,
 )
 from destiny_sdk.identifiers import (
     DOIIdentifier,
@@ -30,7 +32,9 @@ from openalex_incremental_updater.models.destiny import (
     is_valid_nonempty_string,
     map_openalex_source_type_to_venue_type,
     prepare_destiny_locations,
+    prepare_destiny_other_works_cited,
     prepare_destiny_pagination,
+    prepare_destiny_related_works_associations,
     strip_url_prefix,
 )
 
@@ -746,3 +750,136 @@ def test_destiny_openalex_work_no_venue_when_no_primary_location(
     assert (
         publication_venue is None
     ), "Publication venue should be None when no primary_location"
+
+
+def test_prepare_destiny_related_works_associations_success_associations_found(
+    destiny_openalex_work_metadata: DestinyOpenAlexWorkMetadata,
+) -> None:
+    """
+    Test the prepare_destiny_related_works_associations function.
+
+    This test checks that related works associations are created correctly when related works data is available.
+    """
+    associations = prepare_destiny_related_works_associations(
+        destiny_openalex_work_metadata
+    )
+
+    assert isinstance(
+        associations, ReferenceAssociationEnhancement
+    ), "Expect that the returned object is of type ReferenceAssociationEnhancement"
+    assert (
+        associations.association_type == ReferenceAssociationType.IS_SIMILAR_TO
+    ), "Expect that the association type is 'is_similar_to'"
+    assert (
+        len(associations.associated_reference_ids)
+        == len(destiny_openalex_work_metadata.related_works)
+    ), "Expect that the number of associated reference IDs matches the number of related works in the metadata"
+
+
+def test_prepare_destiny_related_works_associations_no_related_works_found(
+    destiny_openalex_work_metadata: DestinyOpenAlexWorkMetadata,
+) -> None:
+    work_metadata = copy.deepcopy(destiny_openalex_work_metadata)
+    work_metadata.related_works = []
+
+    associations = prepare_destiny_related_works_associations(work_metadata)
+
+    assert (
+        associations is None
+    ), "Expect that the returned object is None when no related works data is available"
+
+
+def test_prepare_destiny_related_works_associations_invalid_openalex_identifier_found(
+    destiny_openalex_work_metadata: DestinyOpenAlexWorkMetadata,
+) -> None:
+    """
+    Test that invalid openalex identifiers are handled.
+
+    They should be found, removed and not
+    affect the rest of the valid related works associations from being logged
+    in an enhancement.
+    """
+    work_metadata = copy.deepcopy(destiny_openalex_work_metadata)
+
+    invalid_work_identifiers = ["https://openalex.org/invalid_id"]
+    valid_work_identifiers = ["https://openalex.org/W987654321"]
+    work_metadata.related_works = invalid_work_identifiers + valid_work_identifiers
+
+    associations = prepare_destiny_related_works_associations(work_metadata)
+
+    assert isinstance(
+        associations, ReferenceAssociationEnhancement
+    ), "Expect that the returned object is of type ReferenceAssociationEnhancement"
+    assert (
+        associations.association_type == ReferenceAssociationType.IS_SIMILAR_TO
+    ), "Expect that the association type is 'is_similar_to'"
+    assert (
+        len(associations.associated_reference_ids) == len(valid_work_identifiers)
+    ), "Expect that only valid OpenAlex identifiers are included in the associated reference IDs"
+    assert all(
+        invalid_work_identifier not in associations.associated_reference_ids
+        for invalid_work_identifier in invalid_work_identifiers
+    ), "Expect that invalid OpenAlex identifiers are not included in the associated reference IDs"
+
+
+def test_prepare_destiny_other_works_cited_success_cited_works_found(
+    destiny_openalex_work_metadata: DestinyOpenAlexWorkMetadata,
+) -> None:
+    cited_works = prepare_destiny_other_works_cited(destiny_openalex_work_metadata)
+
+    assert isinstance(
+        cited_works, ReferenceAssociationEnhancement
+    ), "Expect that the returned object is of type ReferenceAssociationEnhancement"
+    assert (
+        cited_works.association_type == ReferenceAssociationType.CITES
+    ), "Expect that the association type is 'cites'"
+    assert (
+        len(cited_works.associated_reference_ids)
+        == len(destiny_openalex_work_metadata.referenced_works)
+    ), "Expect that the number of associated reference IDs matches the number of referenced works in the metadata"
+
+
+def test_prepare_destiny_other_works_cited_success_no_cited_works_found(
+    destiny_openalex_work_metadata: DestinyOpenAlexWorkMetadata,
+) -> None:
+    work_metadata = copy.deepcopy(destiny_openalex_work_metadata)
+    work_metadata.referenced_works = []
+
+    cited_works = prepare_destiny_other_works_cited(work_metadata)
+
+    assert (
+        cited_works is None
+    ), "Expect that the returned object is None when no referenced works data is available"
+
+
+def test_prepare_destiny_other_works_cited_invalid_openalex_identifier_found(
+    destiny_openalex_work_metadata: DestinyOpenAlexWorkMetadata,
+) -> None:
+    """
+    Test that invalid openalex identifiers are handled.
+
+    They should be found, removed and not
+    affect the rest of the valid cited works associations from being logged
+    in an enhancement.
+    """
+    work_metadata = copy.deepcopy(destiny_openalex_work_metadata)
+
+    invalid_work_identifiers = ["https://openalex.org/invalid_id"]
+    valid_work_identifiers = ["https://openalex.org/W987654321"]
+    work_metadata.referenced_works = invalid_work_identifiers + valid_work_identifiers
+
+    associations = prepare_destiny_other_works_cited(work_metadata)
+
+    assert isinstance(
+        associations, ReferenceAssociationEnhancement
+    ), "Expect that the returned object is of type ReferenceAssociationEnhancement"
+    assert (
+        associations.association_type == ReferenceAssociationType.CITES
+    ), "Expect that the association type is 'cites'"
+    assert (
+        len(associations.associated_reference_ids) == len(valid_work_identifiers)
+    ), "Expect that only valid OpenAlex identifiers are included in the associated reference IDs"
+    assert all(
+        invalid_work_identifier not in associations.associated_reference_ids
+        for invalid_work_identifier in invalid_work_identifiers
+    ), "Expect that invalid OpenAlex identifiers are not included in the associated reference IDs"

@@ -18,6 +18,8 @@ from destiny_sdk.enhancements import (
     Pagination,
     PublicationVenue,
     PublicationVenueType,
+    ReferenceAssociationEnhancement,
+    ReferenceAssociationType,
 )
 from destiny_sdk.identifiers import (
     DOIIdentifier,
@@ -122,6 +124,14 @@ class DestinyOpenAlexWorkMetadata(BaseModel):
     processor_version: str = Field(
         default="initial_openalex_import",
         description="The version of the processor that created this metadata.",
+    )
+    referenced_works: list[str] | None = Field(
+        default=None,
+        description="A list of OpenAlex IDs of for `Work`s that this `Work` cites.",
+    )
+    related_works: list[str] | None = Field(
+        default=None,
+        description="A list of OpenAlex IDs that are related to this `Work`.",
     )
 
     @model_validator(mode="after")
@@ -316,6 +326,8 @@ def convert_openalex_to_destiny(
         pagination=pagination,
         processor_version=processor_version,
         is_xpac=openalex_work.get("is_xpac"),
+        referenced_works=openalex_work.get("referenced_works"),
+        related_works=openalex_work.get("related_works"),
     )
 
     return get_destiny_openalex_work(
@@ -602,6 +614,92 @@ def prepare_destiny_work_abstract_enhancement(
     )
 
 
+def prepare_destiny_related_works_associations(
+    metadata: DestinyOpenAlexWorkMetadata,
+) -> ReferenceAssociationEnhancement | None:
+    """
+    Prepare a reference association enhancement for related works.
+
+    Finds the list of `Work`s that are related to the `Work` in question.
+    Prepares a ReferenceAssociationEnhancement with association type IS_SIMILAR_TO
+    between the `Work` in question and each related `Work`.
+
+    Args:
+        metadata (DestinyOpenAlexWorkMetadata): DESTINY OpenAlex `Work` metadata.
+
+    Returns:
+        ReferenceAssociationEnhancement | None: A ReferenceAssociationEnhancement object or None if no related works.
+
+    """
+    related_works_ids = metadata.related_works or []
+    openalex_identifiers: list[OpenAlexIdentifier] = []
+
+    for identifier in related_works_ids:
+        if not is_valid_nonempty_string(identifier):
+            logger.warning(
+                f"Skipping invalid OpenAlex ID in related works: {identifier!r}"
+            )
+            continue
+        try:
+            openalex_identifiers.append(OpenAlexIdentifier(identifier=identifier))
+        except ValidationError as identifier_validation_error:
+            logger.error(
+                f"Invalid OpenAlex ID in related works: {identifier}. Error: {identifier_validation_error}"
+            )
+
+    if not openalex_identifiers:
+        return None
+
+    return ReferenceAssociationEnhancement(
+        associated_reference_ids=openalex_identifiers,
+        association_type=ReferenceAssociationType.IS_SIMILAR_TO,
+    )
+
+
+def prepare_destiny_other_works_cited(
+    metadata: DestinyOpenAlexWorkMetadata,
+) -> ReferenceAssociationEnhancement | None:
+    """
+    Prepare a reference association enhancement for cited works.
+
+    Finds the list of `Work`s that are cited by the `Work` in question.
+    Prepares a ReferenceAssociationEnhancement with association type CITES
+    between the `Work` in question and each cited `Work`.
+
+    Args:
+        metadata (DestinyOpenAlexWorkMetadata): DESTINY OpenAlex `Work` metadata.
+
+    Returns:
+        ReferenceAssociationEnhancement | None: A ReferenceAssociationEnhancement object or None if no cited works.
+
+    """
+    referenced_works_ids = metadata.referenced_works or []
+    openalex_identifiers: list[OpenAlexIdentifier] = []
+
+    for referenced_work_id in referenced_works_ids:
+        if not is_valid_nonempty_string(referenced_work_id):
+            logger.warning(
+                f"Skipping invalid OpenAlex ID in referenced works: {referenced_work_id!r}"
+            )
+            continue
+        try:
+            openalex_identifiers.append(
+                OpenAlexIdentifier(identifier=referenced_work_id)
+            )
+        except ValidationError as identifier_validation_error:
+            logger.error(
+                f"Invalid OpenAlex ID in referenced works: {referenced_work_id}. Error: {identifier_validation_error}"
+            )
+
+    if not openalex_identifiers:
+        return None
+
+    return ReferenceAssociationEnhancement(
+        associated_reference_ids=openalex_identifiers,
+        association_type=ReferenceAssociationType.CITES,
+    )
+
+
 def get_destiny_openalex_work(
     metadata: DestinyOpenAlexWorkMetadata,
     source_document: dict,
@@ -627,6 +725,8 @@ def get_destiny_openalex_work(
     destiny_work_abstract = prepare_destiny_work_abstract_enhancement(
         data_source, source_document
     )
+    destiny_related_works = prepare_destiny_related_works_associations(metadata)
+    destiny_other_works_cited = prepare_destiny_other_works_cited(metadata)
 
     core_destiny_work = create_core_destiny_openalex_work(
         metadata=metadata,
@@ -686,6 +786,27 @@ def get_destiny_openalex_work(
                 other_identifier_name="Pubmed Central ID",
             )
         )
+
+    if destiny_related_works:
+        core_destiny_work.enhancements.append(
+            EnhancementFileInput(
+                source=data_source.value,
+                visibility=visibility,
+                processor_version=metadata.processor_version,
+                content=destiny_related_works,
+            )
+        )
+
+    if destiny_other_works_cited:
+        core_destiny_work.enhancements.append(
+            EnhancementFileInput(
+                source=data_source.value,
+                visibility=visibility,
+                processor_version=metadata.processor_version,
+                content=destiny_other_works_cited,
+            )
+        )
+
     return core_destiny_work
 
 
