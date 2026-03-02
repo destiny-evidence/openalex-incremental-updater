@@ -172,7 +172,7 @@ async def test_process_file_async(mocker, test_settings, test_jsonl_gz_file):
 
 
 async def test_process_files_async(
-    mocker, test_jsonl_gz_file, set_test_environment_variables
+    mocker, tmp_path, test_jsonl_gz_file, set_test_environment_variables
 ):
     gz_file_path, _file_contents = test_jsonl_gz_file
     expected_processed_file_report = ProcessedFileMetadata(
@@ -180,11 +180,12 @@ async def test_process_files_async(
         record_count=10,
         error_log=None,
     )
+    test_log_directory = tmp_path / "logs"
     mocker.patch(
         "openalex_snapshot_processor.file_processor._process_file_async",
         return_value=expected_processed_file_report,
     )
-    result = await process_files_async([gz_file_path])
+    result = await process_files_async([gz_file_path], test_log_directory)
     assert result == [
         ProcessedFile(
             blob_names=expected_processed_file_report.blob_names,
