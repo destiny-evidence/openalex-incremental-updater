@@ -1,4 +1,5 @@
 import json
+import logging
 from uuid import uuid4
 
 import pytest
@@ -19,10 +20,12 @@ from openalex_snapshot_processor.registration import (
     RegistrationReport,
     RegistrationSummary,
     RepositoryRegistrationError,
+    _has_exit_status,
     _load_progress,
     _reconcile_in_progress,
     _register_single_file,
     _save_progress,
+    poll_registration_status,
     register_all_blobs_in_serial,
 )
 from refresh_requester.blob_storage import DestinyBlobStorageClient
@@ -1153,3 +1156,192 @@ def test_reconcile_in_progress_all_failure_mix(
     assert (
         len(progress.retried_completed) == 0
     ), "No blobs should be marked as retried_completed during reconciliation when all are failed."
+
+
+@pytest.mark.parametrize(
+    ("batch_status", "batch_results", "expected_has_exit_status"),
+    [
+        (ImportBatchStatus.CREATED, {ImportResultStatus.CREATED: 10}, False),
+        (ImportBatchStatus.STARTED, {ImportResultStatus.STARTED: 10}, False),
+        (ImportBatchStatus.COMPLETED, {ImportResultStatus.COMPLETED: 10}, True),
+    ],
+)
+def test_has_exit_status_success_path(
+    batch_status, batch_results, expected_has_exit_status
+):
+    test_import_batch_id = uuid4()
+    test_summary = ImportBatchSummary(
+        storage_url="https://fake-storage-url",
+        id=uuid4(),
+        import_batch_id=test_import_batch_id,
+        import_batch_status=batch_status,
+        results=batch_results,
+        failure_details=None,
+    )
+
+    result = _has_exit_status(
+        test_summary,
+        test_summary.import_batch_status,
+        test_summary.import_batch_id,
+    )
+
+    assert result == expected_has_exit_status
+
+
+@pytest.mark.parametrize(
+    ("batch_status", "batch_results"),
+    [
+        (ImportBatchStatus.PARTIALLY_FAILED, {ImportResultStatus.CREATED: 10}),
+        (ImportBatchStatus.FAILED, {ImportResultStatus.FAILED: 10}),
+    ],
+)
+def test_has_exit_status_failure_path(batch_status, batch_results):
+    test_import_batch_id = uuid4()
+    test_summary = ImportBatchSummary(
+        storage_url="https://fake-storage-url",
+        id=uuid4(),
+        import_batch_id=test_import_batch_id,
+        import_batch_status=batch_status,
+        results=batch_results,
+        failure_details=None,
+    )
+
+    with pytest.raises(RepositoryRegistrationError):
+        _has_exit_status(
+            test_summary,
+            test_summary.import_batch_status,
+            test_summary.import_batch_id,
+        )
+
+
+def test_poll_registration_status_incomplete_to_complete_no_failures(
+    mocker,
+    test_destiny_repository_content_uploader,
+):
+    test_import_record_id = uuid4()
+    test_import_batch_id = uuid4()
+    test_summary_in_progress = ImportBatchSummary(
+        storage_url="https://fake-storage-url",
+        id=uuid4(),
+        import_batch_id=test_import_batch_id,
+        import_batch_status=ImportBatchStatus.STARTED,
+        results={ImportResultStatus.STARTED: 10},
+        failure_details=None,
+    )
+    test_summary_completed = ImportBatchSummary(
+        storage_url="https://fake-storage-url",
+        id=uuid4(),
+        import_batch_id=test_import_batch_id,
+        import_batch_status=ImportBatchStatus.COMPLETED,
+        results={ImportResultStatus.COMPLETED: 10},
+        failure_details=None,
+    )
+
+    test_batch_summary_result_set = [
+        test_summary_in_progress,
+        test_summary_in_progress,
+        test_summary_completed,
+    ]
+    mocked_batch_summary_fetch = mocker.patch.object(
+        DestinyRepositoryContentUploader,
+        "get_import_batch_summary",
+        side_effect=test_batch_summary_result_set,
+    )
+
+    mocker.patch("time.sleep")
+
+    poll_registration_status(
+        test_destiny_repository_content_uploader,
+        test_import_record_id,
+        test_import_batch_id,
+        poll_interval=0,
+    )
+
+    assert mocked_batch_summary_fetch.call_count == len(
+        test_batch_summary_result_set
+    ), "Batch summary should be fetched repeatedly until completion is reached."
+
+
+def test_poll_registration_status_incomplete_hangs_reaches_max_polling_limit(
+    caplog,
+    mocker,
+    test_destiny_repository_content_uploader,
+):
+    test_import_record_id = uuid4()
+    test_import_batch_id = uuid4()
+    test_summary_in_progress = ImportBatchSummary(
+        storage_url="https://fake-storage-url",
+        id=uuid4(),
+        import_batch_id=test_import_batch_id,
+        import_batch_status=ImportBatchStatus.STARTED,
+        results={ImportResultStatus.STARTED: 10},
+        failure_details=None,
+    )
+
+    mocked_batch_summary_fetch = mocker.patch.object(
+        DestinyRepositoryContentUploader,
+        "get_import_batch_summary",
+        return_value=test_summary_in_progress,
+    )
+
+    mocker.patch("time.sleep")
+
+    expected_warning_message_excerpt = (
+        f"Batch {test_import_batch_id} has not reached a terminal state after polling"
+    )
+    with caplog.at_level(logging.WARNING):
+        poll_registration_status(
+            test_destiny_repository_content_uploader,
+            test_import_record_id,
+            test_import_batch_id,
+            poll_interval=0,
+            max_poll_limit_seconds=1,
+        )
+
+    assert (
+        mocked_batch_summary_fetch.call_count > 1
+    ), "Batch summary should be fetched multiple times until maximum polling limit is reached."
+    assert (
+        expected_warning_message_excerpt in caplog.text
+    ), f"Expected warning message not found in logs: {caplog.text}"
+
+
+@pytest.mark.parametrize(
+    ("batch_status", "batch_results"),
+    [
+        (ImportBatchStatus.PARTIALLY_FAILED, {ImportResultStatus.PARTIALLY_FAILED: 10}),
+        (ImportBatchStatus.FAILED, {ImportResultStatus.FAILED: 10}),
+    ],
+)
+def test_poll_registration_status_partial_or_total_failure(
+    mocker, test_destiny_repository_content_uploader, batch_status, batch_results
+):
+    test_import_record_id = uuid4()
+    test_import_batch_id = uuid4()
+    test_summary_failed = ImportBatchSummary(
+        storage_url="https://fake-storage-url",
+        id=uuid4(),
+        import_batch_id=test_import_batch_id,
+        import_batch_status=batch_status,
+        results=batch_results,
+        failure_details=["Test failure details"],
+    )
+
+    mocker.patch.object(
+        DestinyRepositoryContentUploader,
+        "get_import_batch_summary",
+        return_value=test_summary_failed,
+    )
+
+    with pytest.raises(RepositoryRegistrationError) as error_info:
+        poll_registration_status(
+            test_destiny_repository_content_uploader,
+            test_import_record_id,
+            test_import_batch_id,
+            poll_interval=0,
+        )
+
+    assert (
+        f"Batch {test_import_batch_id} reached terminal state {batch_status}. Failure details: {test_summary_failed.failure_details}"
+        in str(error_info.value)
+    ), f"Expected error message not found in exception: {error_info.value!s}"

@@ -17,6 +17,10 @@ from refresh_requester.repository import (
     ImportSourceType,
 )
 
+MAXIMUM_POLL_LIMIT_SECONDS = (
+    21600  # 6 hour maximum poll limit for a single set of batches
+)
+
 
 class InProgressRecord(BaseModel):
     """Tracks in-flight registration for reconciliation in cause of pause/failure/cancellation."""
@@ -128,9 +132,9 @@ class RegistrationProgress(BaseModel):
     )
 
 
-def _status_check(
+def _has_exit_status(
     summary: ImportBatchSummary, status: ImportBatchStatus, import_batch_id: UUID
-) -> None:
+) -> bool:
     """
     Check the status of an import batch and raise an error if it has failed.
 
@@ -139,6 +143,9 @@ def _status_check(
         status (ImportBatchStatus): The current status of the import batch.
         import_batch_id (UUID): The ID of the import batch being checked.
 
+    Returns:
+        bool: True if the batch has reached a terminal state, False otherwise.
+
     Raises:
         RepositoryRegistrationError: If the batch has failed or partially failed.
 
@@ -146,7 +153,7 @@ def _status_check(
     if status == ImportBatchStatus.COMPLETED:
         success_message = f"Batch {import_batch_id} completed."
         logger.info(success_message)
-        return
+        return True
 
     if status in {ImportBatchStatus.FAILED, ImportBatchStatus.PARTIALLY_FAILED}:
         details = summary.failure_details or []
@@ -157,12 +164,15 @@ def _status_check(
         logger.error(error_message)
         raise RepositoryRegistrationError(error_message)
 
+    return False
+
 
 def poll_registration_status(
     uploader: DestinyRepositoryContentUploader,
     import_record_id: UUID,
     import_batch_id: UUID,
     poll_interval: int,
+    max_poll_limit_seconds: int = MAXIMUM_POLL_LIMIT_SECONDS,
 ) -> None:
     """
     Poll a single import batch until it reaches a terminal state.
@@ -175,29 +185,49 @@ def poll_registration_status(
         import_record_id (UUID): The ID of the import record to which the batch belongs.
         import_batch_id (UUID): The ID of the import batch to poll.
         poll_interval (int): The number of seconds to wait between polling attempts.
+        max_poll_limit_seconds (int): The maximum allowable time spent polling, used to avoid polling endlessly.
+            Defaults to MAXIMUM_POLL_LIMIT_SECONDS.
 
     Raises:
         RepositoryRegistrationError: If the batch fails or partially fails.
 
     """
+    if poll_interval <= 0:
+        poll_interval = 1
+    maximum_poll_limit_number = max_poll_limit_seconds // poll_interval
+    times_polled = 0
+
     summary = uploader.get_import_batch_summary(import_record_id, import_batch_id)
     status = summary.import_batch_status
 
-    _status_check(summary, status, import_batch_id)
+    stop_polling = _has_exit_status(summary, status, import_batch_id)
 
-    terminal_or_completed_states = {
-        ImportBatchStatus.COMPLETED,
-        ImportBatchStatus.FAILED,
-        ImportBatchStatus.PARTIALLY_FAILED,
-    }
-    while status not in terminal_or_completed_states:
+    remain_polling = (not stop_polling) and (times_polled <= maximum_poll_limit_number)
+    while remain_polling:
         summary = uploader.get_import_batch_summary(import_record_id, import_batch_id)
+        times_polled += 1
+
         status = summary.import_batch_status
 
-        _status_check(summary, status, import_batch_id)
+        stop_polling = _has_exit_status(summary, status, import_batch_id)
+        remain_polling = (not stop_polling) and (
+            times_polled <= maximum_poll_limit_number
+        )
+
+        if stop_polling:
+            break
+        if not remain_polling:
+            warning_message = (
+                f"Batch {import_batch_id} has not reached a terminal state after polling "
+                f"{times_polled} times over {times_polled * poll_interval} seconds. "
+                f"Last known status: {status}. Stopping polling to avoid infinite loop."
+            )
+            logger.warning(warning_message)
+            break
         logger.info(
             f"Batch {import_batch_id} status={status} " f"Waiting {poll_interval}s..."
         )
+
         time.sleep(poll_interval)
 
 
