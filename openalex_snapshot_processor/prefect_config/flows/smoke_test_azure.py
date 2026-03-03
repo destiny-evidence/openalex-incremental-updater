@@ -14,6 +14,8 @@ from prefect import flow, task
 
 from openalex_snapshot_processor.config import get_settings
 from openalex_snapshot_processor.enumeration import (
+    BatchFilePaths,
+    FilePathCount,
     batch_files_by_record_count,
     enumerate_work_files,
 )
@@ -33,7 +35,7 @@ MAXIMUM_BATCH_SIZE = 500_000
 
 
 @task(retries=3, retry_delay_seconds=60)
-def enumerate_files(n_files: int) -> list[tuple[Path, int]]:
+def enumerate_files(n_files: int) -> list[FilePathCount]:
     """
     Enumerate and batch the OpenAlex snapshot works files to be processed.
 
@@ -44,17 +46,20 @@ def enumerate_files(n_files: int) -> list[tuple[Path, int]]:
         n_files (int): The number of files to select for processing in the smoke test.
 
     Returns:
-        list[tuple[Path, int]]: List of file paths and their record counts to be processed.
+        list[FilePathCounts]: List of file paths and their record counts to be processed.
 
     """
     settings = get_settings()
-    return enumerate_work_files(settings.SNAPSHOT_ROOT)[:n_files]
+    return [
+        FilePathCount(file_path=file_path, record_count=count)
+        for file_path, count in enumerate_work_files(settings.SNAPSHOT_ROOT)[:n_files]
+    ]
 
 
 @task
 def filter_already_uploaded(
-    file_paths_with_counts: list[tuple[Path, int]],
-) -> list[Path]:
+    file_paths_with_counts: list[FilePathCount],
+) -> list[FilePathCount]:
     """
     Filter out files that have already been uploaded to blob storage.
 
@@ -62,23 +67,24 @@ def filter_already_uploaded(
     hitting duplicate upload errors.
 
     Args:
-        file_paths_with_counts (list[tuple[Path, int]]): List of file paths and their record counts to filter.
+        file_paths_with_counts (list[FilePathCount]): List of file paths and their record counts to filter.
 
     Returns:
-        list[Path]: List of file paths that have not yet been uploaded.
+        list[FilePathCount]: List of file paths that have not yet been uploaded.
 
     """
     blob_client = DestinyBlobStorageClient()
     existing_blobs = set(blob_client.list_all_blobs("openalex_snapshot_works_"))
 
-    unprocessed: list[Path] = []
-    skipped: list[Path] = []
-    for file_path, _ in file_paths_with_counts:
+    unprocessed: list[FilePathCount] = []
+    skipped: list[FilePathCount] = []
+    for file_path_with_count in file_paths_with_counts:
+        file_path = file_path_with_count.file_path
         base_blob_name = _derive_base_blob_name(file_path)
         if any(blob.startswith(base_blob_name) for blob in existing_blobs):
-            skipped.append(file_path)
+            skipped.append(file_path_with_count)
         else:
-            unprocessed.append(file_path)
+            unprocessed.append(file_path_with_count)
 
     if skipped:
         logger.info(
@@ -89,7 +95,7 @@ def filter_already_uploaded(
 
 
 @task
-def batch_files(file_paths_with_counts: list[tuple[Path, int]]) -> list[list[Path]]:
+def batch_files(file_paths_with_counts: list[FilePathCount]) -> list[BatchFilePaths]:
     """
     Batch files by record count.
 
@@ -97,10 +103,10 @@ def batch_files(file_paths_with_counts: list[tuple[Path, int]]) -> list[list[Pat
     are considered to be their own batch.
 
     Args:
-        file_paths_with_counts (list[tuple[Path, int]]): List of file paths and their record counts to batch.
+        file_paths_with_counts (list[FilePathCount]): List of file paths and their record counts to batch.
 
     Returns:
-        list[list[Path]]: A single batch containing all the file paths.
+        list[BatchFilePaths]: A list of batched file paths.
 
     """
     return batch_files_by_record_count(file_paths_with_counts, MAXIMUM_BATCH_SIZE)
