@@ -17,15 +17,15 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.cache/pre-commit
-          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+          key: pre-commit-py3.13-${{ hashFiles('.pre-commit-config.yaml') }}
 
       - name: Set up python
         uses: actions/setup-python@v5
         with:
-          python-version: "3.x"
+          python-version: "3.13"
 
       - name: Install dependencies
         run: python -m pip install pre-commit
 
       - name: Run pre-commit
-        run: pre-commit run --all-files --color always --verbose
+        run: pre-commit run --all-files --color always --verbose --show-diff-on-failure
