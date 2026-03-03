@@ -112,7 +112,7 @@ def batch_files(file_paths_with_counts: list[FilePathCount]) -> list[BatchFilePa
     retries=3,
     retry_delay_seconds=60,
 )
-def process_file_batch_task(file_paths: list[Path]) -> list[dict]:
+def process_file_batch_task(batch_file_paths: list[BatchFilePaths]) -> list[dict]:
     """
     Process a batch of files in one worker.
 
@@ -121,7 +121,7 @@ def process_file_batch_task(file_paths: list[Path]) -> list[dict]:
 
 
     Args:
-        file_paths (list[Path]): List of file paths to be processed.
+        batch_file_paths (list[BatchFilePaths]): List of BatchFilePaths objects to be processed.
 
     Returns:
         list[dict]: The metadata of the processed files, as a list of dictionaries.
@@ -130,7 +130,10 @@ def process_file_batch_task(file_paths: list[Path]) -> list[dict]:
 
     """
     log_directory = Path(__file__).parent.parent / "logs"
-    return process_file_batch(file_paths, log_directory)
+    file_path_list = [
+        file_path for batch in batch_file_paths for file_path in batch.batch
+    ]
+    return process_file_batch(file_path_list, log_directory)
 
 
 @task

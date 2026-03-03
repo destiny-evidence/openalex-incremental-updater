@@ -37,8 +37,9 @@ def select_files(n_files: int = 1) -> list[str]:
     if not file_path_and_counts:
         error_message = f"No files found in the snapshot directory {snapshot_root}."
         raise ValueError(error_message)
+
     return [
-        str(file_path_and_count[0])
+        str(file_path_and_count.file_path)
         for file_path_and_count in file_path_and_counts[:n_files]
     ]
 

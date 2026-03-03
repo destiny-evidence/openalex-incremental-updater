@@ -50,10 +50,7 @@ def enumerate_files(n_files: int) -> list[FilePathCount]:
 
     """
     settings = get_settings()
-    return [
-        FilePathCount(file_path=file_path, record_count=count)
-        for file_path, count in enumerate_work_files(settings.SNAPSHOT_ROOT)[:n_files]
-    ]
+    return enumerate_work_files(settings.SNAPSHOT_ROOT)[:n_files]
 
 
 @task
