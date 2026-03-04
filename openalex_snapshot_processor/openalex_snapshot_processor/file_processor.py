@@ -10,8 +10,14 @@ import json
 from collections.abc import AsyncIterator
 from pathlib import Path
 
+from destiny_sdk.enhancements import (
+    AuthorPosition,
+    Authorship,
+    BibliographicMetadataEnhancement,
+)
+from destiny_sdk.references import ReferenceFileInput
 from loguru import logger
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, ValidationError
 
 from openalex_incremental_updater.ingest.blob_storage import blob_upload_multipart
 from openalex_incremental_updater.ingest.data import (
@@ -56,6 +62,100 @@ class ProcessedFile(ProcessedFileMetadata):
     base_blob_name: str = Field(
         ..., description="The derived base blob name used for uploaded files."
     )
+
+
+def construct_destiny_authorships_order_not_found(
+    openalex_work_dict: dict,
+    errors_dict: dict,
+) -> list[Authorship]:
+    """
+    Prepare a list of authorships for the Destiny OpenAlex work.
+
+    Makes conversion less DRY than hoped for, but retains authorship information
+    in snapshot file ingest, where it looks like authorship position information is missing.
+
+    Args:
+        openalex_work_dict (dict): The OpenAlex work metadata as a dictionary.
+        errors_dict (dict): The errors dictionary to be updated with any errors encountered.
+
+    Returns:
+        list[Authorship]: A list of Authorship objects.
+
+    """
+    authorships: list[Authorship] = []
+    openalex_authorships_dict = openalex_work_dict.get("authorships", [])
+
+    for author_index, author in enumerate(openalex_authorships_dict):
+        author_data = author.get("author") or {}
+        display_name = author_data.get("display_name", "")
+        orcid = author_data.get("orcid", None)
+        position_str = author.get("author_position", "") or str(author_index)
+
+        if not display_name:
+            logger.warning(
+                f"Author name not found in Authorship for Work {openalex_work_dict.get('id', 'unknown_id')}"
+            )
+            entry = errors_dict.setdefault(
+                "authorship_construction_errors", {"total": 0, "examples": []}
+            )
+            entry["total"] += 1
+            if len(entry["examples"]) < MAXIMUM_EXAMPLE_ERRORS:
+                entry["examples"].append(
+                    {
+                        "display_name": display_name,
+                        "position": position_str,
+                        "error": "Author name not found",
+                    }
+                )
+            continue
+
+        author_position_valid_values = {position.value for position in AuthorPosition}
+        if position_str.lower() not in author_position_valid_values:
+            logger.warning(
+                f"Fixing authorship for {display_name} with invalid position {position_str}"
+                f" in {openalex_work_dict.get('id', 'unknown_id')}."
+            )
+            is_first_author = int(author_index) == 0
+            is_last_author = int(author_index) == len(openalex_authorships_dict) - 1
+            is_middle_author = not is_first_author and not is_last_author
+
+            if is_first_author:
+                position_str = AuthorPosition.FIRST
+            elif is_last_author:
+                position_str = AuthorPosition.LAST
+            elif is_middle_author:
+                position_str = AuthorPosition.MIDDLE
+
+        try:
+            authorships.append(
+                Authorship(
+                    display_name=display_name,
+                    orcid=orcid,
+                    position=position_str,
+                )
+            )
+        except ValidationError as authorship_construction_validation_error:
+            logger.warning(
+                f"Failed to construct Authorship for {display_name}"
+                f" in work {openalex_work_dict.get('id', 'unknown_id')}:"
+                f" {authorship_construction_validation_error}"
+            )
+            entry = errors_dict.setdefault(
+                "authorship_construction_errors", {"total": 0, "examples": []}
+            )
+            entry["total"] += 1
+            if len(entry["examples"]) < MAXIMUM_EXAMPLE_ERRORS:
+                entry["examples"].append(
+                    {
+                        "display_name": display_name,
+                        "position": position_str,
+                        "validation_error": str(
+                            authorship_construction_validation_error
+                        ),
+                    }
+                )
+
+    return authorships
 
 
 def _log_errors(file_path: Path, errors: dict, log_dir: Path) -> Path | None:
@@ -131,6 +231,39 @@ async def _as_async_batches(batch: list) -> AsyncIterator[list]:
     yield batch
 
 
+def _check_converted_result_for_authorships(
+    converted: list[ReferenceFileInput],
+    openalex_work_dict: dict,
+    errors_dict: dict,
+) -> list[ReferenceFileInput]:
+    """
+    Determine authorship order if these are missing from the converted result.
+
+    Args:
+        converted (list[ReferenceFileInput]): The converted result from safe_result_conversion.
+        openalex_work_dict (dict): The OpenAlex work metadata as a dictionary.
+        errors_dict (dict): The errors dictionary to be updated with any errors encountered.
+
+    Returns:
+        list[ReferenceFileInput]: The converted result with authorship information filled in where missing.
+
+    """
+    for result_index, converted_result in enumerate(converted):
+        enhancements = converted_result.enhancements
+        for enhancement_index, enhancement in enumerate(enhancements):
+            if isinstance(enhancement.content, BibliographicMetadataEnhancement):
+                if not enhancement.content.authorship:
+                    enhancement.content.authorship = (
+                        construct_destiny_authorships_order_not_found(
+                            openalex_work_dict, errors_dict
+                        )
+                    )
+
+                converted[result_index].enhancements[enhancement_index] = enhancement
+
+    return converted
+
+
 async def gz_to_jsonl_stream(file_path: Path, errors: dict) -> AsyncIterator[bytes]:
     """
     Stream a .gz file and yield transformed JSONL lines.
@@ -158,9 +291,12 @@ async def gz_to_jsonl_stream(file_path: Path, errors: dict) -> AsyncIterator[byt
                     entry["examples"].append(str(parse_error))
                 continue
             converted = safe_result_conversion([raw_dict], errors_dict=errors)
+            finalised = _check_converted_result_for_authorships(
+                converted, raw_dict, errors
+            )
             try:
                 async for item in convert_destinyworks_to_jsonl_string(
-                    _as_async_batches(converted)
+                    _as_async_batches(finalised)
                 ):
                     yield item
             except JSONLConversionError as json_conversion_error:

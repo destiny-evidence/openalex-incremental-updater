@@ -2,16 +2,25 @@ import gzip
 import json
 from pathlib import Path
 
+from destiny_sdk.enhancements import (
+    AuthorPosition,
+    Authorship,
+    BibliographicMetadataEnhancement,
+)
 from destiny_sdk.references import ReferenceFileInput
+from pydantic import ValidationError
 
 from openalex_incremental_updater.ingest.blob_storage import blob_upload_multipart
 from openalex_incremental_updater.ingest.data import JSONLConversionError
+from openalex_incremental_updater.ingest.openalex import safe_result_conversion
 from openalex_snapshot_processor.file_processor import (
     ProcessedFile,
     ProcessedFileMetadata,
     _as_async_batches,
+    _check_converted_result_for_authorships,
     _derive_base_blob_name,
     _log_errors,
+    construct_destiny_authorships_order_not_found,
     gz_to_jsonl_stream,
     process_files_async,
     transform_file,
@@ -195,3 +204,224 @@ async def test_process_files_async(
             base_blob_name=_derive_base_blob_name(gz_file_path),
         )
     ], "Should return the expected list of ProcessedFile objects."
+
+
+def test_construct_destiny_authorships_order_not_found_success(openalex_work_dict):
+    errors_dict = {}
+    openalex_work_dict_no_positions = openalex_work_dict.copy()
+    for authorship in openalex_work_dict_no_positions.get("authorships", []):
+        authorship.pop("author_position", None)
+    authorships = construct_destiny_authorships_order_not_found(
+        openalex_work_dict_no_positions, errors_dict
+    )
+    assert all(
+        isinstance(authorship, Authorship) for authorship in authorships
+    ), "Authorships should be returned as a list of Authorship objects."
+    assert len(authorships) == len(
+        openalex_work_dict.get("authorships", [])
+    ), "The number of authorships should match the input data."
+    assert all(
+        authorship.display_name is not None for authorship in authorships
+    ), "Each authorship should have a display name."
+    assert all(
+        authorship.position is not None for authorship in authorships
+    ), "Each authorship should have a position assigned."
+    assert (
+        sum(
+            1
+            for authorship in authorships
+            if authorship.position == AuthorPosition.FIRST
+        )
+        == 1
+    ), "There should be exactly one first author."
+    assert (
+        sum(
+            1
+            for authorship in authorships
+            if authorship.position == AuthorPosition.LAST
+        )
+        == 1
+    ), "There should be exactly one last author."
+    if len(authorships) > len(set({"first", "last"})):
+        assert sum(
+            1
+            for authorship in authorships
+            if authorship.position == AuthorPosition.MIDDLE
+        ) == len(authorships) - len(
+            set({"first", "last"})
+        ), "The number of middle authors should be total authors minus two."
+    assert (
+        len(errors_dict) == 0
+    ), "There should be no errors logged for valid authorship data."
+
+
+def test_construct_destiny_authorships_order_not_found_failure_author_dict_not_found(
+    caplog, openalex_work_dict
+):
+    errors_dict = {}
+    work_dict_no_author_dicts_in_authorships = openalex_work_dict.copy()
+    for authorship in work_dict_no_author_dicts_in_authorships.get("authorships", []):
+        authorship.pop("author", None)
+
+    expected_error_message = "Author name not found in Authorship"
+    expected_total_authorship_construction_errors = len(
+        work_dict_no_author_dicts_in_authorships.get("authorships", [])
+    )
+
+    with caplog.at_level("WARNING"):
+        authorships = construct_destiny_authorships_order_not_found(
+            work_dict_no_author_dicts_in_authorships, errors_dict
+        )
+    total_authorship_errors_found = errors_dict.get(
+        "authorship_construction_errors", {}
+    ).get("total", 0)
+    assert (
+        total_authorship_errors_found == expected_total_authorship_construction_errors
+    )
+    assert (
+        expected_error_message in caplog.text
+    ), "Should log a warning when no authorships are found."
+    assert (
+        authorships == []
+    ), "Should return an empty list when no authorships are present."
+    assert (
+        len(errors_dict) == 1
+    ), "Should log one error type when no authorships are found."
+
+
+def test_construct_destiny_authorships_order_not_found_failure_no_display_name(
+    openalex_work_dict,
+):
+    work_dict_no_display_names = openalex_work_dict.copy()
+    for authorship in work_dict_no_display_names.get("authorships", []):
+        if "author" in authorship:
+            authorship["author"].pop("display_name", None)
+            authorship.pop("author_position", None)
+
+    test_errors_dict = {}
+
+    authorships = construct_destiny_authorships_order_not_found(
+        work_dict_no_display_names, test_errors_dict
+    )
+
+    total_authorship_construction_errors_found = test_errors_dict.get(
+        "authorship_construction_errors", {}
+    ).get("total", 0)
+    expected_total_authorship_construction_errors = len(
+        work_dict_no_display_names.get("authorships", [])
+    )
+    assert all(
+        authorship.display_name is None for authorship in authorships
+    ), "Authorship display names should be None when not present in input data."
+    assert all(
+        authorship.position is not None for authorship in authorships
+    ), "Authorships should be empty if display names are missing."
+    assert (
+        not authorships
+    ), "Authorships list should be empty when display names are missing."
+    assert (
+        total_authorship_construction_errors_found
+        == expected_total_authorship_construction_errors
+    ), "Should log an error for each authorship with missing display name."
+
+
+def test_check_converted_result_for_authorships_success(openalex_work_dict):
+    errors_dict = {}
+    openalex_work_dict_no_author_positions = openalex_work_dict.copy()
+
+    expected_authorship_objects = openalex_work_dict.get("authorships", [])
+    expected_display_names = [
+        authorship["author"]["display_name"]
+        for authorship in expected_authorship_objects
+    ]
+    expected_positions = [
+        authorship["author_position"] for authorship in expected_authorship_objects
+    ]
+    for authorship in openalex_work_dict_no_author_positions.get("authorships", []):
+        authorship.pop("author_position", None)
+
+    converted_destiny_work = safe_result_conversion(
+        [openalex_work_dict], errors_dict=errors_dict
+    )
+
+    converted_destiny_work_authorships = [
+        authorship
+        for work in converted_destiny_work
+        for authorship in getattr(work, "authorships", [])
+    ]
+    assert not converted_destiny_work_authorships
+    results = _check_converted_result_for_authorships(
+        converted_destiny_work, openalex_work_dict, errors_dict
+    )
+    assert all(
+        result.identifiers in [work.identifiers for work in converted_destiny_work]
+        for result in results
+    ), "All identifiers found in the originally converted work should be present in the results."
+
+    result_authorships = [
+        authorship
+        for result in results
+        for enhancement in result.enhancements
+        if isinstance(enhancement.content, BibliographicMetadataEnhancement)
+        for authorship in (enhancement.content.authorship or [])
+    ]
+
+    assert all(
+        isinstance(authorship, Authorship) for authorship in result_authorships
+    ), "Authorships should be returned as a list of Authorship objects."
+    assert len(result_authorships) == len(
+        expected_authorship_objects
+    ), "The number of authorships should match the input data."
+    assert all(
+        authorship.display_name
+        in [
+            expected_authorship["author"]["display_name"]
+            for expected_authorship in expected_authorship_objects
+        ]
+        for authorship in result_authorships
+    ), "Each authorship display name should match the expected display names from the input data."
+
+    assert (
+        sorted(author.display_name for author in result_authorships)
+        == sorted(expected_display_names)
+    ), "The display names of the resulting authorships should match the expected display names from the input data."
+    assert (
+        sorted(author.position.value for author in result_authorships)
+        == sorted(expected_positions)
+    ), "The positions of the resulting authorships should match the expected positions from the input data."
+    assert (
+        "authorship_construction_errors" not in errors_dict
+    ), "There should be no authorship construction errors logged for valid authorship data."
+
+
+def test_check_converted_result_for_authorships_failure_validation_error(
+    mocker, openalex_work_dict
+):
+    errors_dict = {}
+
+    work_dict_no_positions = openalex_work_dict.copy()
+    expected_total_authorships = len(openalex_work_dict.get("authorships", []))
+    for authorship in work_dict_no_positions.get("authorships", []):
+        authorship.pop("author_position", None)
+    converted_destiny_work = safe_result_conversion(
+        [work_dict_no_positions], errors_dict=errors_dict
+    )
+
+    try:
+        Authorship(display_name=None, position=None)
+    except ValidationError as e:
+        validation_error = e
+
+    mocker.patch(
+        "openalex_snapshot_processor.file_processor.Authorship",
+        side_effect=validation_error,
+    )
+
+    _check_converted_result_for_authorships(
+        converted_destiny_work, openalex_work_dict, errors_dict
+    )
+
+    assert (
+        errors_dict.get("authorship_construction_errors", {}).get("total", 0)
+        == expected_total_authorships
+    ), "Should log one error per authorship when Authorship construction raises ValidationError."
