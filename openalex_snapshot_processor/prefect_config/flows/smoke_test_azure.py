@@ -9,7 +9,6 @@ Individual file processing is tested in `smoke_test_local.py`.
 
 from pathlib import Path
 
-from loguru import logger
 from prefect import flow, task
 
 from openalex_snapshot_processor.config import get_settings
@@ -24,6 +23,7 @@ from openalex_snapshot_processor.registration import (
     RegistrationSummary,
     register_all_blobs_in_serial,
 )
+from prefect_config.flows.logging_config import logger
 from prefect_config.flows.openalex_snapshot_flow import (
     flatten_results,
     process_file_batch_task,

@@ -11,13 +11,13 @@ any other integrations.
 import asyncio
 from pathlib import Path
 
-from loguru import logger
 from prefect import flow, task
 from prefect.artifacts import create_markdown_artifact
 
 from openalex_snapshot_processor.config import get_settings
 from openalex_snapshot_processor.enumeration import enumerate_work_files
 from openalex_snapshot_processor.file_processor import _log_errors, gz_to_jsonl_stream
+from prefect_config.flows.logging_config import logger
 
 
 @task

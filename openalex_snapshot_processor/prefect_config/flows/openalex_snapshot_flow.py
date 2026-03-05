@@ -12,7 +12,6 @@ It is not envisaged that we will want to run this regularly.
 
 from pathlib import Path
 
-from loguru import logger
 from prefect import flow, task
 from prefect.artifacts import create_markdown_artifact
 
@@ -31,6 +30,7 @@ from openalex_snapshot_processor.registration import (
     RegistrationSummary,
     register_all_blobs_in_serial,
 )
+from prefect_config.flows.logging_config import logger
 from refresh_requester.blob_storage import DestinyBlobStorageClient
 
 MAXIMUM_BATCH_SIZE = 500_000
