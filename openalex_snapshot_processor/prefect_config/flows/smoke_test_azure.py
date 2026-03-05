@@ -31,7 +31,7 @@ from prefect_config.flows.openalex_snapshot_flow import (
 )
 from refresh_requester.blob_storage import DestinyBlobStorageClient
 
-MAXIMUM_BATCH_SIZE = 500_000
+MAXIMUM_BATCH_SIZE = 1
 
 
 @task(retries=3, retry_delay_seconds=60)
@@ -132,7 +132,7 @@ def serial_register_all_blobs(processed_files: list[dict]) -> RegistrationSummar
 @flow(name="smoke-test-azure", log_prints=True)
 def smoke_test_azure() -> None:
     """Run end to end Azure smoke test for a single file."""
-    n_files_to_process = 3
+    n_files_to_process = 100
 
     file_paths_with_counts = enumerate_files(n_files_to_process)
     unprocessed_files = filter_already_uploaded(file_paths_with_counts)

@@ -37,18 +37,23 @@ MAXIMUM_BATCH_SIZE = 500_000
 
 
 @task(retries=3, retry_delay_seconds=60)
-def enumerate_files() -> list[FilePathCount]:
+def enumerate_files(file_limit: int | None = None) -> list[FilePathCount]:
     """
     Enumerate and batch the OpenAlex snapshot works files to be processed.
 
     Batches files by record count to avoid inefficiently processing
     many small files.
 
+    Args:
+        file_limit (int | None): The number of files to select for processing in the smoke test.
+
     Returns:
         list[FilePathCount]: List of file paths and their record counts to be processed.
 
     """
     settings = get_settings()
+    if file_limit is not None:
+        return enumerate_work_files(settings.SNAPSHOT_ROOT)[:file_limit]
     return enumerate_work_files(settings.SNAPSHOT_ROOT)
 
 
@@ -112,7 +117,7 @@ def batch_files(file_paths_with_counts: list[FilePathCount]) -> list[BatchFilePa
     retries=3,
     retry_delay_seconds=60,
 )
-def process_file_batch_task(batch_file_paths: list[BatchFilePaths]) -> list[dict]:
+def process_file_batch_task(batch_file_paths: BatchFilePaths) -> list[dict]:
     """
     Process a batch of files in one worker.
 
@@ -130,9 +135,7 @@ def process_file_batch_task(batch_file_paths: list[BatchFilePaths]) -> list[dict
 
     """
     log_directory = Path(__file__).parent.parent / "logs"
-    file_path_list = [
-        file_path for batch in batch_file_paths for file_path in batch.batch
-    ]
+    file_path_list = list(batch_file_paths.batch)
     return process_file_batch(file_path_list, log_directory)
 
 
@@ -228,7 +231,8 @@ def report(
 @flow(name="openalex-snapshot-ingest", log_prints=True)
 def openalex_snapshot_ingest() -> None:
     """Orchestrate the full snapshot ingest flow: enumeration, processing, registration and reporting."""
-    file_paths_with_counts = enumerate_files()
+    optional_file_limit = 100
+    file_paths_with_counts = enumerate_files(optional_file_limit)
     unprocessed_files = filter_already_uploaded(file_paths_with_counts)
     batched_files = batch_files(unprocessed_files)
     processed_batches = process_file_batch_task.map(batched_files)
