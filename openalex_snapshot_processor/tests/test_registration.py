@@ -1,4 +1,3 @@
-import json
 import logging
 from uuid import uuid4
 
@@ -36,16 +35,18 @@ from refresh_requester.repository import (
 
 
 def test_load_progress_success(tmp_path):
-    progress_data = {"completed": ["blob1", "blob2"]}
+    completed_progress_data = {"blob1": uuid4(), "blob2": uuid4()}
     progress_file = tmp_path / "progress.json"
-    progress_file.write_text(json.dumps(progress_data))
+    progress_file.write_text(
+        RegistrationProgress(completed=completed_progress_data).model_dump_json()
+    )
 
     loaded_progress = _load_progress(progress_file)
     assert isinstance(
         loaded_progress, RegistrationProgress
     ), "Loaded progress should be an instance of RegistrationProgress."
-    assert loaded_progress.completed == progress_data.get(
-        "completed"
+    assert (
+        loaded_progress.completed == completed_progress_data
     ), "Completed blobs should match the data in the file."
 
 
@@ -57,7 +58,7 @@ def test_load_progress_failure_file_not_found(tmp_path):
         loaded_progress, RegistrationProgress
     ), "Loaded progress should be an instance of RegistrationProgress even if file does not exist."
     assert (
-        loaded_progress.completed == []
+        loaded_progress.completed == {}
     ), "Completed blobs should be empty when file does not exist."
 
 
@@ -71,7 +72,7 @@ def test_load_progress_failure_invalid_json(tmp_path):
 
 
 def test_save_progress_success(tmp_path):
-    progress_data = {"completed": ["blob1", "blob2"]}
+    progress_data = {"completed": {"blob1": uuid4(), "blob2": uuid4()}}
     progress_file = tmp_path / "progress.json"
     progress = RegistrationProgress(**progress_data)
     _save_progress(progress_file, progress)
@@ -523,7 +524,9 @@ def test_register_all_blobs_in_serial_success(
     test_files_to_register = [f["base_blob_name"] for f in test_processed_files[1:]]
     test_batch_ids_to_register = test_batch_ids[1:]
 
-    test_progress_data = {"completed": test_already_completed_files}
+    test_progress_data = {
+        "completed": {blob_name: uuid4() for blob_name in test_already_completed_files}
+    }
     progress_file_path = tmp_path / "progress.json"
     progress = RegistrationProgress(**test_progress_data)
     _save_progress(progress_file_path, progress)
@@ -762,8 +765,8 @@ def test_reconcile_in_progress_all_completed(
     progress_data = {
         "in_progress": test_in_progress_records,
         "failed": [],
-        "completed": [],
-        "retried_completed": [],
+        "completed": {},
+        "retried_completed": {},
     }
     progress = RegistrationProgress(**progress_data)
 
@@ -864,8 +867,8 @@ def test_reconcile_in_progress_one_completed_others_in_progress(
     progress_data = {
         "in_progress": test_in_progress_records,
         "failed": [],
-        "completed": [],
-        "retried_completed": [],
+        "completed": {},
+        "retried_completed": {},
     }
     progress = RegistrationProgress(**progress_data)
 
@@ -980,8 +983,8 @@ def test_reconcile_in_progress_one_failure_others_in_progress(
     progress_data = {
         "in_progress": test_in_progress_records,
         "failed": [],
-        "completed": [],
-        "retried_completed": [],
+        "completed": {},
+        "retried_completed": {},
     }
     progress = RegistrationProgress(**progress_data)
 
@@ -1083,8 +1086,8 @@ def test_reconcile_in_progress_all_failure_mix(
     progress_data = {
         "in_progress": test_in_progress_records,
         "failed": [],
-        "completed": [],
-        "retried_completed": [],
+        "completed": {},
+        "retried_completed": {},
     }
     progress = RegistrationProgress(**progress_data)
 
