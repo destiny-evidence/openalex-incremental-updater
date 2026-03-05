@@ -17,7 +17,7 @@ from prefect.artifacts import create_markdown_artifact
 
 from openalex_snapshot_processor.config import get_settings
 from openalex_snapshot_processor.enumeration import enumerate_work_files
-from openalex_snapshot_processor.file_processor import _log_errors, transform_file
+from openalex_snapshot_processor.file_processor import _log_errors, gz_to_jsonl_stream
 
 
 @task
@@ -44,6 +44,20 @@ def select_files(n_files: int = 1) -> list[str]:
     ]
 
 
+async def _collect_jsonl_from_compressed_file(
+    file_path: str, errors: dict
+) -> list[bytes]:
+    """
+    Collect lines from a compressed file and return as a list.
+
+    Returns:
+        list[bytes]: A list of bytes objects,
+            each representing a line of transformed JSONL output.
+
+    """
+    return [line async for line in gz_to_jsonl_stream(Path(file_path), errors)]
+
+
 @task
 def transform_and_write(file_path: str) -> dict:
     """
@@ -56,7 +70,9 @@ def transform_and_write(file_path: str) -> dict:
         dict: A summary of the processing results, including paths, record count, and any errors.
 
     """
-    lines, errors = asyncio.run(transform_file(file_path))
+    errors: dict = {}
+
+    lines = asyncio.run(_collect_jsonl_from_compressed_file(file_path, errors))
     output_dir = Path(__file__).parent.parent / "output"
     output_dir.mkdir(exist_ok=True, parents=True)
     output_path = output_dir / f"{Path(file_path).stem}_smoke_test_output_local.jsonl"

@@ -30,6 +30,18 @@ from openalex_snapshot_processor.config import Settings, get_settings
 MAXIMUM_EXAMPLE_ERRORS = 5
 
 
+class UploadCounter(BaseModel):
+    """
+    A counter for tracking the number of items within an upload to blob storage.
+
+    Attributes:
+        value (int): The current count of items in the upload.
+
+    """
+
+    value: int = 0
+
+
 class ProcessedFileMetadata(BaseModel):
     """
     Define a model for the processed file metadata.
@@ -217,6 +229,27 @@ def _derive_base_blob_name(file_path: Path) -> str:
     return f"openalex_snapshot_works_{date_string}_{stem}"
 
 
+async def _counted_stream(
+    source: AsyncIterator[bytes], counter: UploadCounter
+) -> AsyncIterator[bytes]:
+    """
+    Wrap an async iterator to count the number of items yielded.
+
+    Updates the total count in the provided UploadCounter instance.
+
+    Args:
+        source (AsyncIterator[bytes]): The original async iterator yielding items to be uploaded.
+        counter (UploadCounter): The upload counter to be updated.
+
+    Returns:
+        AsyncIterator[bytes]: The async iterator yielding items with counting.
+
+    """
+    async for item in source:
+        counter.value += 1
+        yield item
+
+
 async def _as_async_batches(batch: list) -> AsyncIterator[list]:
     """
     Convert a list into an async iterator yielding batches.
@@ -308,62 +341,6 @@ async def gz_to_jsonl_stream(file_path: Path, errors: dict) -> AsyncIterator[byt
                     entry["examples"].append(str(json_conversion_error))
 
 
-async def transform_file(file_path: Path) -> tuple[list[bytes], dict]:
-    """
-    Transform a file and return the resulting JSONL lines and any errors.
-
-    Args:
-        file_path (Path): The absolute local file path of the source .gz file being processed.
-
-    Returns:
-        tuple[list[bytes], dict]: A tuple containing a list of JSONL lines as bytes
-            and a dictionary of any errors encountered during processing.
-
-    """
-    errors: dict = {}
-    lines = [line async for line in gz_to_jsonl_stream(file_path, errors)]
-    return lines, errors
-
-
-async def _iter(items: list[bytes]) -> AsyncIterator[bytes]:
-    """
-    Convert a list of bytes into an async iterator.
-
-    Args:
-        items (list[bytes]): The list of bytes to be converted.
-
-    Yields:
-        AsyncIterator[bytes]: An asynchronous iterator yielding items from the input list.
-
-    """
-    for item in items:
-        yield item
-
-
-async def _upload(
-    settings: Settings,
-    lines: list[bytes],
-    base_blob_name: str,
-) -> list[str]:
-    """
-    Upload a list of JSONL lines to blob storage, split into parts.
-
-    Args:
-        settings (Settings): The application settings containing configuration values.
-        lines (list[bytes]): A list of JSONL lines as bytes to be uploaded.
-        base_blob_name (str): The base name to use for the uploaded blobs.
-
-    Returns:
-        list[str]: A list of blob names that were uploaded.
-
-    """
-    return await blob_upload_multipart(
-        data=_iter(lines),
-        base_filename=base_blob_name,
-        batch_size=settings.BLOB_BATCH_SIZE,
-    )
-
-
 async def _process_file_async(
     settings: Settings, file_path: Path, base_blob_name: str, log_directory: Path
 ) -> ProcessedFileMetadata:
@@ -379,17 +356,24 @@ async def _process_file_async(
         ProcessedFileMetadata: The full processed file report.
 
     """
-    lines, errors = await transform_file(file_path)
+    errors: dict = {}
+    counter = UploadCounter()
+
+    blob_names = await blob_upload_multipart(
+        data=_counted_stream(gz_to_jsonl_stream(file_path, errors), counter),
+        base_filename=base_blob_name,
+        batch_size=settings.BLOB_BATCH_SIZE,
+    )
     error_log_path = _log_errors(file_path, errors, log_directory) if errors else None
     if error_log_path:
         logger.warning(
             f"Errors encountered while transforming file {file_path}: {errors}"
         )
         logger.warning(f"Logged errors to {error_log_path}")
-    blob_names = await _upload(settings, lines, base_blob_name)
+
     return ProcessedFileMetadata(
         blob_names=blob_names,
-        record_count=len(lines),
+        record_count=counter.value,
         error_log=str(error_log_path) if error_log_path else None,
     )
 

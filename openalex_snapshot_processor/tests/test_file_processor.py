@@ -23,7 +23,6 @@ from openalex_snapshot_processor.file_processor import (
     construct_destiny_authorships_order_not_found,
     gz_to_jsonl_stream,
     process_files_async,
-    transform_file,
 )
 
 
@@ -131,35 +130,6 @@ async def test_gz_to_jsonl_stream_jsonl_conversion_error(mocker, tmp_path):
     assert (
         "jsonl_conversion_errors" in errors
     ), "Errors dictionary should contain 'jsonl_conversion_errors' key for invalid JSONL conversion errors."
-
-
-async def test_transform_file_success_no_errors(test_jsonl_gz_file):
-    gz_file_path, _file_contents = test_jsonl_gz_file
-    lines, errors = await transform_file(str(gz_file_path))
-    assert len(lines) == len(
-        _file_contents
-    ), "The number of transformed lines should match the number of input records."
-
-    assert all(
-        errors[error_type]["total"] == 0 for error_type in errors
-    ), "There should be no errors for valid input data."
-
-
-async def test_transform_file_success_with_errors(test_jsonl_gz_file):
-    gz_file_path, _file_contents = test_jsonl_gz_file
-    lines, errors = await transform_file(str(gz_file_path))
-    expected_error_examples = ["foo", "bar", "baz"]
-    errors["json_decode_errors"] = {
-        "total": len(expected_error_examples),
-        "examples": expected_error_examples,
-    }
-    assert len(lines) == len(
-        _file_contents
-    ), "The number of transformed lines should match the number of input records."
-
-    assert sum([errors[error_type]["total"] for error_type in errors]) == len(
-        expected_error_examples
-    ), "There should be 3 errors for the test data."
 
 
 async def test_process_file_async(mocker, test_settings, test_jsonl_gz_file):
