@@ -1289,7 +1289,10 @@ def test_poll_registration_status_incomplete_hangs_reaches_max_polling_limit(
     expected_warning_message_excerpt = (
         f"Batch {test_import_batch_id} has not reached a terminal state after polling"
     )
-    with caplog.at_level(logging.WARNING):
+    with (
+        pytest.raises(RepositoryRegistrationError) as error_info,
+        caplog.at_level(logging.WARNING),
+    ):
         poll_registration_status(
             test_destiny_repository_content_uploader,
             test_import_record_id,
@@ -1304,6 +1307,9 @@ def test_poll_registration_status_incomplete_hangs_reaches_max_polling_limit(
     assert (
         expected_warning_message_excerpt in caplog.text
     ), f"Expected warning message not found in logs: {caplog.text}"
+    assert "Stopping polling to avoid infinite loop" in str(
+        error_info.value
+    ), f"Expected error message not found in exception: {error_info.value!s}"
 
 
 @pytest.mark.parametrize(

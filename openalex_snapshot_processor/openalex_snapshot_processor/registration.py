@@ -223,7 +223,7 @@ def poll_registration_status(
                 f"Last known status: {status}. Stopping polling to avoid infinite loop."
             )
             logger.warning(warning_message)
-            break
+            raise RepositoryRegistrationError(warning_message)
         logger.info(
             f"Batch {import_batch_id} status={status} " f"Waiting {poll_interval}s..."
         )
