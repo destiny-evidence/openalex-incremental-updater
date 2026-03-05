@@ -194,9 +194,7 @@ def report(
     """
     total_records = sum(record.get("record_count", 0) for record in processed_files)
     total_blobs = sum(len(record.get("blob_names") or []) for record in processed_files)
-    total_batches = sum(
-        record.get("import_batch_count", 0) for record in processed_files
-    )
+    total_batches = registration_summary.total_batches_registered
     files_with_errors = [
         record["file_path"] for record in processed_files if record.get("error_log")
     ]
