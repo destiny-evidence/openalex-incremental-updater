@@ -204,7 +204,7 @@ def report(
     error_log_content = "\n".join(
         f"{record['file_path']}: {record.get('errors')}"
         for record in processed_files
-        if record.get("errors")
+        if record.get("error_log")
     )
     if error_log_content:
         error_log_content_markdown = f"```json\n{error_log_content}\n```"
