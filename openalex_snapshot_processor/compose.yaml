@@ -58,7 +58,7 @@ services:
       - "${HOME}/.azure:/azcfg:rw"
 
   prefect-server:
-    image: prefecthq/prefect:3.6.18-python3.13
+    image: prefecthq/prefect:3.6.21-python3.13
     depends_on:
       postgres:
         condition: service_healthy
@@ -93,7 +93,7 @@ services:
       start_period: 30s
 
   prefect-services:
-    image: prefecthq/prefect:3.6.18-python3.13
+    image: prefecthq/prefect:3.6.21-python3.13
     depends_on:
       prefect-server:
         condition: service_healthy
