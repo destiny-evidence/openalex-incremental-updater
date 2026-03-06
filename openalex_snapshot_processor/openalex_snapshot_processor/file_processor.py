@@ -188,13 +188,8 @@ def _log_errors(file_path: Path, errors: dict, log_dir: Path) -> Path | None:
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / f"{file_path.parent.name}__{file_path.stem}.errors.json"
 
-    with log_file.open("w", encoding="utf-8") as output_error_file:
-        json.dump(
-            {"source": str(file_path), "errors": errors}, output_error_file, indent=2
-        )
-
     total_errors = sum(
-        value.get("total", len(value)) if isinstance(value, dict) else 0
+        value.get("total", 0) if isinstance(value, dict) else 0
         for value in errors.values()
     )
 
@@ -203,6 +198,11 @@ def _log_errors(file_path: Path, errors: dict, log_dir: Path) -> Path | None:
             f"No errors recorded for {file_path.name}, skipping error log file creation."
         )
         return None
+
+    with log_file.open("w", encoding="utf-8") as output_error_file:
+        json.dump(
+            {"source": str(file_path), "errors": errors}, output_error_file, indent=2
+        )
 
     logger.warning(f"Recorded {total_errors} errors for {file_path.name} in {log_file}")
     return log_file
