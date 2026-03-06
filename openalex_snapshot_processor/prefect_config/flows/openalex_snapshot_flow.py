@@ -12,6 +12,7 @@ It is not envisaged that we will want to run this regularly.
 
 from pathlib import Path
 
+from loguru import logger
 from prefect import flow, task
 from prefect.artifacts import create_markdown_artifact
 
@@ -30,13 +31,14 @@ from openalex_snapshot_processor.registration import (
     RegistrationSummary,
     register_all_blobs_in_serial,
 )
-from prefect_config.flows.logging_config import logger
+from prefect_config.flows.logging_config import configure_logger, forward_logs
 from refresh_requester.blob_storage import DestinyBlobStorageClient
 
 MAXIMUM_BATCH_SIZE = 500_000
 
 
 @task(retries=3, retry_delay_seconds=60)
+@forward_logs
 def enumerate_files(file_limit: int | None = None) -> list[FilePathCount]:
     """
     Enumerate and batch the OpenAlex snapshot works files to be processed.
@@ -58,6 +60,7 @@ def enumerate_files(file_limit: int | None = None) -> list[FilePathCount]:
 
 
 @task(retries=3, retry_delay_seconds=60)
+@forward_logs
 def filter_already_uploaded(
     file_paths_with_counts: list[FilePathCount],
 ) -> list[FilePathCount]:
@@ -95,6 +98,7 @@ def filter_already_uploaded(
 
 
 @task
+@forward_logs
 def batch_files(file_paths_with_counts: list[FilePathCount]) -> list[BatchFilePaths]:
     """
     Batch files by record count.
@@ -117,6 +121,7 @@ def batch_files(file_paths_with_counts: list[FilePathCount]) -> list[BatchFilePa
     retries=3,
     retry_delay_seconds=60,
 )
+@forward_logs
 def process_file_batch_task(batch_file_paths: BatchFilePaths) -> list[dict]:
     """
     Process a batch of files in one worker.
@@ -140,6 +145,7 @@ def process_file_batch_task(batch_file_paths: BatchFilePaths) -> list[dict]:
 
 
 @task
+@forward_logs
 def flatten_results(batched_results: list[list[dict]]) -> list[dict]:
     """
     Flatten per-batch results into a single list for serial ingestion.
@@ -156,6 +162,7 @@ def flatten_results(batched_results: list[list[dict]]) -> list[dict]:
 
 
 @task(retries=1, retry_delay_seconds=300)
+@forward_logs
 def serial_register_all_processed_files(
     processed_files: list[dict],
 ) -> RegistrationSummary:
@@ -182,6 +189,7 @@ def serial_register_all_processed_files(
 
 
 @task
+@forward_logs
 def report(
     processed_files: list[dict],
     registration_summary: RegistrationSummary,
@@ -231,12 +239,19 @@ def report(
 @flow(name="openalex-snapshot-ingest", log_prints=True)
 def openalex_snapshot_ingest() -> None:
     """Orchestrate the full snapshot ingest flow: enumeration, processing, registration and reporting."""
+    configure_logger()
     optional_file_limit = 100
     file_paths_with_counts = enumerate_files(optional_file_limit)
     unprocessed_files = filter_already_uploaded(file_paths_with_counts)
     batched_files = batch_files(unprocessed_files)
+    logger.info(
+        f"Processing {len(unprocessed_files)} unprocessed files in {len(batched_files)} batches."
+    )
     processed_batches = process_file_batch_task.map(batched_files)
     all_processed = flatten_results(processed_batches)
+    logger.info(
+        f"Completed processing of {len(all_processed)} files. Proceeding to registration."
+    )
     registration_summary = serial_register_all_processed_files(all_processed)
     report(all_processed, registration_summary)
 
