@@ -12,6 +12,7 @@ It is not envisaged that we will want to run this regularly.
 
 from pathlib import Path
 
+import requests
 from loguru import logger
 from prefect import flow, task
 from prefect.artifacts import create_markdown_artifact
@@ -29,12 +30,35 @@ from openalex_snapshot_processor.file_processor import (
 )
 from openalex_snapshot_processor.registration import (
     RegistrationSummary,
+    _load_progress,
     register_all_blobs_in_serial,
 )
 from prefect_config.flows.logging_config import configure_logger, forward_logs
 from refresh_requester.blob_storage import DestinyBlobStorageClient
 
 MAXIMUM_BATCH_SIZE = 500_000
+
+
+def _count_lines_from_sas_url(
+    sas_url: str,
+    timeout_seconds: int = 30,
+) -> int:
+    """
+    Count the number of lines in a blob given its SAS URL.
+
+    Args:
+        sas_url (str): The SAS URL of the blob to count lines in.
+        timeout_seconds (int): The timeout for the operation in seconds.
+
+    Returns:
+        int: The number of lines in the blob.
+
+    """
+    session = requests.Session()
+
+    with session.get(sas_url, stream=True, timeout=timeout_seconds) as response:
+        response.raise_for_status()
+        return sum(1 for _ in response.iter_lines())
 
 
 @task(retries=3, retry_delay_seconds=60)
@@ -236,6 +260,68 @@ def report(
         )
 
 
+@task
+@forward_logs
+def discover_uploaded_unregistered_files(
+    known_processed_base_names: list[str],
+    progress_file: Path,
+    blob_prefix: str = "openalex_snapshot_works_",
+) -> list[dict]:
+    """
+    Discover any files that have been uploaded to blob storage but not yet registered.
+
+    This is to catch any files that may have been processed and uploaded,
+    but where the flow failed before registration.
+
+    Args:
+        known_processed_base_names (list[str]): List of base blob names for files known
+            to have been processed.
+        progress_file (Path): Path to the registration progress file, which contains the
+            list of already registered blobs.
+        blob_prefix (str): The prefix of the blobs to check for.
+
+    Returns:
+        list[dict]: A list of metadata dicts for any files that have been uploaded but not registered.
+
+    """
+    blob_client = DestinyBlobStorageClient()
+    progress = _load_progress(progress_file)
+    completed = set(progress.completed.keys())
+
+    existing_blobs = blob_client.list_all_blobs(blob_prefix)
+
+    base_names = {_derive_base_blob_name(blob) for blob in existing_blobs}
+
+    to_register = []
+    for base in sorted(base_names):
+        if base in completed or base in set(known_processed_base_names):
+            continue
+        pairs = blob_client.get_all_blob_url_pairs(base)
+        if not pairs:
+            continue
+        blob_names = [pair["blob_name"] for pair in pairs]
+        total_records = 0
+        for pair in pairs:
+            try:
+                total_records += _count_lines_from_sas_url(pair["sas_url"])
+            except Exception as e:  # noqa: BLE001
+                logger.error(
+                    f"Error occurred while counting lines in {pair['sas_url']}: {e}"
+                )
+                total_records = 0
+                break
+
+        processed_dict = {
+            "base_blob_name": base,
+            "blob_names": blob_names,
+            "record_count": total_records,
+            "file_path": None,
+            "error_log": None,
+        }
+        to_register.append(processed_dict)
+    return to_register
+
+
 @flow(name="openalex-snapshot-ingest", log_prints=True)
 def openalex_snapshot_ingest() -> None:
     """Orchestrate the full snapshot ingest flow: enumeration, processing, registration and reporting."""
@@ -252,8 +338,20 @@ def openalex_snapshot_ingest() -> None:
     logger.info(
         f"Completed processing of {len(all_processed)} files. Proceeding to registration."
     )
-    registration_summary = serial_register_all_processed_files(all_processed)
-    report(all_processed, registration_summary)
+    progress_file_directory = Path(__file__).parent.parent / "logs"
+    progress_file = progress_file_directory / "registration_progress.json"
+    known_base_names = [
+        pair.get("base_blob_name")
+        for pair in all_processed
+        if pair.get("base_blob_name")
+    ]
+    unregistered_files = discover_uploaded_unregistered_files(
+        known_base_names, progress_file
+    )
+
+    final_processed_file_set = all_processed + unregistered_files
+    registration_summary = serial_register_all_processed_files(final_processed_file_set)
+    report(final_processed_file_set, registration_summary)
 
 
 if __name__ == "__main__":
