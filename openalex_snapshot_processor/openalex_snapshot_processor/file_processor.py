@@ -197,6 +197,13 @@ def _log_errors(file_path: Path, errors: dict, log_dir: Path) -> Path | None:
         value.get("total", len(value)) if isinstance(value, dict) else 0
         for value in errors.values()
     )
+
+    if total_errors == 0:
+        logger.debug(
+            f"No errors recorded for {file_path.name}, skipping error log file creation."
+        )
+        return None
+
     logger.warning(f"Recorded {total_errors} errors for {file_path.name} in {log_file}")
     return log_file
 
