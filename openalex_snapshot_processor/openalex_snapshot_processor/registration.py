@@ -110,9 +110,11 @@ class RegistrationSummary(BaseModel):
 class RegistrationProgress(BaseModel):
     """Model to track the progress of the registration process for a file's blobs."""
 
-    completed: list[str] = Field(
-        default_factory=list,
-        description=("Base blob names that have been successfully registered."),
+    completed: dict[str, UUID] = Field(
+        default_factory=dict,
+        description=(
+            "Base blob names that have been successfully registered, with corresponding import record ID."
+        ),
     )
     in_progress: dict[str, InProgressRecord] = Field(
         default_factory=dict,
@@ -124,10 +126,10 @@ class RegistrationProgress(BaseModel):
         default_factory=list,
         description=("A list of base blob names that failed registration."),
     )
-    retried_completed: list[str] = Field(
-        default_factory=list,
+    retried_completed: dict[str, UUID] = Field(
+        default_factory=dict,
         description=(
-            "Base blob names that were previously marked as failed but later completed upon retry."
+            "Base blob names and import record IDs that previously failed but later completed upon retry."
         ),
     )
 
@@ -223,7 +225,7 @@ def poll_registration_status(
                 f"Last known status: {status}. Stopping polling to avoid infinite loop."
             )
             logger.warning(warning_message)
-            break
+            raise RepositoryRegistrationError(warning_message)
         logger.info(
             f"Batch {import_batch_id} status={status} " f"Waiting {poll_interval}s..."
         )
@@ -465,7 +467,7 @@ def _reconcile_in_progress(
         elif all_completed:
             success_message = f"Registration for {base_blob_name} completed during downtime. Marking as completed."
             logger.info(success_message)
-            progress.completed.append(base_blob_name)
+            progress.completed[base_blob_name] = record.import_record_id
             resolved.append(base_blob_name)
 
     for base_blob_name in resolved:
@@ -512,7 +514,7 @@ def register_all_blobs_in_serial(
     results = []
 
     for n, processed_file in enumerate(processed_files, start=1):
-        completed = set(progress.completed)
+        completed = set(progress.completed.keys())
 
         base_blob_name = processed_file.get("base_blob_name", "")
         if base_blob_name in completed:
@@ -545,8 +547,8 @@ def register_all_blobs_in_serial(
         progress.in_progress.pop(base_blob_name, None)
         if base_blob_name in progress.failed:
             progress.failed.remove(base_blob_name)
-            progress.retried_completed.append(base_blob_name)
-        progress.completed.append(base_blob_name)
+            progress.retried_completed[base_blob_name] = result.import_record_id
+        progress.completed[base_blob_name] = result.import_record_id
         _save_progress(progress_file, progress)
 
         progress_message = (
