@@ -39,6 +39,24 @@ from refresh_requester.blob_storage import DestinyBlobStorageClient
 MAXIMUM_BATCH_SIZE = 500_000
 
 
+def _derive_base_blob_name_from_blob_storage(blob_name: str) -> str:
+    """
+    Derive the base blob name from the blob name as it appears in blob storage.
+
+    This is necessary because the blob names in storage have additional suffixes
+    compared to the base blob names derived from file paths, due to the upload
+    and registration process.
+
+    Args:
+        blob_name (str): The name of the blob as it appears in blob storage.
+
+    Returns:
+        str: The derived base blob name.
+
+    """
+    return blob_name.rsplit("_part_", 1)[0]
+
+
 def _count_lines_from_sas_url(
     sas_url: str,
     timeout_seconds: int = 30,
@@ -290,7 +308,9 @@ def discover_uploaded_unregistered_files(
 
     existing_blobs = blob_client.list_all_blobs(blob_prefix)
 
-    base_names = {_derive_base_blob_name(blob) for blob in existing_blobs}
+    base_names = {
+        _derive_base_blob_name_from_blob_storage(blob) for blob in existing_blobs
+    }
 
     to_register = []
     for base in sorted(base_names):
