@@ -70,6 +70,34 @@ def openalex_work_dict() -> dict:
                 "affiliations": [],
             },
             {
+                "author_position": "middle",
+                "author": {
+                    "id": "https://openalex.org/example-middle-author-1-id",
+                    "display_name": "Middle Author 1",
+                    "orcid": "https://orcid.org/example-orcid-middle-author-1",
+                },
+                "institutions": [],
+                "countries": [],
+                "is_corresponding": False,
+                "raw_author_name": "Middle Author 1",
+                "raw_affiliation_strings": [],
+                "affiliations": [],
+            },
+            {
+                "author_position": "middle",
+                "author": {
+                    "id": "https://openalex.org/example-middle-author-2-id",
+                    "display_name": "Middle Author 2",
+                    "orcid": "https://orcid.org/example-orcid-middle-author-2",
+                },
+                "institutions": [],
+                "countries": [],
+                "is_corresponding": False,
+                "raw_author_name": "Middle Author 2",
+                "raw_affiliation_strings": [],
+                "affiliations": [],
+            },
+            {
                 "author_position": "last",
                 "author": {
                     "id": "https://openalex.org/example-last-author-id",
