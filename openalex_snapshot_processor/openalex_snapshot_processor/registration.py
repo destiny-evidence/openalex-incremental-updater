@@ -10,7 +10,7 @@ from pydantic import BaseModel, Field, ValidationError
 from requests import HTTPError
 
 from openalex_snapshot_processor.config import get_settings
-from refresh_requester.blob_storage import DestinyBlobStorageClient
+from refresh_requester.blob_storage import DestinyBlobStorageClient, blob_upload
 from refresh_requester.repository import (
     DestinyRepositoryContentUploader,
     DestinyRepositoryImportError,
@@ -272,6 +272,22 @@ def _save_progress(progress_file: Path, progress: RegistrationProgress) -> None:
     """
     progress_file.parent.mkdir(parents=True, exist_ok=True)
     progress_file.write_text(progress.model_dump_json(indent=2))
+    try:
+        if progress_file.exists():
+            content = progress_file.read_text(encoding="utf-8")
+            progress_blob_name = "task_logs/registration_progress.json"
+            blob_upload(content, progress_blob_name)
+            logger.info(
+                f"Uploaded registration progress file to blob storage: {progress_blob_name}"
+            )
+        else:
+            logger.warning(
+                f"Registration progress file not found at expected location: {progress_file}"
+            )
+    except Exception as e:  # noqa: BLE001
+        logger.error(
+            f"Failed to upload registration progress file to blob storage: {e}"
+        )
 
 
 def _register_single_file(

@@ -141,7 +141,7 @@ def serial_register_all_blobs(processed_files: list[dict]) -> RegistrationSummar
 def smoke_test_azure() -> None:
     """Run end to end Azure smoke test for a single file."""
     configure_logger()
-    n_files_to_process = 222
+    n_files_to_process = 10
     logger.info(f"Starting Azure smoke test for {n_files_to_process} files.")
 
     file_paths_with_counts = enumerate_files(n_files_to_process)

@@ -10,7 +10,10 @@ This flow has no schedule and should be triggered manually.
 It is not envisaged that we will want to run this regularly.
 """
 
+import json
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 import requests
 from loguru import logger
@@ -34,9 +37,11 @@ from openalex_snapshot_processor.registration import (
     register_all_blobs_in_serial,
 )
 from prefect_config.flows.logging_config import configure_logger, forward_logs
-from refresh_requester.blob_storage import DestinyBlobStorageClient
+from refresh_requester.blob_storage import DestinyBlobStorageClient, blob_upload
 
 MAXIMUM_BATCH_SIZE = 500_000
+
+settings = get_settings()
 
 
 def _derive_base_blob_name_from_blob_storage(blob_name: str) -> str:
@@ -95,7 +100,6 @@ def enumerate_files(file_limit: int | None = None) -> list[FilePathCount]:
         list[FilePathCount]: List of file paths and their record counts to be processed.
 
     """
-    settings = get_settings()
     if file_limit is not None:
         return enumerate_work_files(settings.SNAPSHOT_ROOT)[:file_limit]
     return enumerate_work_files(settings.SNAPSHOT_ROOT)
@@ -346,7 +350,7 @@ def discover_uploaded_unregistered_files(
 def openalex_snapshot_ingest() -> None:
     """Orchestrate the full snapshot ingest flow: enumeration, processing, registration and reporting."""
     configure_logger()
-    optional_file_limit = 100
+    optional_file_limit = 10
     file_paths_with_counts = enumerate_files(optional_file_limit)
     unprocessed_files = filter_already_uploaded(file_paths_with_counts)
     batched_files = batch_files(unprocessed_files)
@@ -370,6 +374,21 @@ def openalex_snapshot_ingest() -> None:
     )
 
     final_processed_file_set = all_processed + unregistered_files
+    processed_blob_name = (
+        f"task_logs/processed_files_"
+        f"{datetime.now(ZoneInfo('UTC')).strftime('%Y-%m-%dT%H-%M-%SZ')}.json"
+    )
+    try:
+        blob_upload(
+            json.dumps(final_processed_file_set, default=str), processed_blob_name
+        )
+        logger.info(
+            f"Uploaded metadata of processed files to blob storage: {processed_blob_name}"
+        )
+    except Exception as e:  # noqa: BLE001
+        logger.error(
+            f"Failed to upload metadata of processed files to blob storage: {e}"
+        )
     registration_summary = serial_register_all_processed_files(final_processed_file_set)
     report(final_processed_file_set, registration_summary)
 

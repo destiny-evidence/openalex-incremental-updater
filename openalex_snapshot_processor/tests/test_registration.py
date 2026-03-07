@@ -71,10 +71,12 @@ def test_load_progress_failure_invalid_json(tmp_path):
         _load_progress(invalid_json_file)
 
 
-def test_save_progress_success(tmp_path):
+def test_save_progress_success(mocker, tmp_path):
     progress_data = {"completed": {"blob1": uuid4(), "blob2": uuid4()}}
     progress_file = tmp_path / "progress.json"
     progress = RegistrationProgress(**progress_data)
+    mocker.patch("openalex_snapshot_processor.registration.blob_upload")
+
     _save_progress(progress_file, progress)
     loaded_progress = _load_progress(progress_file)
     assert isinstance(
@@ -529,6 +531,8 @@ def test_register_all_blobs_in_serial_success(
     }
     progress_file_path = tmp_path / "progress.json"
     progress = RegistrationProgress(**test_progress_data)
+    mocker.patch("openalex_snapshot_processor.registration.blob_upload")
+
     _save_progress(progress_file_path, progress)
 
     expected_single_file_registration_result = [
@@ -614,6 +618,8 @@ def test_register_all_blobs_in_serial_previously_failed_succeeds_on_retry(
     test_progress_data = {"failed": test_previously_failed_files}
     progress_file_path = tmp_path / "progress.json"
     progress = RegistrationProgress(**test_progress_data)
+    mocker.patch("openalex_snapshot_processor.registration.blob_upload")
+
     _save_progress(progress_file_path, progress)
 
     expected_single_file_registration_result = [
@@ -684,6 +690,8 @@ def test_register_all_blobs_in_serial_fresh_file_not_counted_as_retry(
 
     progress = RegistrationProgress(failed=[test_failed_blob])
     progress_file_path = tmp_path / "progress.json"
+    mocker.patch("openalex_snapshot_processor.registration.blob_upload")
+
     _save_progress(progress_file_path, progress)
 
     test_processed_files = [
@@ -770,6 +778,7 @@ def test_reconcile_in_progress_all_completed(
     }
     progress = RegistrationProgress(**progress_data)
 
+    mocker.patch("openalex_snapshot_processor.registration.blob_upload")
     _save_progress(progress_file, progress)
 
     mocker.patch.object(
@@ -871,6 +880,7 @@ def test_reconcile_in_progress_one_completed_others_in_progress(
         "retried_completed": {},
     }
     progress = RegistrationProgress(**progress_data)
+    mocker.patch("openalex_snapshot_processor.registration.blob_upload")
 
     _save_progress(progress_file, progress)
 
@@ -987,6 +997,7 @@ def test_reconcile_in_progress_one_failure_others_in_progress(
         "retried_completed": {},
     }
     progress = RegistrationProgress(**progress_data)
+    mocker.patch("openalex_snapshot_processor.registration.blob_upload")
 
     _save_progress(progress_file, progress)
 
@@ -1090,6 +1101,7 @@ def test_reconcile_in_progress_all_failure_mix(
         "retried_completed": {},
     }
     progress = RegistrationProgress(**progress_data)
+    mocker.patch("openalex_snapshot_processor.registration.blob_upload")
 
     _save_progress(progress_file, progress)
 
