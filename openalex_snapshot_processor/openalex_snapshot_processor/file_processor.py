@@ -28,6 +28,7 @@ from openalex_incremental_updater.ingest.openalex import safe_result_conversion
 from openalex_snapshot_processor.config import Settings, get_settings
 
 MAXIMUM_EXAMPLE_ERRORS = 5
+MAX_CONCURRENT_UPLOADS = 2
 
 
 class UploadCounter(BaseModel):
@@ -428,6 +429,8 @@ async def process_files_async(
     Process a batch of files asynchronously.
 
     Overlapping upload I/O across files to speed up the full batch processing time.
+    A semaphore caps concurrent uploads to avoid overwhelming the Azure Blob Storage
+    endpoint with simultaneous TCP connections.
 
     Args:
         file_paths (list[Path]): The local file paths of the source .gz files being processed.
@@ -438,9 +441,18 @@ async def process_files_async(
     """
     settings = get_settings()
     base_blob_names = [_derive_base_blob_name(file_path) for file_path in file_paths]
+    semaphore = asyncio.Semaphore(MAX_CONCURRENT_UPLOADS)
+
+    async def _guarded_process_file_async(
+        path: Path, base_blob_name: str
+    ) -> ProcessedFileMetadata:
+        async with semaphore:
+            return await _process_file_async(
+                settings, path, base_blob_name, log_directory
+            )
 
     tasks = [
-        _process_file_async(settings, path, base_blob_name, log_directory)
+        _guarded_process_file_async(path, base_blob_name)
         for path, base_blob_name in zip(file_paths, base_blob_names, strict=False)
     ]
     results = await asyncio.gather(*tasks)
