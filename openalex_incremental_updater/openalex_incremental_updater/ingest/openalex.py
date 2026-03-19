@@ -17,10 +17,12 @@ from openalex_incremental_updater.core.utils import async_timer
 from openalex_incremental_updater.ingest import AsyncRetryClient, CreatedOrUpdated
 from openalex_incremental_updater.models.destiny import (
     DESTINYReferenceDOIIdentifierError,
+    DESTINYReferenceOpenAlexIdentifierError,
     convert_openalex_to_destiny,
 )
 
 _MAX_DOI_ERROR_EXAMPLES = 5
+_MAX_OPENALEX_ID_ERROR_EXAMPLES = 5
 
 fetch_lock = Lock()
 
@@ -56,6 +58,9 @@ def safe_result_conversion(
     converted_results: list[ReferenceFileInput] = []
     doi_errors: dict = errors_dict.setdefault(
         "doi_errors", {"total": 0, "examples": []}
+    )
+    openalex_id_errors: dict = errors_dict.setdefault(
+        "openalex_id_errors", {"total": 0, "examples": []}
     )
     for result in results:
         try:
@@ -97,7 +102,48 @@ def safe_result_conversion(
                 )
                 logger.warning(error_message)
 
-    if report and doi_errors.get("total", 0) > 0:
+        except DESTINYReferenceOpenAlexIdentifierError as oa_error:
+            error_message = f"{oa_error}"
+
+            invalid_openalex_id = error_message.split(": ")[-1]
+            logger.debug(f"Invalid OpenAlex ID: {invalid_openalex_id}")
+
+            logger.warning(
+                "Encountered invalid OpenAlex ID during ingestion: {}",
+                error_message,
+            )
+
+            openalex_id_errors["total"] += 1
+
+            openalex_id_error_examples = openalex_id_errors.get("examples", [])
+            if len(openalex_id_error_examples) < _MAX_OPENALEX_ID_ERROR_EXAMPLES:
+                openalex_id_error_examples.append(invalid_openalex_id)
+            cleaned = copy.deepcopy(result)
+
+            if isinstance(cleaned.get("ids"), dict):
+                cleaned["ids"]["openalex_id"] = None
+            cleaned["openalex_id"] = None
+
+            try:
+                converted_results.append(convert_openalex_to_destiny(cleaned))
+            except (
+                ValidationError,
+                ValueError,
+                TypeError,
+            ) as reference_conversion_error:
+                dropped = errors_dict.setdefault("dropped_records", {"total": 0})
+                dropped["total"] += 1
+                error_message = (
+                    "OpenAlex to Destiny conversion failed after clearing OpenAlex ID"
+                    f"{reference_conversion_error}"
+                )
+                logger.warning(error_message)
+
+    if (
+        report
+        and doi_errors.get("total", 0) > 0
+        and openalex_id_errors.get("total", 0) > 0
+    ):
         report(errors=errors_dict)
     return converted_results
 
