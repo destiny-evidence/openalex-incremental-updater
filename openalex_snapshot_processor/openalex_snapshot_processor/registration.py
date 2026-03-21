@@ -206,6 +206,7 @@ def poll_registration_status(
 
     remain_polling = (not stop_polling) and (times_polled <= maximum_poll_limit_number)
     while remain_polling:
+        uploader.refresh_token()
         summary = uploader.get_import_batch_summary(import_record_id, import_batch_id)
         times_polled += 1
 
