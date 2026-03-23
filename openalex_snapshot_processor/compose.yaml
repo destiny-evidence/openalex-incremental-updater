@@ -7,7 +7,7 @@ x-common: &common
   env_file:
     - .env
   environment:
-    AZURE_CONFIG_DIR: /azcfg
+    AZURE_CLIENT_ID: ""
   volumes:
     - ./prefect_config:/opt/packages/openalex_snapshot_processor/prefect_config
     - ${SNAPSHOT_ROOT_LOCAL}:${SNAPSHOT_ROOT}:ro
@@ -52,7 +52,6 @@ services:
       retries: 5
       start_period: 15s
     environment:
-      AZURE_CONFIG_DIR: /azcfg
       AZURE_LOG_LEVEL: DEBUG
     volumes:
       - "${HOME}/.azure:/azcfg:rw"
@@ -116,7 +115,11 @@ services:
     environment:
       PREFECT_API_URL: ${PREFECT_API_URL}
     command: uv run prefect worker start --pool local-pool
-    restart: on-failure
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    restart: unless-stopped
 
 volumes:
   postgres_data:
