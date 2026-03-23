@@ -350,7 +350,7 @@ def discover_uploaded_unregistered_files(
 def openalex_snapshot_ingest() -> None:
     """Orchestrate the full snapshot ingest flow: enumeration, processing, registration and reporting."""
     configure_logger()
-    optional_file_limit = 10
+    optional_file_limit = None
     file_paths_with_counts = enumerate_files(optional_file_limit)
     unprocessed_files = filter_already_uploaded(file_paths_with_counts)
     batched_files = batch_files(unprocessed_files)
