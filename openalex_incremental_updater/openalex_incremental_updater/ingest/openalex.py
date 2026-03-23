@@ -130,6 +130,7 @@ def safe_result_conversion(
                 ValidationError,
                 ValueError,
                 TypeError,
+                DESTINYReferenceOpenAlexIdentifierError,
             ) as reference_conversion_error:
                 dropped = errors_dict.setdefault("dropped_records", {"total": 0})
                 dropped["total"] += 1
@@ -139,10 +140,8 @@ def safe_result_conversion(
                 )
                 logger.warning(error_message)
 
-    if (
-        report
-        and doi_errors.get("total", 0) > 0
-        and openalex_id_errors.get("total", 0) > 0
+    if report is not None and (
+        doi_errors.get("total", 0) > 0 or openalex_id_errors.get("total", 0) > 0
     ):
         report(errors=errors_dict)
     return converted_results
