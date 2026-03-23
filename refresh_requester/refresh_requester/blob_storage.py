@@ -27,7 +27,6 @@ class DestinyBlobStorageClient:
 
     def __init__(self) -> None:
         """Class constructor."""
-        self.blob_service_client = get_blob_service_client()
         self.settings = get_settings()
 
     def list_all_blobs(self, blob_path: str | None = None) -> list[str]:
@@ -41,13 +40,14 @@ class DestinyBlobStorageClient:
             list[str]: A list of blob names.
 
         """
+        blob_service_client = get_blob_service_client()
         if blob_path is None:
             logger.info("Listing all blobs in the storage container.")
         else:
             logger.info(
                 f"Listing blobs in the storage container with filter: {blob_path}"
             )
-        container_client = self.blob_service_client.get_container_client(
+        container_client = blob_service_client.get_container_client(
             self.settings.STORAGE_BLOB_CONTAINER
         )
         return [
