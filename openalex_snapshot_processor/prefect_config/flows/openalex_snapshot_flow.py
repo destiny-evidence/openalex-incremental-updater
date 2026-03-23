@@ -324,16 +324,19 @@ def discover_uploaded_unregistered_files(
         if not pairs:
             continue
         blob_names = [pair["blob_name"] for pair in pairs]
-        total_records = 0
-        for pair in pairs:
-            try:
-                total_records += _count_lines_from_sas_url(pair["sas_url"])
-            except Exception as e:  # noqa: BLE001
-                logger.error(
-                    f"Error occurred while counting lines in {pair['sas_url']}: {e}"
-                )
-                total_records = 0
-                break
+        sorted_pairs = sorted(pairs, key=lambda blob_pair: blob_pair["blob_name"])
+        number_of_parts = len(sorted_pairs)
+        try:
+            last_part_count = _count_lines_from_sas_url(sorted_pairs[-1]["sas_url"])
+            total_records = (
+                number_of_parts - 1
+            ) * settings.BLOB_BATCH_SIZE + last_part_count
+
+        except Exception as total_record_reporting_error:  # noqa: BLE001
+            error_message = "Error occurred while counting lines in last part"
+            f" of {base}: {total_record_reporting_error}"
+            logger.error(error_message)
+            total_records = 0
 
         processed_dict = {
             "base_blob_name": base,
