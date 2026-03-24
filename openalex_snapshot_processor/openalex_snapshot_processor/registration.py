@@ -333,6 +333,7 @@ def _register_new_import_with_retry(
         retry_count = 1
         while retry_count <= max_retries:
             try:
+                uploader.refresh_token()
                 return uploader.register_new_import(
                     source_type=ImportSourceType.BULK_IMPORTER
                 )

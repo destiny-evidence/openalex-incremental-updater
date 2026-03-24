@@ -127,7 +127,7 @@ def test_register_new_import_with_retry_success(
     ), "Result should be an instance of ImportRecordRead."
 
 
-def test_register_new_import_with_retry_repository_import_error(
+def test_register_new_import_with_retry_transient_error_resolves(
     caplog,
     mocker,
     test_settings,
@@ -157,14 +157,23 @@ def test_register_new_import_with_retry_repository_import_error(
 
     test_error_message = "Mocked repository import error"
 
+    expected_number_of_failures = 2
+    register_new_import_side_effect_failures = [
+        HTTPError(test_error_message) for _ in range(expected_number_of_failures)
+    ]
+    register_new_import_side_effect = [
+        *register_new_import_side_effect_failures,
+        test_upload_result["import_record"],
+    ]
+
     mocker.patch.object(
         DestinyRepositoryContentUploader,
         "register_new_import",
-        side_effect=[
-            HTTPError(test_error_message),
-            HTTPError(test_error_message),
-            test_upload_result["import_record"],
-        ],
+        side_effect=register_new_import_side_effect,
+    )
+    mocked_token_refresh = mocker.patch.object(
+        DestinyRepositoryContentUploader,
+        "refresh_token",
     )
 
     with caplog.at_level(logging.WARNING):
@@ -183,6 +192,9 @@ def test_register_new_import_with_retry_repository_import_error(
     assert (
         f"Retry 1/{test_number_retries} failed" in caplog.text
     ), "First retry failure should be logged."
+    assert (
+        mocked_token_refresh.call_count == expected_number_of_failures
+    ), "Token refresh should be called for each retry attempt after a failure."
 
 
 def test_register_new_import_with_retry_fails_on_all_retries(
@@ -202,10 +214,18 @@ def test_register_new_import_with_retry_fails_on_all_retries(
 
     test_error_message = "Mocked repository import error"
 
+    expected_number_of_failures = test_number_retries + 1
+    register_new_import_side_effect_failures = [
+        HTTPError(test_error_message) for _ in range(expected_number_of_failures)
+    ]
     mocker.patch.object(
         DestinyRepositoryContentUploader,
         "register_new_import",
-        side_effect=[HTTPError(test_error_message)] * (test_number_retries + 1),
+        side_effect=register_new_import_side_effect_failures,
+    )
+    mocked_token_refresh = mocker.patch.object(
+        DestinyRepositoryContentUploader,
+        "refresh_token",
     )
 
     with (
@@ -228,9 +248,12 @@ def test_register_new_import_with_retry_fails_on_all_retries(
         f"Failed to register new import for test_base_blob_name after {test_number_retries} retries"
         in str(error_info.value)
     ), "Final failure message should be logged."
+    assert (
+        mocked_token_refresh.call_count == test_number_retries
+    ), "Token refresh should be called for each retry attempt after a failure, but not after the final failed attempt that raises the error."
 
 
-def test_register_new_import_with_retry_transient_http_error_resolves(
+def test_register_new_import_with_retry_repository_import_error(
     mocker,
     test_settings,
     test_destiny_repository_content_uploader,
