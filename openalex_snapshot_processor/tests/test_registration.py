@@ -22,6 +22,7 @@ from openalex_snapshot_processor.registration import (
     _has_exit_status,
     _load_progress,
     _reconcile_in_progress,
+    _register_new_import_with_retry,
     _register_single_file,
     _save_progress,
     poll_registration_status,
@@ -85,6 +86,177 @@ def test_save_progress_success(mocker, tmp_path):
     assert loaded_progress.completed == progress_data.get(
         "completed"
     ), "Completed blobs should match the data in the file."
+
+
+def test_register_new_import_with_retry_success(
+    mocker,
+    test_settings,
+    test_destiny_repository_content_uploader,
+):
+    test_import_record_id = uuid4()
+    test_batch_id = uuid4()
+    test_poll_interval_seconds = 0.001
+    test_number_retries = 3
+
+    test_upload_result = {
+        "import_record": ImportRecordRead(
+            id=test_import_record_id,
+            processor_name="test_processor",
+            processor_version="9.9.9",
+            expected_reference_count=-1,
+            source_name="test_source",
+            status=ImportRecordStatus.COMPLETED,
+        ),
+        "import_batch_ids": [test_batch_id],
+    }
+
+    mocker.patch.object(
+        DestinyRepositoryContentUploader,
+        "register_new_import",
+        return_value=test_upload_result["import_record"],
+    )
+
+    result = _register_new_import_with_retry(
+        test_destiny_repository_content_uploader,
+        "test_base_blob_name",
+        poll_interval=test_poll_interval_seconds,
+        max_retries=test_number_retries,
+    )
+    assert isinstance(
+        result, ImportRecordRead
+    ), "Result should be an instance of ImportRecordRead."
+
+
+def test_register_new_import_with_retry_repository_import_error(
+    caplog,
+    mocker,
+    test_settings,
+    test_destiny_repository_content_uploader,
+):
+    """
+    Test that the case of two transient HTTP errors.
+
+    This should resolve successfully in the case of a truly transient error.
+    """
+    test_import_record_id = uuid4()
+    test_batch_id = uuid4()
+    test_poll_interval_seconds = 0.001
+    test_number_retries = 3
+
+    test_upload_result = {
+        "import_record": ImportRecordRead(
+            id=test_import_record_id,
+            processor_name="test_processor",
+            processor_version="9.9.9",
+            expected_reference_count=-1,
+            source_name="test_source",
+            status=ImportRecordStatus.COMPLETED,
+        ),
+        "import_batch_ids": [test_batch_id],
+    }
+
+    test_error_message = "Mocked repository import error"
+
+    mocker.patch.object(
+        DestinyRepositoryContentUploader,
+        "register_new_import",
+        side_effect=[
+            HTTPError(test_error_message),
+            HTTPError(test_error_message),
+            test_upload_result["import_record"],
+        ],
+    )
+
+    with caplog.at_level(logging.WARNING):
+        result = _register_new_import_with_retry(
+            test_destiny_repository_content_uploader,
+            "test_base_blob_name",
+            poll_interval=test_poll_interval_seconds,
+            max_retries=test_number_retries,
+        )
+    assert isinstance(
+        result, ImportRecordRead
+    ), "Result should be an instance of ImportRecordRead."
+    assert (
+        "HTTP error registering new import" in caplog.text
+    ), "Warning message about HTTP error should be logged."
+    assert (
+        f"Retry 1/{test_number_retries} failed" in caplog.text
+    ), "First retry failure should be logged."
+
+
+def test_register_new_import_with_retry_fails_on_all_retries(
+    caplog,
+    mocker,
+    test_settings,
+    test_destiny_repository_content_uploader,
+):
+    """
+    Test that the case in which we never recover from HTTP errors.
+
+    This may mark a true problem with the registration process
+    or content of the import record.
+    """
+    test_poll_interval_seconds = 0.001
+    test_number_retries = 3
+
+    test_error_message = "Mocked repository import error"
+
+    mocker.patch.object(
+        DestinyRepositoryContentUploader,
+        "register_new_import",
+        side_effect=[HTTPError(test_error_message)] * (test_number_retries + 1),
+    )
+
+    with (
+        pytest.raises(RepositoryRegistrationError) as error_info,
+        caplog.at_level(logging.WARNING),
+    ):
+        _register_new_import_with_retry(
+            test_destiny_repository_content_uploader,
+            "test_base_blob_name",
+            poll_interval=test_poll_interval_seconds,
+            max_retries=test_number_retries,
+        )
+    assert (
+        "HTTP error registering new import" in caplog.text
+    ), "Warning message about HTTP error should be logged."
+    assert (
+        f"Retry {test_number_retries}/{test_number_retries} failed" in caplog.text
+    ), "First retry failure should be logged."
+    assert (
+        f"Failed to register new import for test_base_blob_name after {test_number_retries} retries"
+        in str(error_info.value)
+    ), "Final failure message should be logged."
+
+
+def test_register_new_import_with_retry_transient_http_error_resolves(
+    mocker,
+    test_settings,
+    test_destiny_repository_content_uploader,
+):
+    test_poll_interval_seconds = 0.001
+    test_number_retries = 3
+
+    test_error_message = "Mocked repository import error"
+
+    mocker.patch.object(
+        DestinyRepositoryContentUploader,
+        "register_new_import",
+        side_effect=DestinyRepositoryImportError(test_error_message),
+    )
+
+    with pytest.raises(RepositoryRegistrationError) as error_info:
+        _register_new_import_with_retry(
+            test_destiny_repository_content_uploader,
+            "test_base_blob_name",
+            poll_interval=test_poll_interval_seconds,
+            max_retries=test_number_retries,
+        )
+
+    assert test_error_message in str(
+        error_info.value
+    ), "Error message should be included in the raised RepositoryRegistrationError."
 
 
 def test_register_single_file_success(
