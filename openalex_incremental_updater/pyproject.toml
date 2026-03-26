@@ -114,8 +114,6 @@ lint.per-file-ignores = {"openalex_incremental_updater/openalex_incremental_upda
   "S101", # Use of `assert` detected
   "TRY002", # Create your own exception
   "TRY003" # Avoid specifying long messages outside the exception class
-], "destiny_solr_setup/*" = [
-  "BLE001" # Do not catch blind exception: Exception
 ]}
 lint.select = [
   "ALL"
