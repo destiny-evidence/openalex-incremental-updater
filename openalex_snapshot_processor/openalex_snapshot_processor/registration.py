@@ -4,13 +4,13 @@ import time
 from pathlib import Path
 from uuid import UUID
 
-from destiny_sdk.imports import ImportBatchStatus, ImportBatchSummary
+from destiny_sdk.imports import ImportBatchStatus, ImportBatchSummary, ImportRecordRead
 from loguru import logger
 from pydantic import BaseModel, Field, ValidationError
 from requests import HTTPError
 
 from openalex_snapshot_processor.config import get_settings
-from refresh_requester.blob_storage import DestinyBlobStorageClient
+from refresh_requester.blob_storage import DestinyBlobStorageClient, blob_upload
 from refresh_requester.repository import (
     DestinyRepositoryContentUploader,
     DestinyRepositoryImportError,
@@ -20,6 +20,7 @@ from refresh_requester.repository import (
 MAXIMUM_POLL_LIMIT_SECONDS = (
     21600  # 6 hour maximum poll limit for a single set of batches
 )
+MAXIMUM_REGISTRATION_RETRIES = 5
 
 
 class InProgressRecord(BaseModel):
@@ -206,6 +207,7 @@ def poll_registration_status(
 
     remain_polling = (not stop_polling) and (times_polled <= maximum_poll_limit_number)
     while remain_polling:
+        uploader.refresh_token()
         summary = uploader.get_import_batch_summary(import_record_id, import_batch_id)
         times_polled += 1
 
@@ -272,6 +274,81 @@ def _save_progress(progress_file: Path, progress: RegistrationProgress) -> None:
     """
     progress_file.parent.mkdir(parents=True, exist_ok=True)
     progress_file.write_text(progress.model_dump_json(indent=2))
+    try:
+        if progress_file.exists():
+            content = progress_file.read_text(encoding="utf-8")
+            progress_blob_name = "task_logs/registration_progress.json"
+            blob_upload(content, progress_blob_name)
+            logger.info(
+                f"Uploaded registration progress file to blob storage: {progress_blob_name}"
+            )
+        else:
+            logger.warning(
+                f"Registration progress file not found at expected location: {progress_file}"
+            )
+    except Exception as e:  # noqa: BLE001
+        logger.error(
+            f"Failed to upload registration progress file to blob storage: {e}"
+        )
+
+
+def _register_new_import_with_retry(
+    uploader: DestinyRepositoryContentUploader,
+    base_blob_name: str,
+    poll_interval: int,
+    max_retries: int = MAXIMUM_REGISTRATION_RETRIES,
+) -> ImportRecordRead:
+    """
+    Register a new import with retry logic for transient HTTP errors.
+
+    Args:
+        uploader (DestinyRepositoryContentUploader): Destiny Repository uploader instance.
+        base_blob_name (str): The base blob name for which the import is being registered.
+        poll_interval (int): The number of seconds to wait between retries in case of transient HTTP errors.
+        max_retries (int): The maximum number of retries to attempt in case of transient HTTP errors.
+        Defaults to MAXIMUM_REGISTRATION_RETRIES.
+
+    Returns:
+        ImportRecordRead: The registered import record.
+
+    """
+    try:
+        return uploader.register_new_import(source_type=ImportSourceType.BULK_IMPORTER)
+    except DestinyRepositoryImportError as new_import_registration_error:
+        error_message = (
+            f"Failed to register new import for {base_blob_name}"
+            f": {new_import_registration_error}"
+        )
+        logger.exception(error_message)
+        raise RepositoryRegistrationError(
+            error_message
+        ) from new_import_registration_error
+    except HTTPError as registration_http_error:
+        warning_message = (
+            f"HTTP error registering new import for {base_blob_name}: {registration_http_error}"
+            " - this may be transient. Waiting for next retry..."
+        )
+        logger.error(warning_message)
+        time.sleep(poll_interval)
+        retry_count = 1
+        while retry_count <= max_retries:
+            try:
+                uploader.refresh_token()
+                return uploader.register_new_import(
+                    source_type=ImportSourceType.BULK_IMPORTER
+                )
+            except HTTPError as retry_http_error:
+                logger.error(
+                    f"Retry {retry_count}/{max_retries} failed"
+                    f" for {base_blob_name}: {retry_http_error}"
+                )
+                retry_count += 1
+                time.sleep(poll_interval)
+        error_message = (
+            f"Failed to register new import for {base_blob_name} after "
+            f"{max_retries} retries: {registration_http_error}"
+        )
+        raise RepositoryRegistrationError(error_message) from registration_http_error
 
 
 def _register_single_file(
@@ -330,19 +407,9 @@ def _register_single_file(
             f"Found {len(blob_url_pairs)} blobs to register for {base_blob_name}"
         )
 
-        try:
-            import_record = uploader.register_new_import(
-                source_type=ImportSourceType.BULK_IMPORTER
-            )
-        except DestinyRepositoryImportError as new_import_registration_error:
-            error_message = (
-                f"Failed to register new import for {base_blob_name}"
-                f": {new_import_registration_error}"
-            )
-            logger.exception(error_message)
-            raise RepositoryRegistrationError(
-                error_message
-            ) from new_import_registration_error
+        import_record = _register_new_import_with_retry(
+            uploader, base_blob_name, poll_interval
+        )
         logger.info(f"Created ImportRecord {import_record.id} for {base_blob_name}")
 
         try:
@@ -392,14 +459,6 @@ def _register_single_file(
         )
         logger.exception(error_message)
         raise RepositoryRegistrationError(error_message) from polling_error
-    except HTTPError as polling_http_error:
-        error_message = (
-            f"HTTP error while polling import batches for {base_blob_name}: {polling_http_error}"
-            " - this may be transient. Waiting for next retry..."
-        )
-        logger.error(error_message)
-        raise
-
     return RegistrationReport(
         import_record_id=import_record_id,
         import_batch_ids=import_batch_ids,
@@ -539,6 +598,12 @@ def register_all_blobs_in_serial(
         except RepositoryRegistrationError as registration_error:
             logger.error(
                 f"Registration failed for {base_blob_name}: {registration_error}"
+            )
+            continue
+        except HTTPError as http_error:
+            logger.error(
+                f"HTTP error during registration for {base_blob_name}: {http_error}"
+                " - this may be transient. Will retry on next run."
             )
             continue
         total_batches_registered += result.batch_count

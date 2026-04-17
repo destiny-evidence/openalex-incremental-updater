@@ -19,7 +19,7 @@ name = "openalex-snapshot-processor"
 version = "0.1.0"
 description = "Bulk processor for the full OpenAlex works snapshot"
 authors = [{name = "Harry Moss", email = "h.moss@ucl.ac.uk"}]
-requires-python = ">=3.13"
+requires-python = ">=3.13, <3.14"
 readme = "README.md"
 dependencies = [
   "loguru>=0.7.3,<0.8",

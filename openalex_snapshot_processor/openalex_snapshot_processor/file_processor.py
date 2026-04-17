@@ -28,6 +28,7 @@ from openalex_incremental_updater.ingest.openalex import safe_result_conversion
 from openalex_snapshot_processor.config import Settings, get_settings
 
 MAXIMUM_EXAMPLE_ERRORS = 5
+MAX_CONCURRENT_UPLOADS = 2
 
 
 class UploadCounter(BaseModel):
@@ -188,13 +189,8 @@ def _log_errors(file_path: Path, errors: dict, log_dir: Path) -> Path | None:
     log_dir.mkdir(parents=True, exist_ok=True)
     log_file = log_dir / f"{file_path.parent.name}__{file_path.stem}.errors.json"
 
-    with log_file.open("w", encoding="utf-8") as output_error_file:
-        json.dump(
-            {"source": str(file_path), "errors": errors}, output_error_file, indent=2
-        )
-
     total_errors = sum(
-        value.get("total", len(value)) if isinstance(value, dict) else 0
+        value.get("total", 0) if isinstance(value, dict) else 0
         for value in errors.values()
     )
 
@@ -203,6 +199,11 @@ def _log_errors(file_path: Path, errors: dict, log_dir: Path) -> Path | None:
             f"No errors recorded for {file_path.name}, skipping error log file creation."
         )
         return None
+
+    with log_file.open("w", encoding="utf-8") as output_error_file:
+        json.dump(
+            {"source": str(file_path), "errors": errors}, output_error_file, indent=2
+        )
 
     logger.warning(f"Recorded {total_errors} errors for {file_path.name} in {log_file}")
     return log_file
@@ -308,6 +309,11 @@ async def gz_to_jsonl_stream(file_path: Path, errors: dict) -> AsyncIterator[byt
     """
     Stream a .gz file and yield transformed JSONL lines.
 
+    Blocking gzip I/O and CPU-bound conversion run in a thread pool executor so
+    the asyncio event loop remains free for concurrent upload coroutines.  Results
+    are passed back via an asyncio.Queue; the final async JSONL serialisation step
+    runs on the event loop as each item is dequeued.
+
     Args:
         file_path (Path): The path to the .gz file to be streamed.
 
@@ -315,37 +321,68 @@ async def gz_to_jsonl_stream(file_path: Path, errors: dict) -> AsyncIterator[byt
         AsyncIterator[bytes]: An asynchronous iterator yielding JSONL lines as bytes.
 
     """
-    with gzip.open(file_path, "rt", encoding="utf-8") as f:
-        for raw_line in f:
-            stripped = raw_line.strip()
-            if not stripped:
-                continue
-            try:
-                raw_dict = json.loads(stripped)
-            except json.JSONDecodeError as parse_error:
-                entry = errors.setdefault(
-                    "json_decode_errors", {"total": 0, "examples": []}
-                )
-                entry["total"] += 1
-                if len(entry["examples"]) < MAXIMUM_EXAMPLE_ERRORS:
-                    entry["examples"].append(str(parse_error))
-                continue
-            converted = safe_result_conversion([raw_dict], errors_dict=errors)
-            finalised = _check_converted_result_for_authorships(
-                converted, raw_dict, errors
+    loop = asyncio.get_running_loop()
+    async_queue: asyncio.Queue = asyncio.Queue(maxsize=200)
+    thread_errors: dict = {}
+
+    def _producer() -> None:
+        try:
+            with gzip.open(file_path, "rt", encoding="utf-8") as f:
+                for raw_line in f:
+                    stripped = raw_line.strip()
+                    if not stripped:
+                        continue
+                    try:
+                        raw_dict = json.loads(stripped)
+                    except json.JSONDecodeError as parse_error:
+                        entry = thread_errors.setdefault(
+                            "json_decode_errors", {"total": 0, "examples": []}
+                        )
+                        entry["total"] += 1
+                        if len(entry["examples"]) < MAXIMUM_EXAMPLE_ERRORS:
+                            entry["examples"].append(str(parse_error))
+                        continue
+                    converted = safe_result_conversion(
+                        [raw_dict], errors_dict=thread_errors
+                    )
+                    finalised = _check_converted_result_for_authorships(
+                        converted, raw_dict, thread_errors
+                    )
+                    asyncio.run_coroutine_threadsafe(
+                        async_queue.put(finalised), loop
+                    ).result()
+        finally:
+            asyncio.run_coroutine_threadsafe(async_queue.put(None), loop).result()
+
+    producer_future = loop.run_in_executor(None, _producer)
+
+    while True:
+        finalised = await async_queue.get()
+        if finalised is None:
+            break
+        try:
+            async for item in convert_destinyworks_to_jsonl_string(
+                _as_async_batches(finalised)
+            ):
+                yield item
+        except JSONLConversionError as json_conversion_error:
+            entry = errors.setdefault(
+                "jsonl_conversion_errors", {"total": 0, "examples": []}
             )
-            try:
-                async for item in convert_destinyworks_to_jsonl_string(
-                    _as_async_batches(finalised)
-                ):
-                    yield item
-            except JSONLConversionError as json_conversion_error:
-                entry = errors.setdefault(
-                    "jsonl_conversion_errors", {"total": 0, "examples": []}
-                )
-                entry["total"] += 1
-                if len(entry["examples"]) < MAXIMUM_EXAMPLE_ERRORS:
-                    entry["examples"].append(str(json_conversion_error))
+            entry["total"] += 1
+            if len(entry["examples"]) < MAXIMUM_EXAMPLE_ERRORS:
+                entry["examples"].append(str(json_conversion_error))
+
+    await asyncio.wrap_future(producer_future)
+
+    for key, val in thread_errors.items():
+        if key not in errors:
+            errors[key] = val
+        else:
+            errors[key]["total"] += val["total"]
+            existing = errors[key]["examples"]
+            remaining = MAXIMUM_EXAMPLE_ERRORS - len(existing)
+            existing.extend(val["examples"][:remaining])
 
 
 async def _process_file_async(
@@ -392,6 +429,8 @@ async def process_files_async(
     Process a batch of files asynchronously.
 
     Overlapping upload I/O across files to speed up the full batch processing time.
+    A semaphore caps concurrent uploads to avoid overwhelming the Azure Blob Storage
+    endpoint with simultaneous TCP connections.
 
     Args:
         file_paths (list[Path]): The local file paths of the source .gz files being processed.
@@ -402,9 +441,18 @@ async def process_files_async(
     """
     settings = get_settings()
     base_blob_names = [_derive_base_blob_name(file_path) for file_path in file_paths]
+    semaphore = asyncio.Semaphore(MAX_CONCURRENT_UPLOADS)
+
+    async def _guarded_process_file_async(
+        path: Path, base_blob_name: str
+    ) -> ProcessedFileMetadata:
+        async with semaphore:
+            return await _process_file_async(
+                settings, path, base_blob_name, log_directory
+            )
 
     tasks = [
-        _process_file_async(settings, path, base_blob_name, log_directory)
+        _guarded_process_file_async(path, base_blob_name)
         for path, base_blob_name in zip(file_paths, base_blob_names, strict=False)
     ]
     results = await asyncio.gather(*tasks)

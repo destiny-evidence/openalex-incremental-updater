@@ -2,6 +2,7 @@ import gzip
 import json
 from pathlib import Path
 
+import pytest
 from destiny_sdk.enhancements import (
     AuthorPosition,
     Authorship,
@@ -111,6 +112,18 @@ async def test_gz_to_jsonl_stream_invalid_json(mocker, tmp_path):
     assert (
         "json_decode_errors" in errors
     ), "Errors dictionary should contain 'json_decode_errors' key for invalid JSON lines."
+
+
+async def test_gz_to_jsonl_stream_propagates_producer_exception(tmp_path):
+    non_existent_path = tmp_path / "does_not_exist.jsonl.gz"
+    errors = {}
+
+    async def _exhaust_stream():
+        async for _ in gz_to_jsonl_stream(non_existent_path, errors):
+            pass
+
+    with pytest.raises(FileNotFoundError):
+        await _exhaust_stream()
 
 
 async def test_gz_to_jsonl_stream_jsonl_conversion_error(mocker, tmp_path):

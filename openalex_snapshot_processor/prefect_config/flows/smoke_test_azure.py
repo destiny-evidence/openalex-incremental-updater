@@ -1,0 +1,163 @@
+"""
+Define smoke tests that incorporate Azure functionality.
+
+Currently a version of the full snapshot ingest in miniature.
+Really this targets Azure interactions, but serves as a full end-to-end test of the flow.
+
+Individual file processing is tested in `smoke_test_local.py`.
+"""
+
+from pathlib import Path
+
+from loguru import logger
+from prefect import flow, task
+
+from openalex_snapshot_processor.config import get_settings
+from openalex_snapshot_processor.enumeration import (
+    BatchFilePaths,
+    FilePathCount,
+    batch_files_by_record_count,
+    enumerate_work_files,
+)
+from openalex_snapshot_processor.file_processor import _derive_base_blob_name
+from openalex_snapshot_processor.registration import (
+    RegistrationSummary,
+    register_all_blobs_in_serial,
+)
+from prefect_config.flows.logging_config import configure_logger, forward_logs
+from prefect_config.flows.openalex_snapshot_flow import (
+    flatten_results,
+    process_file_batch_task,
+    report,
+)
+from refresh_requester.blob_storage import DestinyBlobStorageClient
+
+MAXIMUM_BATCH_SIZE = 1
+
+
+@task(retries=3, retry_delay_seconds=60)
+@forward_logs
+def enumerate_files(n_files: int) -> list[FilePathCount]:
+    """
+    Enumerate and batch the OpenAlex snapshot works files to be processed.
+
+    Batches files by record count to avoid inefficiently processing
+    many small files.
+
+    Args:
+        n_files (int): The number of files to select for processing in the smoke test.
+
+    Returns:
+        list[FilePathCounts]: List of file paths and their record counts to be processed.
+
+    """
+    settings = get_settings()
+    return enumerate_work_files(settings.SNAPSHOT_ROOT)[:n_files]
+
+
+@task
+@forward_logs
+def filter_already_uploaded(
+    file_paths_with_counts: list[FilePathCount],
+) -> list[FilePathCount]:
+    """
+    Filter out files that have already been uploaded to blob storage.
+
+    This is important for the smoke test to avoid re-uploading files and
+    hitting duplicate upload errors.
+
+    Args:
+        file_paths_with_counts (list[FilePathCount]): List of file paths and their record counts to filter.
+
+    Returns:
+        list[FilePathCount]: List of file paths that have not yet been uploaded.
+
+    """
+    blob_client = DestinyBlobStorageClient()
+    existing_blobs = set(blob_client.list_all_blobs("openalex_snapshot_works_"))
+
+    unprocessed: list[FilePathCount] = []
+    skipped: list[FilePathCount] = []
+    for file_path_with_count in file_paths_with_counts:
+        file_path = file_path_with_count.file_path
+        base_blob_name = _derive_base_blob_name(file_path)
+        if any(blob.startswith(base_blob_name) for blob in existing_blobs):
+            skipped.append(file_path_with_count)
+        else:
+            unprocessed.append(file_path_with_count)
+
+    if skipped:
+        logger.info(
+            f"{len(skipped)} files have already been processed and uploaded and will be skipped."
+        )
+        logger.debug(f"Skipped files: {skipped}")
+    return unprocessed
+
+
+@task
+@forward_logs
+def batch_files(file_paths_with_counts: list[FilePathCount]) -> list[BatchFilePaths]:
+    """
+    Batch files by record count.
+
+    Always keeps contiguous files. Single files that exceed max batch size
+    are considered to be their own batch.
+
+    Args:
+        file_paths_with_counts (list[FilePathCount]): List of file paths and their record counts to batch.
+
+    Returns:
+        list[BatchFilePaths]: A list of batched file paths.
+
+    """
+    logger.info(
+        f"Batching {len(file_paths_with_counts)} files with a maximum batch size of {MAXIMUM_BATCH_SIZE} records."
+    )
+    return batch_files_by_record_count(file_paths_with_counts, MAXIMUM_BATCH_SIZE)
+
+
+@task(retries=3, retry_delay_seconds=60)
+@forward_logs
+def serial_register_all_blobs(processed_files: list[dict]) -> RegistrationSummary:
+    """
+    Register uploaded blobs with the DESTINY repository.
+
+    Args:
+        processed_files (list[dict]): List of processed file metadata dicts.
+
+    Returns:
+        RegistrationSummary: Summary of registration results.
+
+    """
+    progress_file_directory = Path(__file__).parent.parent / "logs"
+    progress_file_directory.mkdir(exist_ok=True, parents=True)
+    progress_file = (
+        progress_file_directory / "smoke_test_azure_registration_progress.json"
+    )
+    return register_all_blobs_in_serial(processed_files, progress_file)
+
+
+@flow(name="smoke-test-azure", log_prints=True)
+def smoke_test_azure() -> None:
+    """Run end to end Azure smoke test for a single file."""
+    configure_logger()
+    n_files_to_process = 10
+    logger.info(f"Starting Azure smoke test for {n_files_to_process} files.")
+
+    file_paths_with_counts = enumerate_files(n_files_to_process)
+    unprocessed_files = filter_already_uploaded(file_paths_with_counts)
+    batched_files = batch_files(unprocessed_files)
+    logger.info(
+        f"Processing {len(unprocessed_files)} unprocessed files in {len(batched_files)} batches."
+    )
+    processed_batches = process_file_batch_task.map(batched_files)
+    all_processed = flatten_results(processed_batches)
+    logger.info(
+        f"Completed processing of {len(all_processed)} files. Proceeding to registration."
+    )
+    registration_summary = serial_register_all_blobs(all_processed)
+    report(all_processed, registration_summary)
+
+
+if __name__ == "__main__":
+    smoke_test_azure()

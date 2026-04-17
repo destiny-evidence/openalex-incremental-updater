@@ -38,6 +38,10 @@ class DESTINYReferenceDOIIdentifierError(Exception):
     """Exception raised for invalid DOI identifiers."""
 
 
+class DESTINYReferenceOpenAlexIdentifierError(Exception):
+    """Exception raised for invalid OpenAlex identifiers."""
+
+
 class UrlModel(BaseModel):
     """
     A model for validating URLs.
@@ -406,9 +410,17 @@ def prepare_destiny_identifiers(
     destiny_work_identifiers: list[ExternalIdentifier] = []
 
     if is_valid_nonempty_string(metadata.openalex_id):
-        destiny_work_identifiers.append(
-            OpenAlexIdentifier(identifier=metadata.openalex_id)
-        )
+        try:
+            destiny_work_identifiers.append(
+                OpenAlexIdentifier(identifier=metadata.openalex_id)
+            )
+        except ValidationError as openalex_id_validation_error:
+            error_message = f"Invalid OpenAlex ID: {metadata.openalex_id}"
+            logger.warning(error_message)
+            raise DESTINYReferenceOpenAlexIdentifierError(
+                error_message
+            ) from openalex_id_validation_error
+
     if is_valid_nonempty_string(metadata.doi):
         try:
             destiny_work_identifiers.append(DOIIdentifier(identifier=metadata.doi))
