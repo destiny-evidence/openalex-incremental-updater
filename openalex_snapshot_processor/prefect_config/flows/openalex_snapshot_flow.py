@@ -512,8 +512,16 @@ def discover_uploaded_unregistered_files(
 
 
 @flow(name="openalex-snapshot-ingest", log_prints=True)
-def openalex_snapshot_ingest() -> None:
-    """Orchestrate the full snapshot ingest flow: enumeration, processing, registration and reporting."""
+def openalex_snapshot_ingest(*, dry_run: bool = False) -> None:
+    """
+    Orchestrate the full snapshot ingest flow.
+
+    Covers enumeration, processing, registration and reporting.
+
+    Args:
+        dry_run (bool): If True, the flow will run without performing processing or registration.
+
+    """
     configure_logger()
     optional_file_limit = None
 
@@ -523,6 +531,16 @@ def openalex_snapshot_ingest() -> None:
     logger.info(
         f"Processing {len(unprocessed_files)} unprocessed files in {len(batched_files)} batches."
     )
+    if dry_run and unprocessed_files:
+        logger.info("Dry run enabled - skipping processing and registration.")
+        logger.info(
+            f"Enumerated {len(file_paths_with_counts)} files with record counts: {file_paths_with_counts}"
+        )
+        logger.info("Files that would be processed (not already uploaded): ")
+        for file_path, record_count in unprocessed_files:
+            logger.info(f" - {file_path}: {record_count} records")
+        return
+
     processed_batches = process_file_batch_task.map(batched_files)
     all_processed = flatten_results(processed_batches)
     logger.info(
@@ -538,6 +556,17 @@ def openalex_snapshot_ingest() -> None:
     unregistered_files = discover_uploaded_unregistered_files(
         known_base_names, progress_file
     )
+
+    if dry_run:
+        logger.info("Dry run enabled - skipping registration.")
+        logger.info(
+            "Files that would be registered (including already uploaded but unregistered files): "
+        )
+        for record in all_processed + unregistered_files:
+            logger.info(
+                f" - {record.get('base_blob_name')}: {record.get('blob_names')}"
+            )
+        return
 
     final_processed_file_set = all_processed + unregistered_files
     processed_blob_name = (
