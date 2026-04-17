@@ -44,6 +44,124 @@ MAXIMUM_BATCH_SIZE = 500_000
 settings = get_settings()
 
 
+class ManifestMismatchError(Exception):
+    """Custom exception to indicate a mismatch between manifest entries and blob storage contents."""
+
+
+def _manifest_url_to_base_name(url: str) -> str:
+    """
+    Convert a manifest S3 URL to the base blob name.
+
+    Args:
+        url (str): The S3 URL from the manifest.
+
+    Returns:
+        str: The base blob name derived from the URL.
+
+    """
+    name = url.replace(
+        "s3://openalex/data/works/updated_date=", "openalex_snapshot_works_"
+    )
+    return name.replace("/", "_").replace(".gz", "")
+
+
+def _is_expected_number_of_blobs(
+    record_count: int,
+    batch_blob_size: int,
+    existing_blobs: set[str],
+    base_blob_name: str,
+) -> dict:
+    """
+    Check if the number of blobs is as expected for a given record count and batch blob size.
+
+    Args:
+        record_count (int): The total number of records in the snapshot file.
+        batch_blob_size (int): The number of records per blob batch.
+        existing_blobs (set[str]): The set of existing blob names in blob storage.
+        base_blob_name (str): The base blob name derived from the file path.
+
+    Returns:
+        dict: A dictionary containing the expected and actual number of blobs,
+            and whether the actual number meets or exceeds the expected number.
+
+    """
+    expected_number_of_blobs = (record_count - 1) // batch_blob_size + 1
+
+    matching_blobs = [
+        blob for blob in existing_blobs if blob.startswith(base_blob_name)
+    ]
+    return {
+        "expected": expected_number_of_blobs,
+        "actual": len(matching_blobs),
+        "is_expected": len(matching_blobs) >= expected_number_of_blobs,
+    }
+
+
+def _check_blob_storage_for_incomplete_snapshot_file_processing(
+    file_paths_with_counts: list[FilePathCount],
+    existing_blobs: set[str],
+    manifest_base_blob_name_record_counts: dict[str, int],
+    blob_batch_size: int,
+) -> tuple[list[FilePathCount], list[FilePathCount]]:
+    """
+    Check blob storage for for complete sets of processed and uploaded snapshots.
+
+    Both to avoid reprocessing and reuploading files where this has already been completed,
+    but also to catch any partially processed files where some, but not all, of an expected
+    set of blobs derived from a snapshot file are present in blob storage.
+
+    For these cases, the entire snapshot file is reprocessed.
+
+    Args:
+        file_paths_with_counts (list[FilePathCount]):
+            List of file paths and their record counts to check against blob storage.
+        existing_blobs (set[str]): Set of existing blob names in blob storage.
+        manifest_base_blob_name_record_counts (dict[str, int]):
+            A mapping of base blob names to their record counts, derived from the manifest.
+        blob_batch_size (int): The size of each blob batch.
+
+    Returns:
+        tuple[list[FilePathCount], list[FilePathCount]]:
+            A tuple containing the list of unprocessed file paths and the list of skipped file paths.
+
+    """
+    unprocessed: list[FilePathCount] = []
+    skipped: list[FilePathCount] = []
+    for file_path_count in file_paths_with_counts:
+        base_blob_name = _derive_base_blob_name(file_path_count.file_path)
+        if any(blob.startswith(base_blob_name) for blob in existing_blobs):
+            if base_blob_name not in manifest_base_blob_name_record_counts:
+                error_message = (
+                    f"Base blob name {base_blob_name} derived from local file path "
+                    f"{file_path_count.file_path} and found in blob storage "
+                    "was **not** found in manifest. "
+                    " Check that the manifest file is correct and up to date. "
+                )
+                raise ManifestMismatchError(error_message)
+
+            record_count = manifest_base_blob_name_record_counts[base_blob_name]
+
+            is_expected_number_of_blobs = _is_expected_number_of_blobs(
+                record_count, blob_batch_size, existing_blobs, base_blob_name
+            )
+            if is_expected_number_of_blobs["is_expected"]:
+                skipped.append(file_path_count)
+            else:
+                info_message = (
+                    f"File {file_path_count.file_path} has {is_expected_number_of_blobs['actual']} blobs "
+                    f"processed and uploaded. Expected at least {is_expected_number_of_blobs['expected']} "
+                    f"blobs from manifest metadata based on a batch size of {blob_batch_size} "
+                    f"and record count of {record_count}."
+                    "Reprocessing all data to ensure blob storage is complete and correct."
+                )
+                logger.info(info_message)
+                unprocessed.append(file_path_count)
+        else:
+            unprocessed.append(file_path_count)
+
+    return skipped, unprocessed
+
+
 def _derive_base_blob_name_from_blob_storage(blob_name: str) -> str:
     """
     Derive the base blob name from the blob name as it appears in blob storage.
@@ -105,6 +223,27 @@ def enumerate_files(file_limit: int | None = None) -> list[FilePathCount]:
     return enumerate_work_files(settings.SNAPSHOT_ROOT)
 
 
+def _get_manifest_record_counts() -> dict[str, int]:
+    """
+    Return the manifest entries as a dictionary mapping base blob names to record counts.
+
+    Returns:
+        dict[str, int]: The manifest entries, as a dictionary mapping base blob names to record counts.
+
+    """
+    with settings.MANIFEST_PATH.open("r", encoding="utf-8") as manifest_file:
+        manifest = json.load(manifest_file)
+
+    manifest_entries = manifest.get("entries", [])
+
+    return {
+        _manifest_url_to_base_name(entry["url"]): entry.get("meta", {}).get(
+            "record_count", 0
+        )
+        for entry in manifest_entries
+    }
+
+
 @task(retries=3, retry_delay_seconds=60)
 @forward_logs
 def filter_already_uploaded(
@@ -126,14 +265,16 @@ def filter_already_uploaded(
     """
     blob_client = DestinyBlobStorageClient()
     existing_blobs = set(blob_client.list_all_blobs("openalex_snapshot_works_"))
-    unprocessed: list[FilePathCount] = []
-    skipped: list[FilePathCount] = []
-    for file_path_count in file_paths_with_counts:
-        base_blob_name = _derive_base_blob_name(file_path_count.file_path)
-        if any(blob.startswith(base_blob_name) for blob in existing_blobs):
-            skipped.append(file_path_count)
-        else:
-            unprocessed.append(file_path_count)
+    blob_batch_size = settings.BLOB_BATCH_SIZE
+
+    manifest_base_blob_name_record_counts = _get_manifest_record_counts()
+
+    skipped, unprocessed = _check_blob_storage_for_incomplete_snapshot_file_processing(
+        file_paths_with_counts,
+        existing_blobs,
+        manifest_base_blob_name_record_counts,
+        blob_batch_size,
+    )
 
     if skipped:
         logger.info(
@@ -315,10 +456,31 @@ def discover_uploaded_unregistered_files(
     base_names = {
         _derive_base_blob_name_from_blob_storage(blob) for blob in existing_blobs
     }
-
+    manifest_record_counts = _get_manifest_record_counts()
     to_register = []
     for base in sorted(base_names):
         if base in completed or base in set(known_processed_base_names):
+            if base not in manifest_record_counts:
+                error_message = (
+                    f"Base blob name {base} found in blob storage but not in manifest record counts. "
+                    "This base blob name will be skipped. Check that the manifest file is correct and up to date."
+                )
+                raise ManifestMismatchError(error_message)
+            record_count = manifest_record_counts[base]
+            is_expected_number_of_blobs = _is_expected_number_of_blobs(
+                record_count, settings.BLOB_BATCH_SIZE, existing_blobs, base
+            )
+            if not is_expected_number_of_blobs["is_expected"]:
+                error_message = (
+                    f"Base blob name {base} found in blob storage and manifest "
+                    " but does not have the expected number of blobs. "
+                    f"Expected at least {is_expected_number_of_blobs['expected']} blobs "
+                    f"based on manifest record count of {record_count} and batch size of "
+                    f"{settings.BLOB_BATCH_SIZE}, found {is_expected_number_of_blobs['actual']} blobs."
+                )
+                logger.error(error_message)
+                logger.error(f"Reprocess blob with base name {base}.")
+                raise ManifestMismatchError(error_message)
             continue
         pairs = blob_client.get_all_blob_url_pairs(base)
         if not pairs:
@@ -354,6 +516,7 @@ def openalex_snapshot_ingest() -> None:
     """Orchestrate the full snapshot ingest flow: enumeration, processing, registration and reporting."""
     configure_logger()
     optional_file_limit = None
+
     file_paths_with_counts = enumerate_files(optional_file_limit)
     unprocessed_files = filter_already_uploaded(file_paths_with_counts)
     batched_files = batch_files(unprocessed_files)

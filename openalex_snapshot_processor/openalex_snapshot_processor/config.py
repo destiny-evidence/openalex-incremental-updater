@@ -1,5 +1,7 @@
 """Define configuration settings."""
 
+from pathlib import Path
+
 from pydantic import Field, HttpUrl, SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
@@ -80,6 +82,14 @@ class Settings(BaseSettings):
         default=300,
         description="The number of seconds to wait between polling import batches.",
     )
+
+    MANIFEST_PATH: Path = Field(
+        ...,
+        description=(
+            "The absolute path to the OpenAlex snapshot manifest file, detailing the snapshot contents."
+        ),
+    )
+
     model_config = SettingsConfigDict(
         env_file=".env", env_file_encoding="utf-8", extra="ignore"
     )
