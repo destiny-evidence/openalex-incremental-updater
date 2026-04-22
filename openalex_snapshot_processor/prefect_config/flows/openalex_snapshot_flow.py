@@ -11,6 +11,7 @@ It is not envisaged that we will want to run this regularly.
 """
 
 import json
+import shutil
 from datetime import datetime
 from pathlib import Path
 from zoneinfo import ZoneInfo
@@ -244,10 +245,40 @@ def _get_manifest_record_counts() -> dict[str, int]:
     }
 
 
+def _log_unprocessed_files_to_file(
+    unprocessed_files: list[FilePathCount], canonical_now_time: str
+) -> None:
+    """
+    Log the unprocessed files to a file in the logs directory.
+
+    Args:
+        unprocessed_files (list[FilePathCount]): The list of unprocessed files to log.
+        canonical_now_time (str): The canonical time string to use in log file names.
+
+    """
+    log_directory = Path(__file__).parent.parent / "logs"
+    log_directory.mkdir(exist_ok=True, parents=True)
+    unprocessed_file_log = (
+        log_directory / f"unprocessed_files_{canonical_now_time}.json"
+    )
+    with unprocessed_file_log.open("w", encoding="utf-8") as log_file:
+        json.dump(
+            [
+                {
+                    "file_path": str(file_path_count.file_path),
+                    "record_count": file_path_count.record_count,
+                }
+                for file_path_count in unprocessed_files
+            ],
+            log_file,
+        )
+
+
 @task(retries=3, retry_delay_seconds=60)
 @forward_logs
 def filter_already_uploaded(
     file_paths_with_counts: list[FilePathCount],
+    canonical_now_time: str,
 ) -> list[FilePathCount]:
     """
     Filter out files already uploaded to blob storage.
@@ -258,6 +289,7 @@ def filter_already_uploaded(
     Args:
         file_paths_with_counts (list[FilePathCount]): List of
             file paths and their record counts to filter.
+        canonical_now_time (str): The canonical time string to use in log file names.
 
     Returns:
         list[FilePathCount]: List of file paths that have not yet been uploaded.
@@ -281,6 +313,8 @@ def filter_already_uploaded(
             f"{len(skipped)} files have already been processed and uploaded and will be skipped."
         )
         logger.debug(f"Skipped files: {skipped}")
+
+    _log_unprocessed_files_to_file(unprocessed, canonical_now_time)
     return unprocessed
 
 
@@ -351,6 +385,7 @@ def flatten_results(batched_results: list[list[dict]]) -> list[dict]:
 @task(retries=1, retry_delay_seconds=300)
 @forward_logs
 def serial_register_all_processed_files(
+    progress_file_directory: Path,
     processed_files: list[dict],
 ) -> RegistrationSummary:
     """
@@ -363,14 +398,13 @@ def serial_register_all_processed_files(
     to the queue.
 
     Args:
+        progress_file_directory (Path): The directory where the registration progress file is stored.
         processed_files (list[dict]): List of processed file metadata dicts.
 
     Returns:
         RegistrationSummary: The registration summary object.
 
     """
-    progress_file_directory = Path(__file__).parent.parent / "logs"
-    progress_file_directory.mkdir(exist_ok=True, parents=True)
     progress_file = progress_file_directory / "registration_progress.json"
     return register_all_blobs_in_serial(processed_files, progress_file)
 
@@ -511,6 +545,67 @@ def discover_uploaded_unregistered_files(
     return to_register
 
 
+@task
+@forward_logs
+def invalidate_stale_registration_entries(
+    unprocessed_files: list[FilePathCount],
+    progress_file: Path,
+    canonical_now_time: str,
+) -> None:
+    """
+    Remove registration progress entries for files being reprocessed.
+
+    When a snapshot file is identified as needing reprocessing,
+    any existing registration entries for that file's base blob name
+    are then invalid and should be removed from the registration progress tracking.
+
+    Args:
+        unprocessed_files (list[FilePathCount]): List of FilePathCount objects for files that are being reprocessed.
+        progress_file (Path): Path to the registration progress file, which contains the list
+            of already registered blobs.
+        canonical_now_time (str): The current timestamp in UTC.
+
+    """
+    if not unprocessed_files or not progress_file.exists():
+        return
+
+    progress = _load_progress(progress_file)
+    base_names_to_reprocess = {
+        _derive_base_blob_name(file_path_count.file_path)
+        for file_path_count in unprocessed_files
+    }
+    invalidated_blobs = []
+    for base_name in base_names_to_reprocess:
+        removed = False
+
+        if base_name in progress.completed:
+            del progress.completed[base_name]
+            removed = True
+        if base_name in progress.in_progress:
+            del progress.in_progress[base_name]
+            removed = True
+        if base_name in progress.failed:
+            progress.failed.remove(base_name)
+            removed = True
+        if base_name in progress.retried_completed:
+            del progress.retried_completed[base_name]
+            removed = True
+        if removed:
+            invalidated_blobs.append(base_name)
+
+    if invalidated_blobs:
+        backup_path = progress_file.with_suffix(f".backup_{canonical_now_time}")
+        shutil.copy2(progress_file, backup_path)
+        logger.info(
+            f"Backed up registration progress file to {backup_path} before invalidating entries for reprocessed files."
+        )
+        progress_file.write_text(progress.model_dump_json(), encoding="utf-8")
+        logger.info(
+            f"Invalidated registration progress entries for {len(invalidated_blobs)} blobs "
+            f"due to reprocessing of their source files: {invalidated_blobs}"
+        )
+
+
 @flow(name="openalex-snapshot-ingest", log_prints=True)
 def openalex_snapshot_ingest(*, dry_run: bool = False) -> None:
     """
@@ -522,11 +617,21 @@ def openalex_snapshot_ingest(*, dry_run: bool = False) -> None:
         dry_run (bool): If True, the flow will run without performing processing or registration.
 
     """
+    canonical_now_time = datetime.now(ZoneInfo("UTC")).strftime("%Y-%m-%dT%H-%M-%SZ")
+    progress_file_directory = Path(__file__).parent.parent / "logs"
+    progress_file_directory.mkdir(exist_ok=True, parents=True)
+
+    progress_file = progress_file_directory / "registration_progress.json"
     configure_logger()
     optional_file_limit = None
 
     file_paths_with_counts = enumerate_files(optional_file_limit)
-    unprocessed_files = filter_already_uploaded(file_paths_with_counts)
+    unprocessed_files = filter_already_uploaded(
+        file_paths_with_counts, canonical_now_time
+    )
+    invalidate_stale_registration_entries(
+        unprocessed_files, progress_file, canonical_now_time
+    )
     batched_files = batch_files(unprocessed_files)
     logger.info(
         f"Processing {len(unprocessed_files)} unprocessed files in {len(batched_files)} batches."
@@ -537,8 +642,12 @@ def openalex_snapshot_ingest(*, dry_run: bool = False) -> None:
             f"Enumerated {len(file_paths_with_counts)} files with record counts: {file_paths_with_counts}"
         )
         logger.info("Files that would be processed (not already uploaded): ")
+        record_counter = 0
+
         for file_path, record_count in unprocessed_files:
+            record_counter += record_count[-1]
             logger.info(f" - {file_path}: {record_count} records")
+            logger.info(f"{len(unprocessed_files)} with {record_counter} records")
         return
 
     processed_batches = process_file_batch_task.map(batched_files)
@@ -546,8 +655,7 @@ def openalex_snapshot_ingest(*, dry_run: bool = False) -> None:
     logger.info(
         f"Completed processing of {len(all_processed)} files. Proceeding to registration."
     )
-    progress_file_directory = Path(__file__).parent.parent / "logs"
-    progress_file = progress_file_directory / "registration_progress.json"
+
     known_base_names = [
         pair.get("base_blob_name")
         for pair in all_processed
@@ -569,10 +677,7 @@ def openalex_snapshot_ingest(*, dry_run: bool = False) -> None:
         return
 
     final_processed_file_set = all_processed + unregistered_files
-    processed_blob_name = (
-        f"task_logs/processed_files_"
-        f"{datetime.now(ZoneInfo('UTC')).strftime('%Y-%m-%dT%H-%M-%SZ')}.json"
-    )
+    processed_blob_name = f"task_logs/processed_files_" f"{canonical_now_time}.json"
     try:
         blob_upload(
             json.dumps(final_processed_file_set, default=str), processed_blob_name
@@ -584,7 +689,9 @@ def openalex_snapshot_ingest(*, dry_run: bool = False) -> None:
         logger.error(
             f"Failed to upload metadata of processed files to blob storage: {e}"
         )
-    registration_summary = serial_register_all_processed_files(final_processed_file_set)
+    registration_summary = serial_register_all_processed_files(
+        progress_file_directory, final_processed_file_set
+    )
     report(final_processed_file_set, registration_summary)
 
 
