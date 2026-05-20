@@ -72,12 +72,12 @@ def check_stop_date_after_fetch_date(stop_date: date, fetch_date: date) -> None:
     """
     Check that the stop date is after the fetch date.
 
+    If not, log a warning and exit the job, as there is no data to fetch
+    as OpenAlex queries will return no data in this case.
+
     Args:
         stop_date (date): The stop date to check.
         fetch_date (date): The fetch date to check against.
-
-    Raises:
-        ValueError: If the stop date is before the fetch date.
 
     """
     if stop_date < fetch_date:

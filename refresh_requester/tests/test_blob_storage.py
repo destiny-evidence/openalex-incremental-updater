@@ -57,7 +57,7 @@ class MockBlob:
 def test_check_previous_file_dates_metadata_blobs_found(
     mocker, metadata_blobs, expected_result
 ):
-    """Check `check_previous_file_dates` returns the date after the latest stop date in metadata blobs."""
+    """Check `check_previous_file_dates` returns latest date found in blob names."""
     mocker.patch(
         "refresh_requester.blob_storage.list_blobs_in_storage",
         return_value=metadata_blobs,
@@ -143,6 +143,54 @@ def test_list_blobs_in_storage(mocker, blob_name_list, test_settings):
     result = list_blobs_in_storage()
 
     assert result == [blob.name for blob in mock_blob_names]
+
+
+def test_list_blobs_in_storage_with_prefix_filter(mocker, test_settings):
+    """
+    Test list_blobs_in_storage passes prefix_filter as name_starts_with to the SDK.
+
+    The Azure SDK handles the actual server-side filtering via name_starts_with.
+    This test verifies that the correct keyword argument is used and that the
+    function returns only what the Azure SDK gives back.
+    """
+    all_blob_names = [
+        "openalex_refresh_2025-03-01.jsonl",
+        "openalex_refresh_2025-03-02.jsonl",
+        "ingestion_metadata/destiny_repository_openalex_ingestion_batch_from_2025-03-01_to_2025-03-01.jsonl",
+    ]
+    prefix_filter = METADATA_BLOB_PREFIX
+    all_blobs = [MockBlob(name) for name in all_blob_names]
+
+    mock_container_client = mocker.Mock()
+    mock_blob_service = mocker.patch("refresh_requester.blob_storage.BlobServiceClient")
+    mock_blob_service.return_value.get_container_client.return_value = (
+        mock_container_client
+    )
+
+    def blob_storage_list_blobs(name_starts_with: str | None = None) -> list[MockBlob]:
+        """
+        Mock function to simulate Azure Blob Storage list_blobs behavior with name_starts_with filtering.
+
+        Args:
+            name_starts_with (_type_, optional): _description_. Defaults to None.
+
+        Returns:
+            _type_: _description_
+
+        """
+        if name_starts_with:
+            return [b for b in all_blobs if b.name.startswith(name_starts_with)]
+        return all_blobs
+
+    mock_container_client.list_blobs.side_effect = blob_storage_list_blobs
+
+    result = list_blobs_in_storage(prefix_filter=prefix_filter)
+
+    mock_container_client.list_blobs.assert_called_once_with(
+        name_starts_with=prefix_filter
+    )
+    expected = [name for name in all_blob_names if name.startswith(prefix_filter)]
+    assert result == expected
 
 
 def test_blob_upload_success(mocker, test_settings):

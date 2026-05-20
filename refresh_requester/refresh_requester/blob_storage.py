@@ -185,9 +185,12 @@ def blob_upload(data: str, filename: str) -> str:
     return filename
 
 
-def list_blobs_in_storage() -> list[str]:
+def list_blobs_in_storage(prefix_filter: str | None = None) -> list[str]:
     """
     List all blobs in the storage container.
+
+    Args:
+        prefix_filter (str | None): Optional string to filter blobs by prefix. If None, all blobs are returned.
 
     Returns:
         list[str]: A list of blob names
@@ -199,6 +202,11 @@ def list_blobs_in_storage() -> list[str]:
         get_settings().STORAGE_BLOB_CONTAINER
     )
 
+    if prefix_filter is not None:
+        return [
+            blob.name
+            for blob in container_client.list_blobs(name_starts_with=prefix_filter)
+        ]
     return [blob.name for blob in container_client.list_blobs()]
 
 
@@ -226,31 +234,34 @@ def determine_next_fetch_date() -> date:
 
 def check_previous_file_dates() -> date | None:
     """
-    Determine the fetch date for the next refresh request.
+    Check previous file dates in blob names.
 
-    This is based on the day after the stop date of the most recent
-    *completed* run, indicated by the presence of an ingestion metadata blob
-    written after successful DESTINY registration. Partial runs (data blobs
-    present but no metadata blob) are intentionally not counted.
+    This is based on the stop date of the most recent *completed* run.
+    Completed runs are indicated by the presence of an ingestion metadata blob
+    written after successful DESTINY registration.
 
-    If no metadata blobs are found, returns yesterday's date as the fallback.
+    Partial runs (data blobs present but no metadata blob) are intentionally not counted.
+
+    If no metadata blobs are found, returns `None`.
 
     Returns:
-        date: The most recent un-fetched date to request a refresh from.
+        date | None: The most recent fetched date based on metadata blob name.
+            Or, `None` if no metadata blobs are found.
 
     """
-    blob_list = list_blobs_in_storage()
+    blob_list = list_blobs_in_storage(prefix_filter=METADATA_BLOB_PREFIX)
     stop_dates = []
     for blob in blob_list:
-        if blob.startswith(METADATA_BLOB_PREFIX):
-            suffix = blob[len(METADATA_BLOB_PREFIX) :].removesuffix(".jsonl")
-            try:
-                stop_date_str = suffix.split("_to_")[-1]
-                stop_dates.append(date.fromisoformat(stop_date_str))
-            except ValueError:
-                logger.warning(
-                    f"Could not parse date from metadata blob name: {blob!r}, skipping."
-                )
+        if not blob.startswith(METADATA_BLOB_PREFIX):
+            continue
+        suffix = blob[len(METADATA_BLOB_PREFIX) :].removesuffix(".jsonl")
+        try:
+            stop_date_str = suffix.split("_to_")[-1]
+            stop_dates.append(date.fromisoformat(stop_date_str))
+        except ValueError:
+            logger.warning(
+                f"Could not parse date from metadata blob name: {blob!r}, skipping."
+            )
 
     if stop_dates:
         return max(stop_dates)

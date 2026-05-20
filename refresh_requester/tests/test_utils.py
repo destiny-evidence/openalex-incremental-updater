@@ -19,7 +19,7 @@ def test_get_fetch_date_no_date_set(mocker, test_settings) -> None:
     """
     test_datetime = date.today()
     test_settings.fetch_date = None
-    check_previous_file_dates_mock = mocker.patch(
+    determine_next_fetch_date_mock = mocker.patch(
         "refresh_requester.utils.determine_next_fetch_date",
         return_value=test_datetime,
     )
@@ -27,7 +27,7 @@ def test_get_fetch_date_no_date_set(mocker, test_settings) -> None:
     result = get_fetch_date(test_settings)
 
     assert (
-        check_previous_file_dates_mock.call_count == 1
+        determine_next_fetch_date_mock.call_count == 1
     ), "check_previous_file_dates should be called once"
     assert (
         result == test_datetime
@@ -43,7 +43,7 @@ def test_get_fetch_date_date_set_in_settings(mocker, test_settings) -> None:
     """
     test_datetime = date.today()
     test_settings.fetch_date = test_datetime
-    check_previous_file_dates_mock = mocker.patch(
+    determine_next_fetch_date_mock = mocker.patch(
         "refresh_requester.utils.determine_next_fetch_date",
         return_value=test_datetime,
     )
@@ -51,7 +51,7 @@ def test_get_fetch_date_date_set_in_settings(mocker, test_settings) -> None:
     result = get_fetch_date(test_settings)
 
     assert (
-        check_previous_file_dates_mock.call_count == 0
+        determine_next_fetch_date_mock.call_count == 0
     ), "check_previous_file_dates should not be called when fetch_date is set in settings"
     assert (
         result == test_settings.fetch_date

@@ -151,7 +151,7 @@ def test_run_full_pipeline_success_fetch_date_set_stop_date_unset(
         refresh_date=date_today,
     )
 
-    check_previous_file_dates_mock = mocker.patch(
+    determine_next_fetch_date_mock = mocker.patch(
         "refresh_requester.utils.determine_next_fetch_date",
     )
     run_refresh_job_mock = mocker.patch(
@@ -182,7 +182,7 @@ def test_run_full_pipeline_success_fetch_date_set_stop_date_unset(
     run_full_pipeline(settings)
 
     assert (
-        check_previous_file_dates_mock.call_count == 0
+        determine_next_fetch_date_mock.call_count == 0
     ), "check_previous_file_dates should not be called when fetch_date is set in settings"
     (
         run_refresh_job_mock.assert_called_once_with(
@@ -242,7 +242,7 @@ def test_run_full_pipeline_success_fetch_date_set_stop_date_set(
         refresh_date=date_today,
     )
 
-    check_previous_file_dates_mock = mocker.patch(
+    determine_next_fetch_date_mock = mocker.patch(
         "refresh_requester.utils.determine_next_fetch_date",
     )
     run_refresh_job_mock = mocker.patch(
@@ -273,7 +273,7 @@ def test_run_full_pipeline_success_fetch_date_set_stop_date_set(
     run_full_pipeline(settings)
 
     assert (
-        check_previous_file_dates_mock.call_count == 0
+        determine_next_fetch_date_mock.call_count == 0
     ), "check_previous_file_dates should not be called when fetch_date is set in settings"
     (
         run_refresh_job_mock.assert_called_once_with(
@@ -302,9 +302,11 @@ def test_run_full_pipeline_exits_cleanly_when_fetch_date_after_stop_date(
     """
     Test that the pipeline exits cleanly (code 0) when fetch_date > stop_date.
 
-    This guards against the case where check_previous_file_dates() returns a
-    date in the future (e.g., last run had stop_date=today, so next fetch_date
-    = tomorrow) while get_stop_date() caps at yesterday — resulting in an
+    This guards against the case where:
+
+    - the fetch date check returns a fetch date later than the stop date
+    e.g., last run had stop_date=today, so next fetch_date = tomorrow
+    - meanwhile, get_stop_date() caps at yesterday — resulting in an
     invalid range that yields blank results from OpenAlex.
     """
     settings = test_settings.model_copy(deep=True)
