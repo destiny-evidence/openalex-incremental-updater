@@ -68,9 +68,9 @@ def run_ingestion_metadata_blob_upload_job(
     return uploaded_blob
 
 
-def check_stop_date_after_fetch_date(stop_date: date, fetch_date: date) -> None:
+def check_stop_date_not_before_fetch_date(stop_date: date, fetch_date: date) -> None:
     """
-    Check that the stop date is after the fetch date.
+    Check that the stop date is on or after the fetch date.
 
     If not, log a warning and exit the job, as there is no data to fetch
     as OpenAlex queries will return no data in this case.
@@ -101,7 +101,7 @@ def run_full_pipeline(settings: Settings) -> None:
     fetch_date = get_fetch_date(settings)
     stop_date = get_stop_date(settings, fetch_date)
 
-    check_stop_date_after_fetch_date(stop_date, fetch_date)
+    check_stop_date_not_before_fetch_date(stop_date, fetch_date)
 
     date_today = datetime.now(ZoneInfo("UTC")).date()
     data_source = ImportSourceType.OPEN_ALEX.value

@@ -183,7 +183,7 @@ def test_run_full_pipeline_success_fetch_date_set_stop_date_unset(
 
     assert (
         determine_next_fetch_date_mock.call_count == 0
-    ), "check_previous_file_dates should not be called when fetch_date is set in settings"
+    ), "this should not be called when fetch_date is set in settings"
     (
         run_refresh_job_mock.assert_called_once_with(
             settings, date_yesterday, test_stop_date, limit=None
@@ -274,7 +274,7 @@ def test_run_full_pipeline_success_fetch_date_set_stop_date_set(
 
     assert (
         determine_next_fetch_date_mock.call_count == 0
-    ), "check_previous_file_dates should not be called when fetch_date is set in settings"
+    ), "should not be called when fetch_date is set in settings"
     (
         run_refresh_job_mock.assert_called_once_with(
             settings, settings.fetch_date, settings.stop_date, limit=None

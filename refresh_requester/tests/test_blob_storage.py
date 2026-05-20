@@ -172,10 +172,10 @@ def test_list_blobs_in_storage_with_prefix_filter(mocker, test_settings):
         Mock function to simulate Azure Blob Storage list_blobs behavior with name_starts_with filtering.
 
         Args:
-            name_starts_with (_type_, optional): _description_. Defaults to None.
+            name_starts_with (str | None): The prefix to filter blobs by. If None, all blobs are returned.
 
         Returns:
-            _type_: _description_
+            list[MockBlob]: A list of MockBlob objects that match the prefix filter.
 
         """
         if name_starts_with:

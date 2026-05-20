@@ -234,7 +234,7 @@ def determine_next_fetch_date() -> date:
 
 def check_previous_file_dates() -> date | None:
     """
-    Check previous file dates in blob names.
+    Check previous file dates in blob names and return the most recent stop date found.
 
     This is based on the stop date of the most recent *completed* run.
     Completed runs are indicated by the presence of an ingestion metadata blob

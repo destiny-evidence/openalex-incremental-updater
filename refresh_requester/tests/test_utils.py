@@ -52,7 +52,7 @@ def test_get_fetch_date_date_set_in_settings(mocker, test_settings) -> None:
 
     assert (
         determine_next_fetch_date_mock.call_count == 0
-    ), "check_previous_file_dates should not be called when fetch_date is set in settings"
+    ), "should not be called when fetch_date is set in settings"
     assert (
         result == test_settings.fetch_date
     ), "get_fetch_date should return the date set in settings"
