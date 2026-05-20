@@ -1,6 +1,5 @@
 from datetime import date, timedelta
 
-import freezegun
 import pytest
 from azure.core.exceptions import (
     AzureError,
@@ -10,12 +9,15 @@ from azure.core.exceptions import (
     ResourceNotFoundError,
     ServiceRequestError,
 )
+from freezegun import freeze_time
 
 from refresh_requester.blob_storage import (
+    METADATA_BLOB_PREFIX,
     BlobUploadError,
     DestinyBlobStorageClient,
     blob_upload,
     check_previous_file_dates,
+    determine_next_fetch_date,
     list_blobs_in_storage,
 )
 
@@ -26,84 +28,88 @@ class MockBlob:
 
 
 @pytest.mark.parametrize(
-    ("blob_names", "fetch_dates_list", "stop_dates_list"),
+    ("metadata_blobs", "expected_result"),
     [
         (
             [
+                "ingestion_metadata/destiny_repository_openalex_ingestion_batch_from_2025-03-01_to_2025-03-01.jsonl"
+            ],
+            date(2025, 3, 1),
+        ),
+        (
+            [
+                "ingestion_metadata/destiny_repository_openalex_ingestion_batch_from_2025-03-01_to_2025-03-01.jsonl",
+                "ingestion_metadata/destiny_repository_openalex_ingestion_batch_from_2025-03-02_to_2025-03-02.jsonl",
+                "ingestion_metadata/destiny_repository_openalex_ingestion_batch_from_2025-03-03_to_2025-03-03.jsonl",
+            ],
+            date(2025, 3, 3),
+        ),
+        (
+            [
+                "ingestion_metadata/destiny_repository_openalex_ingestion_batch_from_2025-03-01_to_2025-03-05.jsonl",
                 "openalex_refresh_from_date_2025-03-01_to_2025-03-01_refreshed_on_2025-03-02.jsonl",
-                "openalex_refresh_from_date_2025-03-02_to_2025-03-02_refreshed_on_2025-03-03.jsonl",
-                "openalex_refresh_from_date_2025-03-03_to_2025-03-03_refreshed_on_2025-03-04.jsonl",
+                "ingestion_metadata/destiny_repository_solr_ingestion_batch_from_2025-03-01_to_2025-06-01.jsonl",
             ],
-            [date(2025, 3, 1), date(2025, 3, 2), date(2025, 3, 3)],
-            [date(2025, 3, 1), date(2025, 3, 2), date(2025, 3, 3)],
-        ),
-        (
-            [
-                "openalex_refresh_from_date_2025-03-01_to_2025-03-01_refreshed_on_2025-03-02_part_001.jsonl",
-                "openalex_refresh_from_date_2025-03-01_to_2025-03-01_refreshed_on_2025-03-02_part_002.jsonl",
-                "openalex_refresh_from_date_2025-03-02_to_2025-03-02_refreshed_on_2025-03-03_part_001.jsonl",
-                "openalex_refresh_from_date_2025-03-03_to_2025-03-03_refreshed_on_2025-03-04_part_001.jsonl",
-            ],
-            [date(2025, 3, 1), date(2025, 3, 1), date(2025, 3, 2), date(2025, 3, 3)],
-            [date(2025, 3, 1), date(2025, 3, 1), date(2025, 3, 2), date(2025, 3, 3)],
-        ),
-        (
-            [
-                "openalex_refresh_from_date_2025-03-01_to_2025-03-02_refreshed_on_2025-03-03_part_001.jsonl",
-                "openalex_refresh_from_date_2025-03-01_to_2025-03-02_refreshed_on_2025-03-03_part_002.jsonl",
-                "openalex_refresh_from_date_2025-03-03_to_2025-03-03_refreshed_on_2025-03-06_part_001.jsonl",
-                "openalex_refresh_from_date_2025-03-04_to_2025-03-06_refreshed_on_2025-03-07_part_001.jsonl",
-            ],
-            [date(2025, 3, 1), date(2025, 3, 1), date(2025, 3, 3), date(2025, 3, 4)],
-            [date(2025, 3, 2), date(2025, 3, 2), date(2025, 3, 3), date(2025, 3, 6)],
+            date(2025, 3, 5),
         ),
     ],
 )
-def test_check_previous_file_dates_success_files_found(
-    mocker, blob_names, fetch_dates_list, stop_dates_list
+def test_check_previous_file_dates_metadata_blobs_found(
+    mocker, metadata_blobs, expected_result
 ):
-    """
-    Test check_previous_file_dates function returns the latest date when files are found.
+    """Check `check_previous_file_dates` returns the date after the latest stop date in metadata blobs."""
+    mocker.patch(
+        "refresh_requester.blob_storage.list_blobs_in_storage",
+        return_value=metadata_blobs,
+    )
 
-    Files can have one or multiple parts and we need to handle both naming conventions.
+    result = check_previous_file_dates()
+
+    assert (
+        result == expected_result
+    ), f"Expected the same date as the latest stop date, got {result}"
+
+
+def test_check_previous_file_dates_malformed_metadata_blob_skipped(mocker, caplog):
     """
+    Test that metadata blobs with an unparseable stop date are skipped with a warning.
+
+    A malformed blob name must not crash the pipeline; it should be skipped
+    and a warning logged, with valid blobs still used.
+    """
+    metadata_prefix = "ingestion_metadata/destiny_repository_openalex_ingestion_batch_from_2025-06-01_to_"
+    valid_metadata_blob_name = metadata_prefix + "2025-06-01.jsonl"
+    invalid_metadata_blob_name = metadata_prefix + "not-a-date.jsonl"
+    blob_names = [valid_metadata_blob_name, invalid_metadata_blob_name]
+
+    valid_blob_metadata_derived_date_string = (
+        valid_metadata_blob_name[len(METADATA_BLOB_PREFIX) :]
+        .removesuffix(".jsonl")
+        .split("_to_")[-1]
+    )
+    expected_valid_date = date.fromisoformat(valid_blob_metadata_derived_date_string)
+
     mocker.patch(
         "refresh_requester.blob_storage.list_blobs_in_storage",
         return_value=blob_names,
     )
-    test_fetch_date_strings = [test_date.isoformat() for test_date in fetch_dates_list]
-    test_stop_date_strings = [test_date.isoformat() for test_date in stop_dates_list]
 
-    result = check_previous_file_dates()
-    sorted_dates = sorted(stop_dates_list)
+    with caplog.at_level("WARNING"):
+        result = check_previous_file_dates()
 
-    assert all(
-        any(test_date_str in blob_name for blob_name in blob_names)
-        for test_date_str in test_fetch_date_strings
-    ), "Check that all expected fetch date strings are found in the blob names"
-    assert all(
-        any(test_date_str in blob_name for blob_name in blob_names)
-        for test_date_str in test_stop_date_strings
-    ), "Check that all expected stop date strings are found in the blob names"
-
-    latest_date = sorted_dates[-1]
-    assert (
-        result == latest_date + timedelta(days=1)
-    ), "Check that the result is the day after the latest stop date found in the blob names"
+    assert result == expected_valid_date, "Valid metadata blob should still be used"
+    assert invalid_metadata_blob_name in caplog.text
 
 
-@freezegun.freeze_time("2025-06-12")
-def test_check_previous_file_dates_success_no_files_found_return_yesterday(mocker):
-    """Test check_previous_file_dates function returns the previous days date if no files are found."""
-    test_date_today = date.today()
-    test_date_yesterday = test_date_today - timedelta(days=1)
+def test_check_previous_file_dates_returns_none_no_files_found(mocker):
+    """Test check_previous_file_dates function returns None if no files are found."""
     mocker.patch(
         "refresh_requester.blob_storage.list_blobs_in_storage", return_value=[]
     )
 
     result = check_previous_file_dates()
 
-    assert result == test_date_yesterday
+    assert result is None, "Expected None when no metadata blobs are found"
 
 
 @pytest.mark.parametrize(
@@ -296,3 +302,32 @@ def test_destinyblobstorageclient_get_all_blob_url_pairs(mocker, test_settings) 
     assert blob_pairs[1]["sas_url"] == expected_sas_url.format(
         blob_name="blob2.jsonl"
     ), "Check second blob SAS URL"
+
+
+@freeze_time("2026-05-20")
+def test_determine_next_fetch_date_no_stop_date(mocker, test_settings):
+    """Test determine_next_fetch_date returns fetch date if no stop date is set."""
+    date_yesterday = date.today() - timedelta(days=1)
+    fetch_date = date_yesterday
+    mocker.patch(
+        "refresh_requester.blob_storage.check_previous_file_dates", return_value=None
+    )
+    result = determine_next_fetch_date()
+    assert (
+        result == fetch_date
+    ), "Expected fetch date to be returned when no stop date is set"
+
+
+@freeze_time("2026-05-20")
+def test_determine_next_fetch_date_previous_stop_date_found(mocker, test_settings):
+    """Test determine_next_fetch_date returns the day after the latest stop date."""
+    date_yesterday = date.today() - timedelta(days=1)
+    date_two_days_ago = date.today() - timedelta(days=2)
+    mocker.patch(
+        "refresh_requester.blob_storage.check_previous_file_dates",
+        return_value=date_two_days_ago,
+    )
+    result = determine_next_fetch_date()
+    assert (
+        result == date_yesterday
+    ), "Expect the day after the latest stop date to be returned"

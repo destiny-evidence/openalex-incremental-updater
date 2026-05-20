@@ -5,7 +5,7 @@ from zoneinfo import ZoneInfo
 
 from pydantic import HttpUrl
 
-from refresh_requester.blob_storage import check_previous_file_dates
+from refresh_requester.blob_storage import determine_next_fetch_date
 from refresh_requester.config import Settings
 
 
@@ -13,7 +13,8 @@ def get_fetch_date(settings: Settings) -> date:
     """
     Get the date to fetch data from.
 
-    If `settings.fetch_date` is provided, use that. Otherwise, check previous file dates in blob storage.
+    If `settings.fetch_date` is provided, use that.
+    Otherwise, determine the next fetch date based on previous file dates in blob storage.
 
     Args:
         settings (Settings): Pydantic settings object containing configuration.
@@ -24,7 +25,7 @@ def get_fetch_date(settings: Settings) -> date:
     """
     if settings.fetch_date:
         return settings.fetch_date
-    return check_previous_file_dates()
+    return determine_next_fetch_date()
 
 
 def get_stop_date(settings: Settings, fetch_date: date) -> date:

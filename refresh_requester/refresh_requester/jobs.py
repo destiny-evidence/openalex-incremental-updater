@@ -68,6 +68,27 @@ def run_ingestion_metadata_blob_upload_job(
     return uploaded_blob
 
 
+def check_stop_date_after_fetch_date(stop_date: date, fetch_date: date) -> None:
+    """
+    Check that the stop date is after the fetch date.
+
+    Args:
+        stop_date (date): The stop date to check.
+        fetch_date (date): The fetch date to check against.
+
+    Raises:
+        ValueError: If the stop date is before the fetch date.
+
+    """
+    if stop_date < fetch_date:
+        warning_message = (
+            f"Fetch date {fetch_date} is after stop date {stop_date}. "
+            "No data to fetch. Exiting."
+        )
+        logger.warning(warning_message)
+        sys.exit(0)
+
+
 def run_full_pipeline(settings: Settings) -> None:
     """
     Run the full refresh requester job pipeline.
@@ -79,6 +100,8 @@ def run_full_pipeline(settings: Settings) -> None:
     polling_interval = settings.polling_interval
     fetch_date = get_fetch_date(settings)
     stop_date = get_stop_date(settings, fetch_date)
+
+    check_stop_date_after_fetch_date(stop_date, fetch_date)
 
     date_today = datetime.now(ZoneInfo("UTC")).date()
     data_source = ImportSourceType.OPEN_ALEX.value

@@ -17,6 +17,10 @@ from loguru import logger
 
 from refresh_requester.config import get_settings
 
+METADATA_BLOB_PREFIX = (
+    "ingestion_metadata/destiny_repository_openalex_ingestion_batch_from_"
+)
+
 
 class BlobUploadError(Exception):
     """Blob Upload Error."""
@@ -198,27 +202,56 @@ def list_blobs_in_storage() -> list[str]:
     return [blob.name for blob in container_client.list_blobs()]
 
 
-def check_previous_file_dates() -> date:
+def determine_next_fetch_date() -> date:
     """
     Determine the fetch date for the next refresh request.
 
-    If any data is found in blob storage, this is based on the
-    **day after** the stop date of the most recent file.
+    This is based on the day after the stop date of the most recent
+    *completed* run, indicated by the presence of an ingestion metadata blob
+    written after successful DESTINY registration. Partial runs (data blobs
+    present but no metadata blob) are intentionally not counted.
 
-    Otherwise, if no files are found, return yesterday's date.
+    If no metadata blobs are found, returns yesterday's date as the fallback.
+
+    Returns:
+        date: The most recent un-fetched date to request a refresh from.
+
+    """
+    previous_stop_date: date | None = check_previous_file_dates()
+
+    if previous_stop_date:
+        return previous_stop_date + timedelta(days=1)
+    return datetime.now(tz=ZoneInfo("UTC")).date() - timedelta(days=1)
+
+
+def check_previous_file_dates() -> date | None:
+    """
+    Determine the fetch date for the next refresh request.
+
+    This is based on the day after the stop date of the most recent
+    *completed* run, indicated by the presence of an ingestion metadata blob
+    written after successful DESTINY registration. Partial runs (data blobs
+    present but no metadata blob) are intentionally not counted.
+
+    If no metadata blobs are found, returns yesterday's date as the fallback.
 
     Returns:
         date: The most recent un-fetched date to request a refresh from.
 
     """
     blob_list = list_blobs_in_storage()
-    dates = []
+    stop_dates = []
     for blob in blob_list:
-        if "openalex_refresh_" in blob:
-            date_str = blob.rsplit("_to_", 1)[-1].split("_refreshed_on_")[0]
-            date_obj = date.fromisoformat(date_str)
-            dates.append(date_obj)
+        if blob.startswith(METADATA_BLOB_PREFIX):
+            suffix = blob[len(METADATA_BLOB_PREFIX) :].removesuffix(".jsonl")
+            try:
+                stop_date_str = suffix.split("_to_")[-1]
+                stop_dates.append(date.fromisoformat(stop_date_str))
+            except ValueError:
+                logger.warning(
+                    f"Could not parse date from metadata blob name: {blob!r}, skipping."
+                )
 
-    if len(dates) > 0:
-        return max(dates) + timedelta(days=1)
-    return datetime.now(tz=ZoneInfo("UTC")).date() - timedelta(days=1)
+    if stop_dates:
+        return max(stop_dates)
+    return None
