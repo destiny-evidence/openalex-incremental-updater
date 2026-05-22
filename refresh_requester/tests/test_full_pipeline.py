@@ -84,7 +84,7 @@ def test_run_full_pipeline_success_no_fetch_date_set_no_stop_date_set(
 
     (
         get_fetch_date_mock.assert_called_once(),
-        "check_previous_file_dates should be called once",
+        "date fetching should be called once",
     )
     (
         run_refresh_job_mock.assert_called_once_with(

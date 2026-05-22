@@ -12,13 +12,14 @@ from azure.core.exceptions import (
 from freezegun import freeze_time
 
 from refresh_requester.blob_storage import (
-    METADATA_BLOB_PREFIX,
     BlobUploadError,
     DestinyBlobStorageClient,
     blob_upload,
     check_previous_file_dates,
     determine_next_fetch_date,
+    format_metadata_blob_name,
     list_blobs_in_storage,
+    metadata_blob_prefix,
 )
 
 
@@ -77,13 +78,13 @@ def test_check_previous_file_dates_malformed_metadata_blob_skipped(mocker, caplo
     A malformed blob name must not crash the pipeline; it should be skipped
     and a warning logged, with valid blobs still used.
     """
-    metadata_prefix = "ingestion_metadata/destiny_repository_openalex_ingestion_batch_from_2025-06-01_to_"
+    metadata_prefix = metadata_blob_prefix("openalex")
     valid_metadata_blob_name = metadata_prefix + "2025-06-01.jsonl"
     invalid_metadata_blob_name = metadata_prefix + "not-a-date.jsonl"
     blob_names = [valid_metadata_blob_name, invalid_metadata_blob_name]
 
     valid_blob_metadata_derived_date_string = (
-        valid_metadata_blob_name[len(METADATA_BLOB_PREFIX) :]
+        valid_metadata_blob_name[len(metadata_blob_prefix("openalex")) :]
         .removesuffix(".jsonl")
         .split("_to_")[-1]
     )
@@ -158,7 +159,7 @@ def test_list_blobs_in_storage_with_prefix_filter(mocker, test_settings):
         "openalex_refresh_2025-03-02.jsonl",
         "ingestion_metadata/destiny_repository_openalex_ingestion_batch_from_2025-03-01_to_2025-03-01.jsonl",
     ]
-    prefix_filter = METADATA_BLOB_PREFIX
+    prefix_filter = metadata_blob_prefix("openalex")
     all_blobs = [MockBlob(name) for name in all_blob_names]
 
     mock_container_client = mocker.Mock()
@@ -379,3 +380,44 @@ def test_determine_next_fetch_date_previous_stop_date_found(mocker, test_setting
     assert (
         result == date_yesterday
     ), "Expect the day after the latest stop date to be returned"
+
+
+@pytest.mark.parametrize(
+    ("data_source", "expected_prefix"),
+    [
+        (
+            "openalex",
+            "ingestion_metadata/destiny_repository_openalex_ingestion_batch_from_",
+        ),
+        ("solr", "ingestion_metadata/destiny_repository_solr_ingestion_batch_from_"),
+    ],
+)
+def test_metadata_blob_prefix(data_source, expected_prefix) -> None:
+    """Test the metadata_blob_prefix function."""
+    result = metadata_blob_prefix(data_source)
+
+    assert (
+        result == expected_prefix
+    ), "The metadata blob prefix should match the expected format"
+
+
+def test_format_metadata_blob_name() -> None:
+    """
+    Test the format_metadata_blob_name function.
+
+    It should return the correct blob name based on the provided parameters.
+    """
+    data_source = "openalex"
+    fetch_date = date(2025, 3, 1)
+    stop_date = date(2025, 3, 31)
+
+    expected_blob_name = (
+        "ingestion_metadata/destiny_repository_"
+        f"{data_source}_ingestion_batch_from_{fetch_date}_to_{stop_date}.jsonl"
+    )
+
+    result = format_metadata_blob_name(data_source, fetch_date, stop_date)
+
+    assert (
+        result == expected_blob_name
+    ), "The formatted blob name should match the expected format"

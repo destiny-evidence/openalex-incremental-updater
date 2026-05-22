@@ -17,9 +17,9 @@ from loguru import logger
 
 from refresh_requester.config import get_settings
 
-METADATA_BLOB_PREFIX = (
-    "ingestion_metadata/destiny_repository_openalex_ingestion_batch_from_"
-)
+_METADATA_DIR = "ingestion_metadata"
+_PREFIX_TEMPLATE = "{dir}/destiny_repository_{source}_ingestion_batch_from_"
+_BLOB_TEMPLATE = _PREFIX_TEMPLATE + "{fetch}_to_{stop}.jsonl"
 
 
 class BlobUploadError(Exception):
@@ -249,12 +249,13 @@ def check_previous_file_dates() -> date | None:
             Or, `None` if no metadata blobs are found.
 
     """
-    blob_list = list_blobs_in_storage(prefix_filter=METADATA_BLOB_PREFIX)
+    prefix = metadata_blob_prefix("openalex")
+    blob_list = list_blobs_in_storage(prefix_filter=prefix)
     stop_dates = []
     for blob in blob_list:
-        if not blob.startswith(METADATA_BLOB_PREFIX):
+        if not blob.startswith(prefix):
             continue
-        suffix = blob[len(METADATA_BLOB_PREFIX) :].removesuffix(".jsonl")
+        suffix = blob[len(prefix) :].removesuffix(".jsonl")
         try:
             stop_date_str = suffix.split("_to_")[-1]
             stop_dates.append(date.fromisoformat(stop_date_str))
@@ -266,3 +267,40 @@ def check_previous_file_dates() -> date | None:
     if stop_dates:
         return max(stop_dates)
     return None
+
+
+def metadata_blob_prefix(data_source: str) -> str:
+    """
+    Get the prefix for metadata blobs based on the data source.
+
+    Args:
+        data_source (str): The data source for the metadata, e.g., "openalex", "solr"
+
+    Returns:
+        str: The prefix for metadata blobs for the given data source.
+
+    """
+    return _PREFIX_TEMPLATE.format(dir=_METADATA_DIR, source=data_source)
+
+
+def format_metadata_blob_name(
+    data_source: str, fetch_date: date, stop_date: date
+) -> str:
+    """
+    Format the metadata blob name.
+
+    Args:
+        data_source (str): The data source for the metadata.
+        fetch_date (date): The fetch date for the metadata.
+        stop_date (date): The stop date for the metadata.
+
+    Returns:
+        str: The formatted metadata blob name.
+
+    """
+    return _BLOB_TEMPLATE.format(
+        dir=_METADATA_DIR,
+        source=data_source,
+        fetch=fetch_date,
+        stop=stop_date,
+    )
