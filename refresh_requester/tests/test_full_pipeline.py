@@ -84,7 +84,7 @@ def test_run_full_pipeline_success_no_fetch_date_set_no_stop_date_set(
 
     (
         get_fetch_date_mock.assert_called_once(),
-        "check_previous_file_dates should be called once",
+        "date fetching should be called once",
     )
     (
         run_refresh_job_mock.assert_called_once_with(
@@ -151,8 +151,8 @@ def test_run_full_pipeline_success_fetch_date_set_stop_date_unset(
         refresh_date=date_today,
     )
 
-    check_previous_file_dates_mock = mocker.patch(
-        "refresh_requester.utils.check_previous_file_dates",
+    determine_next_fetch_date_mock = mocker.patch(
+        "refresh_requester.utils.determine_next_fetch_date",
     )
     run_refresh_job_mock = mocker.patch(
         "refresh_requester.jobs.run_refresh_job", return_value=test_response
@@ -182,8 +182,8 @@ def test_run_full_pipeline_success_fetch_date_set_stop_date_unset(
     run_full_pipeline(settings)
 
     assert (
-        check_previous_file_dates_mock.call_count == 0
-    ), "check_previous_file_dates should not be called when fetch_date is set in settings"
+        determine_next_fetch_date_mock.call_count == 0
+    ), "this should not be called when fetch_date is set in settings"
     (
         run_refresh_job_mock.assert_called_once_with(
             settings, date_yesterday, test_stop_date, limit=None
@@ -242,8 +242,8 @@ def test_run_full_pipeline_success_fetch_date_set_stop_date_set(
         refresh_date=date_today,
     )
 
-    check_previous_file_dates_mock = mocker.patch(
-        "refresh_requester.utils.check_previous_file_dates",
+    determine_next_fetch_date_mock = mocker.patch(
+        "refresh_requester.utils.determine_next_fetch_date",
     )
     run_refresh_job_mock = mocker.patch(
         "refresh_requester.jobs.run_refresh_job", return_value=test_response
@@ -273,8 +273,8 @@ def test_run_full_pipeline_success_fetch_date_set_stop_date_set(
     run_full_pipeline(settings)
 
     assert (
-        check_previous_file_dates_mock.call_count == 0
-    ), "check_previous_file_dates should not be called when fetch_date is set in settings"
+        determine_next_fetch_date_mock.call_count == 0
+    ), "should not be called when fetch_date is set in settings"
     (
         run_refresh_job_mock.assert_called_once_with(
             settings, settings.fetch_date, settings.stop_date, limit=None
@@ -295,6 +295,41 @@ def test_run_full_pipeline_success_fetch_date_set_stop_date_set(
     ), "run_ingestion_metadata_blob_upload_job should be called once at the end of the job"
 
 
+@freeze_time("2026-05-20")
+def test_run_full_pipeline_exits_cleanly_when_fetch_date_after_stop_date(
+    mocker, caplog, test_settings
+):
+    """
+    Test that the pipeline exits cleanly (code 0) when fetch_date > stop_date.
+
+    This guards against the case where:
+
+    - the fetch date check returns a fetch date later than the stop date
+    e.g., last run had stop_date=today, so next fetch_date = tomorrow
+    - meanwhile, get_stop_date() caps at yesterday — resulting in an
+    invalid range that yields blank results from OpenAlex.
+    """
+    settings = test_settings.model_copy(deep=True)
+    date_tomorrow = date.today() + timedelta(days=1)
+    date_yesterday = date.today() - timedelta(days=1)
+    settings.fetch_date = date_tomorrow
+    settings.stop_date = date_yesterday
+
+    mocked_sys_exit = mocker.patch(
+        "refresh_requester.jobs.sys.exit", side_effect=SystemExit(0)
+    )
+    run_refresh_job_mock = mocker.patch("refresh_requester.jobs.run_refresh_job")
+
+    with caplog.at_level("WARNING"), pytest.raises(SystemExit) as exc_info:
+        run_full_pipeline(settings)
+
+    assert exc_info.value.code == 0
+    assert "No data to fetch. Exiting" in caplog.text
+    mocked_sys_exit.assert_called_once_with(0)
+    run_refresh_job_mock.assert_not_called()
+
+
+@freeze_time("2026-05-20")
 def test_run_full_pipeline_fails_openalex_refresh_error(mocker, caplog, test_settings):
     """
     Test the run_full_pipeline function of the refresh requester job.
@@ -302,9 +337,10 @@ def test_run_full_pipeline_fails_openalex_refresh_error(mocker, caplog, test_set
     Tests the case where the OpenAlex API returns an error.
     """
     settings = test_settings.model_copy(deep=True)
-
+    date_today = date.today()
     mocker.patch(
-        "refresh_requester.utils.check_previous_file_dates",
+        "refresh_requester.utils.determine_next_fetch_date",
+        return_value=date_today + timedelta(days=-1),
     )
     run_refresh_job_mock = mocker.patch(
         "refresh_requester.jobs.run_refresh_job",
@@ -345,7 +381,7 @@ def test_run_full_pipeline_fails_well_job_failed_status(mocker, caplog, test_set
         "end_date": date.today().isoformat(),
     }
     mocker.patch(
-        "refresh_requester.utils.check_previous_file_dates",
+        "refresh_requester.utils.determine_next_fetch_date",
     )
     mocker.patch("refresh_requester.jobs.run_refresh_job", return_value=test_response)
     poll_job_status_mocked_results = [
@@ -398,7 +434,7 @@ def test_run_full_pipeline_fails_well_job_cancelled_status(
         "end_date": date.today().isoformat(),
     }
     mocker.patch(
-        "refresh_requester.utils.check_previous_file_dates",
+        "refresh_requester.utils.determine_next_fetch_date",
     )
     mocker.patch("refresh_requester.jobs.run_refresh_job", return_value=test_response)
     poll_job_status_mocked_results = [
@@ -451,7 +487,7 @@ def test_run_full_pipeline_fails_well_no_uploaded_blob_returned(
         "end_date": date.today().isoformat(),
     }
     mocker.patch(
-        "refresh_requester.utils.check_previous_file_dates",
+        "refresh_requester.utils.determine_next_fetch_date",
     )
     mocker.patch("refresh_requester.jobs.run_refresh_job", return_value=test_response)
     poll_job_status_mocked_results = [

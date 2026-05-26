@@ -8,6 +8,7 @@ import requests
 from freezegun import freeze_time
 
 from refresh_requester.jobs import (
+    check_stop_date_not_before_fetch_date,
     run_ingestion_metadata_blob_upload_job,
     run_refresh_job,
 )
@@ -77,3 +78,30 @@ def test_run_ingestion_metadata_blob_upload_job(mocker, test_settings):
 
     mock_blob_upload.assert_called_once_with(json.dumps(metadata), expected_blob_name)
     assert result == mock_blob_upload.return_value
+
+
+def test_check_stop_date_not_before_fetch_date_success(mocker):
+    """Test that check_stop_date_not_before_fetch_date does nothing when stop date is after fetch date."""
+    fetch_date = date(2025, 3, 1)
+    stop_date = date(2025, 3, 31)
+
+    result = check_stop_date_not_before_fetch_date(stop_date, fetch_date)
+    assert result is None
+
+
+def test_check_stop_date_not_before_fetch_date_logs_warning_and_exits(mocker):
+    """Test that check_stop_date_not_before_fetch_date logs a warning and exits when stop date is before fetch date."""
+    mock_exit = mocker.patch("sys.exit")
+    mock_logger_warning = mocker.patch("refresh_requester.jobs.logger.warning")
+
+    fetch_date = date(2025, 3, 31)
+    stop_date = date(2025, 3, 1)
+
+    check_stop_date_not_before_fetch_date(stop_date, fetch_date)
+
+    expected_warning_message = (
+        f"Fetch date {fetch_date} is after stop date {stop_date}. "
+        "No data to fetch. Exiting."
+    )
+    mock_logger_warning.assert_called_once_with(expected_warning_message)
+    mock_exit.assert_called_once_with(0)

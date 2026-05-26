@@ -8,7 +8,7 @@ from zoneinfo import ZoneInfo
 
 from loguru import logger
 
-from refresh_requester.blob_storage import blob_upload
+from refresh_requester.blob_storage import blob_upload, format_metadata_blob_name
 from refresh_requester.config import Settings
 from refresh_requester.openalex_refresh import (
     OpenAlexRefreshError,
@@ -20,7 +20,6 @@ from refresh_requester.repository import (
     upload_blob_storage_contents_to_repository,
 )
 from refresh_requester.utils import (
-    format_metadata_blob_name,
     get_fetch_date,
     get_stop_date,
 )
@@ -47,7 +46,7 @@ def run_refresh_job(
 
 
 def run_ingestion_metadata_blob_upload_job(
-    metadata: dict, data_source: str, fetch_date: date, stop_date: date | None = None
+    metadata: dict, data_source: str, fetch_date: date, stop_date: date
 ) -> str:
     """
     Run the metadata blob upload job.
@@ -56,7 +55,7 @@ def run_ingestion_metadata_blob_upload_job(
         metadata (dict): The metadata to upload, including:
         data_source (str): The source of the metadata, e.g., "openalex", "solr"
         fetch_date (date): The from_created_date of the metadata
-        stop_date (date | None): The to_created_date of the metadata, if applicable
+        stop_date (date): The to_created_date of the metadata
 
     Returns:
         str: The path of the uploaded blob
@@ -66,6 +65,27 @@ def run_ingestion_metadata_blob_upload_job(
     uploaded_blob = blob_upload(json.dumps(metadata), blob_name)
     logger.info(f"Uploaded destiny repository ingestion metadata: {uploaded_blob}")
     return uploaded_blob
+
+
+def check_stop_date_not_before_fetch_date(stop_date: date, fetch_date: date) -> None:
+    """
+    Check that the stop date is on or after the fetch date.
+
+    If not, log a warning and exit the job, as there is no data to fetch
+    as OpenAlex queries will return no data in this case.
+
+    Args:
+        stop_date (date): The stop date to check.
+        fetch_date (date): The fetch date to check against.
+
+    """
+    if stop_date < fetch_date:
+        warning_message = (
+            f"Fetch date {fetch_date} is after stop date {stop_date}. "
+            "No data to fetch. Exiting."
+        )
+        logger.warning(warning_message)
+        sys.exit(0)
 
 
 def run_full_pipeline(settings: Settings) -> None:
@@ -79,6 +99,8 @@ def run_full_pipeline(settings: Settings) -> None:
     polling_interval = settings.polling_interval
     fetch_date = get_fetch_date(settings)
     stop_date = get_stop_date(settings, fetch_date)
+
+    check_stop_date_not_before_fetch_date(stop_date, fetch_date)
 
     date_today = datetime.now(ZoneInfo("UTC")).date()
     data_source = ImportSourceType.OPEN_ALEX.value
