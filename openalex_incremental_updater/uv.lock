@@ -104,6 +104,19 @@ wheels = [
 ]
 
 [[package]]
+name = "authlib"
+version = "1.7.2"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cryptography" },
+    { name = "joserfc" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/36/98/7d93f30d029643c0275dbc0bd6d5a6f670661ee6c9a94d93af7ab4887600/authlib-1.7.2.tar.gz", hash = "sha256:2cea25fefcd4e7173bdf1372c0afc265c8034b23a8cd5dcb6a9164b826c64231", size = 176511, upload-time = "2026-05-06T08:10:23.116Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/fb/95/adcb68e20c34162e9135f370d6e31737719c2b6f94bc953fe7ed1f10fe21/authlib-1.7.2-py2.py3-none-any.whl", hash = "sha256:3e1faedc9d87e7d56a164eca3ccb6ace0d61b94abe83e92242f8dc8bba9b4a9f", size = 259548, upload-time = "2026-05-06T08:10:21.436Z" },
+]
+
+[[package]]
 name = "azure-core"
 version = "1.41.0"
 source = { registry = "https://pypi.org/simple" }
@@ -323,19 +336,20 @@ wheels = [
 
 [[package]]
 name = "destiny-sdk"
-version = "0.9.1"
+version = "0.12.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
+    { name = "authlib" },
     { name = "cachetools" },
     { name = "fastapi" },
     { name = "httpx" },
     { name = "msal" },
     { name = "pydantic" },
-    { name = "python-jose" },
+    { name = "python-jose", extra = ["cryptography"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/d8/36/4d89557d839b0757c91f37a1b291b274914fdf9eeadc6edf6f3c2dbfb28a/destiny_sdk-0.9.1.tar.gz", hash = "sha256:e911d812e664c83d58ed630085f89e3fa418d4f70d28873207aee2fc49c31e93", size = 112056, upload-time = "2026-02-05T06:58:41.178Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/69/91/cd0be76742578d421c7981bd3a6f5a5cd3a5ccaa380279c37322c01f3e0e/destiny_sdk-0.12.0.tar.gz", hash = "sha256:41930cb29336616fd5e9857ff32b03715e4f02d6b238511eabbf7fd7747d4355", size = 120657, upload-time = "2026-05-20T00:43:11.62Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/7e/c6/f8334be91997248e0129bad29057a401afad78da03e03e9227f054a7df7a/destiny_sdk-0.9.1-py3-none-any.whl", hash = "sha256:440b9943f818e56cf6416f61a7c0d1594169549b34d1dee3a30d9e2142a8af1b", size = 34175, upload-time = "2026-02-05T06:58:39.16Z" },
+    { url = "https://files.pythonhosted.org/packages/49/7a/716dfd7ae3c4f38379cc6d51f719ae740bd949b2a63b8b56806950b6b600/destiny_sdk-0.12.0-py3-none-any.whl", hash = "sha256:083ebfffd8883e95fe1af586a355af32a907e0ad8c55d22b3d4deb9530111f00", size = 40512, upload-time = "2026-05-20T00:43:10.443Z" },
 ]
 
 [[package]]
@@ -647,6 +661,18 @@ wheels = [
 ]
 
 [[package]]
+name = "joserfc"
+version = "1.6.5"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "cryptography" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/3b/dc/5f768c2e391e9afabe5d18e3221346deb5fb6338565f1ccc9e7c6d7befdd/joserfc-1.6.5.tar.gz", hash = "sha256:1482a7db78fb4602e44ed89e51b599d052e091288c7c532c5b694e20149dec48", size = 231881, upload-time = "2026-05-06T04:58:13.408Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/54/3b/ad1cb22e75c963b1f07c8a2329bf47227ce7e4361df5eb2fb101b2ce33ef/joserfc-1.6.5-py3-none-any.whl", hash = "sha256:e9878a0f8243fe7b95e11fdda81374ca9f7a689e302751579d3dfdeec559675e", size = 70464, upload-time = "2026-05-06T04:58:11.668Z" },
+]
+
+[[package]]
 name = "loguru"
 version = "0.7.3"
 source = { registry = "https://pypi.org/simple" }
@@ -792,7 +818,7 @@ wheels = [
 
 [[package]]
 name = "openalex-incremental-updater"
-version = "0.6.0"
+version = "0.6.1"
 source = { editable = "." }
 dependencies = [
     { name = "aiohttp" },
@@ -833,7 +859,7 @@ requires-dist = [
     { name = "azure-core", specifier = ">=1.35.0" },
     { name = "azure-identity", specifier = ">=1.24.0" },
     { name = "azure-storage-blob", specifier = ">=12.26.0" },
-    { name = "destiny-sdk", specifier = ">=0.9,<0.10" },
+    { name = "destiny-sdk", specifier = ">=0.12.0" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.136.0" },
     { name = "httpx", specifier = ">=0.28.1,<0.29" },
     { name = "loguru", specifier = ">=0.7.3,<0.8" },
@@ -1170,6 +1196,11 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/c6/77/3a1c9039db7124eb039772b935f2244fbb73fc8ee65b9acf2375da1c07bf/python_jose-3.5.0.tar.gz", hash = "sha256:fb4eaa44dbeb1c26dcc69e4bd7ec54a1cb8dd64d3b4d81ef08d90ff453f2b01b", size = 92726, upload-time = "2025-05-28T17:31:54.288Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/d9/c3/0bd11992072e6a1c513b16500a5d07f91a24017c5909b02c72c62d7ad024/python_jose-3.5.0-py2.py3-none-any.whl", hash = "sha256:abd1202f23d34dfad2c3d28cb8617b90acf34132c7afd60abd0b0b7d3cb55771", size = 34624, upload-time = "2025-05-28T17:31:52.802Z" },
+]
+
+[package.optional-dependencies]
+cryptography = [
+    { name = "cryptography" },
 ]
 
 [[package]]
