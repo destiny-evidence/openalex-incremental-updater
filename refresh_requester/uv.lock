@@ -769,6 +769,7 @@ dependencies = [
     { name = "pytest-cov" },
     { name = "pytest-mock" },
     { name = "requests" },
+    { name = "starlette" },
     { name = "uvicorn" },
 ]
 
@@ -799,6 +800,7 @@ requires-dist = [
     { name = "pytest-cov", specifier = ">=6.0.0,<7" },
     { name = "pytest-mock", specifier = ">=3.14.0,<4" },
     { name = "requests", specifier = ">=2.32.3,<3" },
+    { name = "starlette", specifier = ">=1.0.1" },
     { name = "uvicorn", specifier = ">=0.35.0" },
 ]
 provides-extras = ["dev", "test"]
