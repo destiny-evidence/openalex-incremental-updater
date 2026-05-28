@@ -2,6 +2,7 @@ import logging
 from collections.abc import Generator
 
 import pytest
+from destiny_sdk.imports import ImportBatchRead, ImportRecordRead, ImportResultRead
 from loguru import logger
 
 from refresh_requester.config import Settings, get_settings
@@ -15,6 +16,14 @@ def pytest_configure():
     that tests don't pull in any unexpected environment variables.
     """
     Settings.model_config["env_file"] = ""
+
+    # These models have circular forward references, so Pydantic defers schema building.
+    # Rebuilding here ensures schemas are cached before any @freeze_time block
+    # replaces datetime.datetime:
+
+    ImportRecordRead.model_rebuild()
+    ImportBatchRead.model_rebuild()
+    ImportResultRead.model_rebuild()
 
 
 @pytest.fixture
