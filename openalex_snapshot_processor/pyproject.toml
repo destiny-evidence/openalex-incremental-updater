@@ -7,11 +7,11 @@ dev = [
   "ruff>=0.9.1,<0.10"
 ]
 test = [
-  "pytest>=8.3.4,<9",
+  "freezegun>=1.5.5",
+  "pytest>=9.0.0",
   "pytest-asyncio>=1.3.0,<2",
-  "pytest-cov>=6.0.0,<7",
-  "pytest-mock>=3.14.0,<4",
-  "freezegun>=1.5.5"
+  "pytest-cov>=7.1.0,<8",
+  "pytest-mock>=3.14.0,<4"
 ]
 
 [project]
@@ -26,16 +26,13 @@ dependencies = [
   "pydantic>=2.10.5,<3",
   "pydantic-settings>=2.7.1,<3",
   "requests>=2.32.3,<3",
-  "destiny-sdk>=0.9,<0.10",
   "azure-identity>=1.24.0",
   "azure-storage-blob>=12.26.0",
   "openalex-incremental-updater @ file://${PROJECT_ROOT}/../openalex_incremental_updater",
   "refresh-requester @ file://${PROJECT_ROOT}/../refresh_requester",
-  "prefect>=3.6.18"
+  "prefect>=3.6.18",
+  "destiny-sdk>=0.12.0"
 ]
-
-[tool.pytest]
-asyncio_mode = "auto"
 
 [tool.pytest.ini_options]
 addopts = ["--color=yes", "--import-mode=importlib", "--verbose"]
@@ -81,3 +78,13 @@ spaces_indent_inline_array = 4
 trailing_comma_inline_array = true
 overrides."project.classifiers".inline_arrays = false
 overrides."tool.coverage.paths.source".inline_arrays = false
+
+[tool.uv]
+default-groups = [
+  "dev",
+  "test"
+]
+exclude-dependencies = [
+  "ecdsa" # Required until https://github.com/mpdavis/python-jose/issues/390 is resolved
+]
+exclude-newer = "P5D"
