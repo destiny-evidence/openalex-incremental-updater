@@ -16,7 +16,7 @@ from azure.identity import DefaultAzureCredential
 from azure.storage.blob.aio import BlobServiceClient
 from loguru import logger
 
-from openalex_incremental_updater.core.config import get_settings
+from openalex_incremental_updater.core.config import Settings
 
 
 class BlobUploadError(Exception):
@@ -47,9 +47,14 @@ async def _safe_delete_blob(blob_client: BlobServiceClient) -> None:
 
 
 @asynccontextmanager
-async def get_blob_service_client() -> AsyncGenerator[BlobServiceClient]:
+async def get_blob_service_client(
+    settings: Settings,
+) -> AsyncGenerator[BlobServiceClient]:
     """
     Define an async context manager to get a blob service client.
+
+    Args:
+        settings (Settings): The settings object containing Azure Storage configuration.
 
     Raises:
         BlobUploadError: A descriptive error message
@@ -60,9 +65,7 @@ async def get_blob_service_client() -> AsyncGenerator[BlobServiceClient]:
     """
     client = None
     try:
-        account_url = (
-            f"https://{get_settings().STORAGE_BLOB_ACCOUNT}.blob.core.windows.net"
-        )
+        account_url = f"https://{settings.STORAGE_BLOB_ACCOUNT}.blob.core.windows.net"
         credential = DefaultAzureCredential()
 
         try:
@@ -78,12 +81,16 @@ async def get_blob_service_client() -> AsyncGenerator[BlobServiceClient]:
 
 
 async def blob_upload(
-    data: AsyncIterator[bytes], filename: str, chunk_size: int = 4 * 1024 * 1024
+    settings: Settings,
+    data: AsyncIterator[bytes],
+    filename: str,
+    chunk_size: int = 4 * 1024 * 1024,
 ) -> str:
     """
     Upload data to blob storage.
 
     Args:
+        settings (Settings): The settings object containing Azure Storage configuration.
         data (AsyncIterator[bytes]): The response from the API, converted to JSON-lines
         filename (str): The name of the file to upload
         chunk_size (int): The size of each chunk to upload. Defaults to 4 MB.
@@ -93,9 +100,9 @@ async def blob_upload(
 
     """
     try:
-        async with get_blob_service_client() as blob_service_client:
+        async with get_blob_service_client(settings) as blob_service_client:
             blob_client = blob_service_client.get_blob_client(
-                container=get_settings().STORAGE_BLOB_CONTAINER, blob=filename
+                container=settings.STORAGE_BLOB_CONTAINER, blob=filename
             )
             buffer = bytearray()
             block_ids = []
@@ -156,6 +163,7 @@ async def _async_iter_from_list(items: list[bytes]) -> AsyncIterator[bytes]:
 
 
 async def blob_upload_multipart(
+    settings: Settings,
     data: AsyncIterator[bytes],
     base_filename: str,
     batch_size: int = 10_000,
@@ -167,6 +175,7 @@ async def blob_upload_multipart(
     the pattern: {base_filename}_part_{NNN}.jsonl
 
     Args:
+        settings (Settings): The settings object containing Azure Storage configuration.
         data (AsyncIterator[bytes]): Async iterator yielding one bytes object per JSONL line.
         base_filename (str): Base name without extension.
         batch_size (int): Maximum number of lines per blob part. Defaults to 10,000.
@@ -183,14 +192,14 @@ async def blob_upload_multipart(
         buffer.append(line)
         if len(buffer) >= batch_size:
             part_filename = f"{base_filename}_part_{part_num:03d}.jsonl"
-            await blob_upload(_async_iter_from_list(buffer), part_filename)
+            await blob_upload(settings, _async_iter_from_list(buffer), part_filename)
             uploaded_blob_names.append(part_filename)
             buffer = []
             part_num += 1
 
     if buffer or not uploaded_blob_names:
         part_filename = f"{base_filename}_part_{part_num:03d}.jsonl"
-        await blob_upload(_async_iter_from_list(buffer), part_filename)
+        await blob_upload(settings, _async_iter_from_list(buffer), part_filename)
         uploaded_blob_names.append(part_filename)
 
     return uploaded_blob_names

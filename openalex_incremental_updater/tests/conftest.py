@@ -13,6 +13,7 @@ from freezegun import freeze_time
 from httpx import ASGITransport, AsyncClient
 from loguru import logger
 
+from openalex_incremental_updater.core.config import Settings, get_settings
 from openalex_incremental_updater.core.job_state import JobManager, report_status
 from openalex_incremental_updater.ingest import CreatedOrUpdated
 
@@ -105,6 +106,11 @@ async def async_test_client(
         transport=ASGITransport(app=app_instance), base_url="http://test"
     ) as client:
         yield client
+
+
+@pytest.fixture
+def test_settings(set_test_environment_variables) -> Settings:
+    return get_settings()
 
 
 @pytest.fixture

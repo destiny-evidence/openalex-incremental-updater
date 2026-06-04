@@ -6,6 +6,7 @@ from zoneinfo import ZoneInfo
 
 from fastapi import HTTPException, status
 
+from openalex_incremental_updater.core.config import Settings
 from openalex_incremental_updater.core.job_state import JobManager
 from openalex_incremental_updater.core.logger import logger
 from openalex_incremental_updater.ingest.blob_storage import blob_upload_multipart
@@ -21,6 +22,7 @@ from openalex_incremental_updater.ingest.openalex import (
 
 
 async def run_background_openalex_ingest_job(
+    settings: Settings,
     job_manager: JobManager,
     job_id: str,
     report: Callable,
@@ -50,13 +52,18 @@ async def run_background_openalex_ingest_job(
     uploaded_blob_name: str | None = None
     try:
         job_result = openalex_works_ingest_date_range(
-            report, start_date, end_date, ingest_type, limit
+            settings, report, start_date, end_date, ingest_type, limit
         )
 
         logger.info("Streaming data from ingest to blob storage")
 
         uploaded_blob_name = await run_openalex_refresh_blob_upload_job(
-            job_result, start_date, end_date, date_today, batch_size=batch_size
+            settings,
+            job_result,
+            start_date,
+            end_date,
+            date_today,
+            batch_size=batch_size,
         )
 
         job_progress = job_manager.get(job_id).get("progress", {})
@@ -91,6 +98,7 @@ async def run_background_openalex_ingest_job(
 
 
 async def openalex_works_ingest_date_range(
+    settings: Settings,
     report: Callable,
     start_date: date,
     end_date: date,
@@ -101,6 +109,7 @@ async def openalex_works_ingest_date_range(
     Fetch Works from the OpenAlex API with a date range filter and ingest them into the repository.
 
     Args:
+        settings (Settings): The application settings.
         report (Callable): A callback function to report progress.
         start_date (date): Start date to fetch data from. Must be in the format YYYY-MM-DD.
         end_date (date): End date to fetch data to. Must be in the format YYYY-MM-DD.
@@ -114,7 +123,7 @@ async def openalex_works_ingest_date_range(
     openalex_query = OpenAlexDataFetcher.build_range_query(
         start_date, end_date, ingest_type
     )
-    fetcher = OpenAlexDataFetcher()
+    fetcher = OpenAlexDataFetcher(settings=settings)
     logger.info("Fetching OpenAlex works from {} to {}", start_date, end_date)
     try:
         results = fetcher.fetch_works_filter(
@@ -138,6 +147,7 @@ async def openalex_works_ingest_date_range(
 
 
 async def run_openalex_refresh_blob_upload_job(
+    settings: Settings,
     data: AsyncIterator[bytes],
     fetch_date: date,
     stop_date: date,
@@ -148,6 +158,7 @@ async def run_openalex_refresh_blob_upload_job(
     Run the blob upload job.
 
     Args:
+        settings (Settings): The application settings.
         data (AsyncIterator[bytes]): The response from the API, converted to JSON-lines
         fetch_date (date): The date at which the data was fetched
         stop_date (date): The date at which the data was fetched until (inclusive)
@@ -160,7 +171,7 @@ async def run_openalex_refresh_blob_upload_job(
     """
     base_blob_name = f"openalex_refresh_from_date_{fetch_date}_to_{stop_date}_refreshed_on_{refresh_date}"
     uploaded_blobs = await blob_upload_multipart(
-        data, base_blob_name, batch_size=batch_size
+        settings, data, base_blob_name, batch_size=batch_size
     )
     logger.info(
         f"Data uploaded to blob storage from {fetch_date} to {stop_date}, uploaded {refresh_date}"
