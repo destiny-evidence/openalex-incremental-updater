@@ -23,7 +23,7 @@ def get_token(settings: Settings) -> str:
         str: The access token retrieved from the DESTINY Repository API.
 
     """
-    session = get_retry_session()
+    session = get_retry_session(settings)
 
     url = str(settings.TOKEN_ENDPOINT)
     try:

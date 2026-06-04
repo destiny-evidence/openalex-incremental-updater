@@ -38,7 +38,7 @@ class DestinyRepositoryContentUploader:
     def __init__(self, settings: Settings) -> None:
         """Class constructor."""
         self.settings = settings
-        self.session = get_retry_session()
+        self.session = get_retry_session(self.settings)
         self.session.headers = {
             "Authorization": f"Bearer {get_token(self.settings)}",
         }
@@ -309,7 +309,7 @@ def upload_blob_storage_contents_to_repository(
         dict: A dictionary containing the import record and a list of import batch IDs.
 
     """
-    blob_client = DestinyBlobStorageClient()
+    blob_client = DestinyBlobStorageClient(settings)
     blob_url_pairs = blob_client.get_all_blob_url_pairs(blob_to_upload)
     logger.info(
         f"Retrieved {len(blob_url_pairs)} blob URLs to upload to the DESTINY repository."

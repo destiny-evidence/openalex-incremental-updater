@@ -48,7 +48,7 @@ def poll_job_status(settings: Settings, job_submission_id: str) -> dict:
 
     """
     try:
-        session = get_retry_session()
+        session = get_retry_session(settings)
         base_url = str(settings.API_ENDPOINT)
         url_path = f"/api/v1/jobs/{job_submission_id}"
 
@@ -98,7 +98,7 @@ def request_refresh(
 
     """
     try:
-        session = get_retry_session()
+        session = get_retry_session(settings)
         url = (
             str(settings.API_ENDPOINT)
             + "/api/v1/openalex_works_ingest_date_range"

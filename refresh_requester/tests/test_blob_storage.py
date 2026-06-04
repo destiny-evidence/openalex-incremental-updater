@@ -56,7 +56,7 @@ class MockBlob:
     ],
 )
 def test_check_previous_file_dates_metadata_blobs_found(
-    mocker, metadata_blobs, expected_result
+    mocker, metadata_blobs, expected_result, test_settings
 ):
     """Check `check_previous_file_dates` returns latest date found in blob names."""
     mocker.patch(
@@ -64,14 +64,16 @@ def test_check_previous_file_dates_metadata_blobs_found(
         return_value=metadata_blobs,
     )
 
-    result = check_previous_file_dates()
+    result = check_previous_file_dates(test_settings)
 
     assert (
         result == expected_result
     ), f"Expected the same date as the latest stop date, got {result}"
 
 
-def test_check_previous_file_dates_malformed_metadata_blob_skipped(mocker, caplog):
+def test_check_previous_file_dates_malformed_metadata_blob_skipped(
+    mocker, caplog, test_settings
+):
     """
     Test that metadata blobs with an unparseable stop date are skipped with a warning.
 
@@ -96,19 +98,19 @@ def test_check_previous_file_dates_malformed_metadata_blob_skipped(mocker, caplo
     )
 
     with caplog.at_level("WARNING"):
-        result = check_previous_file_dates()
+        result = check_previous_file_dates(test_settings)
 
     assert result == expected_valid_date, "Valid metadata blob should still be used"
     assert invalid_metadata_blob_name in caplog.text
 
 
-def test_check_previous_file_dates_returns_none_no_files_found(mocker):
+def test_check_previous_file_dates_returns_none_no_files_found(mocker, test_settings):
     """Test check_previous_file_dates function returns None if no files are found."""
     mocker.patch(
         "refresh_requester.blob_storage.list_blobs_in_storage", return_value=[]
     )
 
-    result = check_previous_file_dates()
+    result = check_previous_file_dates(test_settings)
 
     assert result is None, "Expected None when no metadata blobs are found"
 
@@ -141,7 +143,7 @@ def test_list_blobs_in_storage(mocker, blob_name_list, test_settings):
 
     mock_container_client.list_blobs.return_value = mock_blob_names
 
-    result = list_blobs_in_storage()
+    result = list_blobs_in_storage(test_settings)
 
     assert result == [blob.name for blob in mock_blob_names]
 
@@ -185,7 +187,7 @@ def test_list_blobs_in_storage_with_prefix_filter(mocker, test_settings):
 
     mock_container_client.list_blobs.side_effect = blob_storage_list_blobs
 
-    result = list_blobs_in_storage(prefix_filter=prefix_filter)
+    result = list_blobs_in_storage(test_settings, prefix_filter=prefix_filter)
 
     mock_container_client.list_blobs.assert_called_once_with(
         name_starts_with=prefix_filter
@@ -205,7 +207,7 @@ def test_blob_upload_success(mocker, test_settings):
 
     mock_blob_service.return_value.get_blob_client.return_value = mock_blob_client
 
-    result = blob_upload(test_data, test_filename)
+    result = blob_upload(test_settings, test_data, test_filename)
     assert result == test_filename, "Check that the returned filename matches the input"
     mock_blob_client.upload_blob.assert_called_once_with(test_data, overwrite=True)
 
@@ -237,14 +239,14 @@ def test_blob_upload_failure(mocker, test_settings, exception):
     )
 
     with pytest.raises(BlobUploadError) as error:
-        blob_upload(test_data, test_filename)
+        blob_upload(test_settings, test_data, test_filename)
     assert "Test uploading error" in str(error.value)
 
 
 def test_destinyblobstorageclient_init(mocker, test_settings) -> None:
     """Test DestinyBlobStorageClient initialization."""
     mocker.patch("refresh_requester.blob_storage.BlobServiceClient")
-    client = DestinyBlobStorageClient()
+    client = DestinyBlobStorageClient(test_settings)
     assert (
         client is not None
     ), "Check that DestinyBlobStorageClient initializes correctly"
@@ -266,7 +268,7 @@ def test_destinyblobstorageclient_list_all_blobs(mocker, test_settings) -> None:
 
     mock_container_client.list_blobs.return_value = mock_blob_names
 
-    client = DestinyBlobStorageClient()
+    client = DestinyBlobStorageClient(test_settings)
     blobs = client.list_all_blobs()
 
     assert blobs == [
@@ -285,7 +287,7 @@ def test_destinyblobstorageclient_get_single_blob_sas_token(
     )
     mock_blob_sas_generation.return_value = expected_sas_token
 
-    client = DestinyBlobStorageClient()
+    client = DestinyBlobStorageClient(test_settings)
     sas_token = client.get_single_blob_sas_token("test_blob.jsonl")
 
     assert (
@@ -306,7 +308,7 @@ def test_destinyblobstorageclient_get_blob_sas_pair(mocker, test_settings) -> No
     )
     mock_blob_sas_generation.return_value = expected_sas_token
 
-    client = DestinyBlobStorageClient()
+    client = DestinyBlobStorageClient(test_settings)
     sas_pair = client.get_blob_sas_pair(test_blob_name)
 
     assert (
@@ -337,7 +339,7 @@ def test_destinyblobstorageclient_get_all_blob_url_pairs(mocker, test_settings) 
     )
     mock_list_blobs.return_value = test_blobs
 
-    client = DestinyBlobStorageClient()
+    client = DestinyBlobStorageClient(test_settings)
     blob_pairs = client.get_all_blob_url_pairs()
 
     assert len(blob_pairs) == len(
@@ -361,7 +363,7 @@ def test_determine_next_fetch_date_no_stop_date(mocker, test_settings):
     mocker.patch(
         "refresh_requester.blob_storage.check_previous_file_dates", return_value=None
     )
-    result = determine_next_fetch_date()
+    result = determine_next_fetch_date(test_settings)
     assert (
         result == fetch_date
     ), "Expected fetch date to be returned when no stop date is set"
@@ -376,7 +378,7 @@ def test_determine_next_fetch_date_previous_stop_date_found(mocker, test_setting
         "refresh_requester.blob_storage.check_previous_file_dates",
         return_value=date_two_days_ago,
     )
-    result = determine_next_fetch_date()
+    result = determine_next_fetch_date(test_settings)
     assert (
         result == date_yesterday
     ), "Expect the day after the latest stop date to be returned"

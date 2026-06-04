@@ -105,7 +105,7 @@ def test_run_full_pipeline_success_no_fetch_date_set_no_stop_date_set(
     assert (
         run_ingestion_metadata_blob_upload_job_mock.call_count == 1
     ), "run_ingestion_metadata_blob_upload_job should be called once at the end of the job"
-    metadata_arg = run_ingestion_metadata_blob_upload_job_mock.call_args[0][0]
+    metadata_arg = run_ingestion_metadata_blob_upload_job_mock.call_args[0][1]
     assert (
         "import_batch_ids" in metadata_arg
     ), "metadata should use plural import_batch_ids key"
