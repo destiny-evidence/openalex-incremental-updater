@@ -843,7 +843,7 @@ test = [
 
 [package.metadata]
 requires-dist = [
-    { name = "azure-core", extras = ["aio"], specifier = ">=1.35.0" },
+    { name = "azure-core", extras = ["aio"], specifier = ">=1.41.0" },
     { name = "azure-identity", specifier = ">=1.24.0" },
     { name = "azure-storage-blob", specifier = ">=12.26.0" },
     { name = "destiny-sdk", specifier = ">=0.12.0" },
