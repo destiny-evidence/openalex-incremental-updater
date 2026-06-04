@@ -36,6 +36,7 @@ async def run_background_openalex_ingest_job(
     Run a background job to ingest OpenAlex works.
 
     Args:
+        settings (Settings): The application settings.
         job_manager (JobManager): The job manager to track job state.
         job_id (str): The unique ID for the job.
         report (Callable): A callback function to report progress.

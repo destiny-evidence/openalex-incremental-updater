@@ -79,7 +79,7 @@ def generate_token(settings: Settings) -> DestinyRepoToken:
         settings (Settings): The settings object containing Azure AD configuration.
 
     Returns:
-        dict: A dictionary containing the access token and its expiration time.
+        DestinyRepoToken: An instance of the DestinyRepoToken containing the access token and its expiration time.
 
     """
     app = get_confidential_client_application(settings)
