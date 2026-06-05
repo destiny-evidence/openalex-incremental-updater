@@ -25,7 +25,7 @@ def get_fetch_date(settings: Settings) -> date:
     """
     if settings.fetch_date:
         return settings.fetch_date
-    return determine_next_fetch_date()
+    return determine_next_fetch_date(settings)
 
 
 def get_stop_date(settings: Settings, fetch_date: date) -> date:

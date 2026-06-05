@@ -11,7 +11,7 @@ from destiny_sdk.references import ReferenceFileInput
 from loguru import logger
 from pydantic import ValidationError
 
-from openalex_incremental_updater.core.config import get_settings
+from openalex_incremental_updater.core.config import Settings
 from openalex_incremental_updater.core.job_state import JobState
 from openalex_incremental_updater.core.utils import async_timer
 from openalex_incremental_updater.ingest import AsyncRetryClient, CreatedOrUpdated
@@ -105,9 +105,11 @@ def safe_result_conversion(
 class OpenAlexDataFetcher:
     """Class to control data fetching from the OpenAlex API."""
 
-    def __init__(self, retries: int = 5, backoff_factor: int = 5) -> None:
+    def __init__(
+        self, settings: Settings, retries: int = 5, backoff_factor: int = 5
+    ) -> None:
         """Class constructor."""
-        self.settings = get_settings()
+        self.settings = settings
         self.retries = retries
         self.backoff_factor = backoff_factor
 

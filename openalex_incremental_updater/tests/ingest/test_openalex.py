@@ -8,6 +8,7 @@ from destiny_sdk.identifiers import DOIIdentifier
 from fastapi import status
 from freezegun import freeze_time
 
+from openalex_incremental_updater.core.config import Settings
 from openalex_incremental_updater.ingest import CreatedOrUpdated
 from openalex_incremental_updater.ingest.openalex import (
     OpenAlexDataFetcher,
@@ -25,9 +26,11 @@ from openalex_incremental_updater.models.destiny import (
     "created_or_updated", [CreatedOrUpdated("created"), CreatedOrUpdated("updated")]
 )
 async def test_fetch_works_filter_date_range_call_success(
-    double_openalex_work_response: list[dict], created_or_updated: CreatedOrUpdated
+    double_openalex_work_response: list[dict],
+    created_or_updated: CreatedOrUpdated,
+    test_settings,
 ) -> None:
-    fetcher = OpenAlexDataFetcher(retries=0)
+    fetcher = OpenAlexDataFetcher(settings=test_settings, retries=0)
     expected_response = {
         "meta": {
             "count": 1,
@@ -77,8 +80,9 @@ async def test_fetch_works_filter_date_range_call_openalex_error(
     double_openalex_work_response: list[dict],
     created_or_updated: CreatedOrUpdated,
     test_error_status_code: int,
+    test_settings: Settings,
 ) -> None:
-    fetcher = OpenAlexDataFetcher(retries=0)
+    fetcher = OpenAlexDataFetcher(settings=test_settings, retries=0)
     expected_response = {
         "meta": {
             "count": 1,
@@ -112,9 +116,10 @@ async def test_fetch_works_filter_date_range_call_openalex_error(
 @pytest.mark.anyio
 async def test_fetch_works_filter_incomplete_fetch_raises_error(
     double_openalex_work_response: list[dict],
+    test_settings: Settings,
 ) -> None:
     """Test that an error is raised when pagination ends before all works are fetched."""
-    fetcher = OpenAlexDataFetcher(retries=0)
+    fetcher = OpenAlexDataFetcher(settings=test_settings, retries=0)
 
     first_page_response = {
         "meta": {
@@ -162,11 +167,13 @@ async def test_fetch_works_filter_incomplete_fetch_raises_error(
     "ingest_type", [CreatedOrUpdated("created"), CreatedOrUpdated("updated")]
 )
 def test_build_range_query(
-    ingest_type: CreatedOrUpdated, set_test_environment_variables: Generator
+    ingest_type: CreatedOrUpdated,
+    set_test_environment_variables: Generator,
+    test_settings: Settings,
 ):
     test_start_date = date.today()
     test_end_date = test_start_date
-    fetcher = OpenAlexDataFetcher()
+    fetcher = OpenAlexDataFetcher(settings=test_settings)
     expected_output = f"from_{ingest_type.value}_date:{test_start_date.isoformat()},to_{ingest_type.value}_date:{test_end_date.isoformat()}"
     query = fetcher.build_range_query(test_start_date, test_end_date, ingest_type)
 
@@ -180,8 +187,9 @@ def test_build_range_query(
 async def test_works_filter_date_range_works_requested_limit_respected(
     double_openalex_work_response: list[dict],
     created_or_updated: CreatedOrUpdated,
+    test_settings: Settings,
 ) -> None:
-    fetcher = OpenAlexDataFetcher(retries=0)
+    fetcher = OpenAlexDataFetcher(settings=test_settings, retries=0)
 
     four_item_response = double_openalex_work_response * 2
     works_retrieved_limit = 2

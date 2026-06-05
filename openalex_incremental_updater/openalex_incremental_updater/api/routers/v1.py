@@ -100,6 +100,7 @@ async def openalex_ingest_processing(
     )
     report = report_status(job_manager, job_id)
     coroutine = run_background_openalex_ingest_job(
+        settings,
         job_manager,
         job_id,
         report,
@@ -185,4 +186,4 @@ async def get_auth_token() -> DestinyRepoToken:
         DestinyRepoToken: A model containing the access token and its metadata.
 
     """
-    return generate_token()
+    return generate_token(settings)

@@ -18,7 +18,7 @@ test = [
 
 [project]
 name = "openalex-incremental-updater"
-version = "0.6.1"
+version = "0.7.0"
 description = ""
 authors = [{name = "Harry Moss", email = "h.moss@ucl.ac.uk"}]
 requires-python = ">=3.13,<3.14"
@@ -80,7 +80,8 @@ lint.per-file-ignores = {"openalex_incremental_updater/openalex_incremental_upda
   "ANN001", # Missing type annotation for function argument
   "ANN401", # Dynamically typed expressions disallowed
   "ANN002", # Missing type annotation for *args
-  "ANN003" # Missing type annotation for **kwargs
+  "ANN003", # Missing type annotation for **kwargs
+  "PLR0913" # Too many arguments in function definition
 ], "refresh_requester/tests*" = [
   "ANN001", # Missing type annotation for function argument
   "ANN201", # Missing type annotation for function return value

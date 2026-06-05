@@ -15,7 +15,7 @@ from azure.identity import DefaultAzureCredential
 from azure.storage.blob import BlobSasPermissions, BlobServiceClient, generate_blob_sas
 from loguru import logger
 
-from refresh_requester.config import get_settings
+from refresh_requester.config import Settings
 
 _METADATA_DIR = "ingestion_metadata"
 _PREFIX_TEMPLATE = "{dir}/destiny_repository_{source}_ingestion_batch_from_"
@@ -29,10 +29,10 @@ class BlobUploadError(Exception):
 class DestinyBlobStorageClient:
     """A client for interacting with Blobs within the internal Azure Blob Storage Containers."""
 
-    def __init__(self) -> None:
+    def __init__(self, settings: Settings) -> None:
         """Class constructor."""
-        self.blob_service_client = get_blob_service_client()
-        self.settings = get_settings()
+        self.settings = settings
+        self.blob_service_client = get_blob_service_client(self.settings)
 
     def list_all_blobs(self, blob_path: str | None = None) -> list[str]:
         """
@@ -119,9 +119,12 @@ class DestinyBlobStorageClient:
         return all_blob_sas_pairs
 
 
-def get_blob_service_client() -> BlobServiceClient:
+def get_blob_service_client(settings: Settings) -> BlobServiceClient:
     """
     Get a blob client.
+
+    Args:
+        settings (Settings): The settings object containing configuration for blob storage access.
 
     Raises:
         BlobUploadError: A descriptive error message
@@ -131,9 +134,7 @@ def get_blob_service_client() -> BlobServiceClient:
 
     """
     try:
-        account_url = (
-            f"https://{get_settings().STORAGE_BLOB_ACCOUNT}.blob.core.windows.net"
-        )
+        account_url = f"https://{settings.STORAGE_BLOB_ACCOUNT}.blob.core.windows.net"
         credential = DefaultAzureCredential()
 
         return BlobServiceClient(account_url, credential=credential)
@@ -144,11 +145,12 @@ def get_blob_service_client() -> BlobServiceClient:
         raise BlobUploadError(error_message) from azure_error
 
 
-def blob_upload(data: str, filename: str) -> str:
+def blob_upload(settings: Settings, data: str, filename: str) -> str:
     """
     Upload data to blob storage.
 
     Args:
+        settings (Settings): The settings object containing configuration for blob storage access.
         data (str): The response from the API, converted to JSON-lines
         filename (str): The name of the file to upload
 
@@ -157,10 +159,10 @@ def blob_upload(data: str, filename: str) -> str:
 
     """
     try:
-        blob_service_client = get_blob_service_client()
+        blob_service_client = get_blob_service_client(settings)
 
         blob_client = blob_service_client.get_blob_client(
-            container=get_settings().STORAGE_BLOB_CONTAINER, blob=filename
+            container=settings.STORAGE_BLOB_CONTAINER, blob=filename
         )
 
         blob_client.upload_blob(data, overwrite=True)
@@ -185,21 +187,24 @@ def blob_upload(data: str, filename: str) -> str:
     return filename
 
 
-def list_blobs_in_storage(prefix_filter: str | None = None) -> list[str]:
+def list_blobs_in_storage(
+    settings: Settings, prefix_filter: str | None = None
+) -> list[str]:
     """
     List all blobs in the storage container.
 
     Args:
+        settings (Settings): The settings object containing configuration for blob storage access.
         prefix_filter (str | None): Optional string to filter blobs by prefix. If None, all blobs are returned.
 
     Returns:
         list[str]: A list of blob names
 
     """
-    blob_service_client = get_blob_service_client()
+    blob_service_client = get_blob_service_client(settings)
 
     container_client = blob_service_client.get_container_client(
-        get_settings().STORAGE_BLOB_CONTAINER
+        settings.STORAGE_BLOB_CONTAINER
     )
 
     if prefix_filter is not None:
@@ -210,7 +215,7 @@ def list_blobs_in_storage(prefix_filter: str | None = None) -> list[str]:
     return [blob.name for blob in container_client.list_blobs()]
 
 
-def determine_next_fetch_date() -> date:
+def determine_next_fetch_date(settings: Settings) -> date:
     """
     Determine the fetch date for the next refresh request.
 
@@ -221,18 +226,21 @@ def determine_next_fetch_date() -> date:
 
     If no metadata blobs are found, returns yesterday's date as the fallback.
 
+    Args:
+        settings (Settings): The settings object containing configuration for blob storage access.
+
     Returns:
         date: The most recent un-fetched date to request a refresh from.
 
     """
-    previous_stop_date: date | None = check_previous_file_dates()
+    previous_stop_date: date | None = check_previous_file_dates(settings)
 
     if previous_stop_date:
         return previous_stop_date + timedelta(days=1)
     return datetime.now(tz=ZoneInfo("UTC")).date() - timedelta(days=1)
 
 
-def check_previous_file_dates() -> date | None:
+def check_previous_file_dates(settings: Settings) -> date | None:
     """
     Check previous file dates in blob names and return the most recent stop date found.
 
@@ -244,13 +252,16 @@ def check_previous_file_dates() -> date | None:
 
     If no metadata blobs are found, returns `None`.
 
+    Args:
+        settings (Settings): The settings object containing configuration for blob storage access.
+
     Returns:
         date | None: The most recent fetched date based on metadata blob name.
             Or, `None` if no metadata blobs are found.
 
     """
     prefix = metadata_blob_prefix("openalex")
-    blob_list = list_blobs_in_storage(prefix_filter=prefix)
+    blob_list = list_blobs_in_storage(settings, prefix_filter=prefix)
     stop_dates = []
     for blob in blob_list:
         if not blob.startswith(prefix):

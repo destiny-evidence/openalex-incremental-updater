@@ -11,6 +11,7 @@ from azure.core.exceptions import (
 )
 from pytest_mock import MockerFixture
 
+from openalex_incremental_updater.core.config import Settings
 from openalex_incremental_updater.ingest.blob_storage import (
     BlobUploadError,
     blob_upload,
@@ -21,7 +22,7 @@ from openalex_incremental_updater.ingest.blob_storage import (
 
 @pytest.mark.asyncio
 async def test_get_blob_service_client(
-    mocker: MockerFixture, set_test_environment_variables: Generator
+    mocker: MockerFixture, set_test_environment_variables: Generator, test_settings
 ):
     """Test getting the blob service client."""
     mock_blob_service_instance = mocker.MagicMock()
@@ -32,7 +33,7 @@ async def test_get_blob_service_client(
         return_value=mock_blob_service_instance,
     )
 
-    async with get_blob_service_client() as client:
+    async with get_blob_service_client(test_settings) as client:
         assert (
             client == mock_blob_service_instance
         ), "Check that the returned blob service client is correct"
@@ -40,7 +41,7 @@ async def test_get_blob_service_client(
 
 @pytest.mark.asyncio
 async def test_get_blob_service_client_failure_azure_error(
-    mocker: MockerFixture, set_test_environment_variables: Generator
+    mocker: MockerFixture, set_test_environment_variables: Generator, test_settings
 ):
     """Test getting the blob service client."""
     mock_blob_service_instance = mocker.MagicMock()
@@ -52,7 +53,7 @@ async def test_get_blob_service_client_failure_azure_error(
     )
 
     with pytest.raises(BlobUploadError) as error:
-        async with get_blob_service_client():
+        async with get_blob_service_client(test_settings):
             pass
 
     assert "Error getting blob client: Test error" in str(
@@ -62,7 +63,9 @@ async def test_get_blob_service_client_failure_azure_error(
 
 @pytest.mark.asyncio
 async def test_blob_upload_success(
-    mocker: MockerFixture, set_test_environment_variables: Generator
+    mocker: MockerFixture,
+    set_test_environment_variables: Generator,
+    test_settings: Settings,
 ):
     """Test successful blob upload."""
     test_data = (
@@ -86,7 +89,7 @@ async def test_blob_upload_success(
         return_value=mock_blob_service_instance,
     )
 
-    result = await blob_upload(test_data_bytes_iter, test_filename)
+    result = await blob_upload(test_settings, test_data_bytes_iter, test_filename)
     assert result == test_filename, "Check that the returned filename matches the input"
     assert (
         mock_blob_client.commit_block_list.call_count == 1
@@ -109,6 +112,7 @@ async def test_blob_upload_failure(
     mocker: MockerFixture,
     set_test_environment_variables: Generator,
     exception: type[Exception],
+    test_settings: Settings,
 ):
     """Test failed blob upload."""
     test_data = (
@@ -137,7 +141,9 @@ async def test_blob_upload_failure(
     )
 
     with pytest.raises(BlobUploadError) as error:
-        await blob_upload(test_data_bytes_iter, test_filename, chunk_size=chunk_size)
+        await blob_upload(
+            test_settings, test_data_bytes_iter, test_filename, chunk_size=chunk_size
+        )
     assert "Test uploading error" in str(error.value)
 
 
@@ -157,6 +163,7 @@ async def test_blob_upload_failure_delete_raises(
     mocker: MockerFixture,
     set_test_environment_variables: Generator,
     original_exception: Exception,
+    test_settings: Settings,
 ):
     """If deleting the blob raises, ensure original upload error is still raised."""
     test_data = '{"key1": "value1"}\n'
@@ -183,7 +190,9 @@ async def test_blob_upload_failure_delete_raises(
     )
 
     with pytest.raises(BlobUploadError) as error:
-        await blob_upload(test_data_bytes_iter, test_filename, chunk_size=chunk_size)
+        await blob_upload(
+            test_settings, test_data_bytes_iter, test_filename, chunk_size=chunk_size
+        )
 
     assert str(original_exception) in str(
         error.value
@@ -195,27 +204,33 @@ async def test_blob_upload_failure_delete_raises(
 
 @pytest.mark.asyncio
 async def test_blob_upload_multipart_single_part(
-    mocker: MockerFixture, set_test_environment_variables: Generator
+    mocker: MockerFixture,
+    set_test_environment_variables: Generator,
+    test_settings: Settings,
 ):
     """Test multipart upload with fewer lines than batch_size produces one part."""
     lines = [b'{"key": "value1"}\n', b'{"key": "value2"}\n']
     mock_blob_upload = mocker.patch(
         "openalex_incremental_updater.ingest.blob_storage.blob_upload",
-        side_effect=lambda _, filename: filename,
+        side_effect=lambda _settings, _data, filename: filename,
     )
 
     async def async_gen():
         for line in lines:
             yield line
 
-    result = await blob_upload_multipart(async_gen(), "base_name", batch_size=10)
+    result = await blob_upload_multipart(
+        test_settings, async_gen(), "base_name", batch_size=10
+    )
     assert result == ["base_name_part_001.jsonl"]
     assert mock_blob_upload.call_count == 1
 
 
 @pytest.mark.asyncio
 async def test_blob_upload_multipart_multiple_parts(
-    mocker: MockerFixture, set_test_environment_variables: Generator
+    mocker: MockerFixture,
+    set_test_environment_variables: Generator,
+    test_settings: Settings,
 ):
     """Test multipart upload splits correctly across multiple parts."""
     generated_samples = 25
@@ -224,7 +239,7 @@ async def test_blob_upload_multipart_multiple_parts(
     lines = [f'{{"key": "value{i}"}}\n'.encode() for i in range(generated_samples)]
     mock_blob_upload = mocker.patch(
         "openalex_incremental_updater.ingest.blob_storage.blob_upload",
-        side_effect=lambda _, filename: filename,
+        side_effect=lambda _settings, _data, filename: filename,
     )
 
     async def async_gen():
@@ -232,7 +247,7 @@ async def test_blob_upload_multipart_multiple_parts(
             yield line
 
     result = await blob_upload_multipart(
-        async_gen(), "base_name", batch_size=test_batch_size
+        test_settings, async_gen(), "base_name", batch_size=test_batch_size
     )
     assert result == [
         "base_name_part_001.jsonl",
@@ -244,33 +259,39 @@ async def test_blob_upload_multipart_multiple_parts(
 
 @pytest.mark.asyncio
 async def test_blob_upload_multipart_empty_input(
-    mocker: MockerFixture, set_test_environment_variables: Generator
+    mocker: MockerFixture,
+    set_test_environment_variables: Generator,
+    test_settings: Settings,
 ):
     """Test multipart upload with empty input still produces one part."""
     mock_blob_upload = mocker.patch(
         "openalex_incremental_updater.ingest.blob_storage.blob_upload",
-        side_effect=lambda _, filename: filename,
+        side_effect=lambda _settings, _data, filename: filename,
     )
 
     async def async_gen():
         return
         yield
 
-    result = await blob_upload_multipart(async_gen(), "base_name", batch_size=10)
+    result = await blob_upload_multipart(
+        test_settings, async_gen(), "base_name", batch_size=10
+    )
     assert result == ["base_name_part_001.jsonl"]
     assert mock_blob_upload.call_count == 1
 
 
 @pytest.mark.asyncio
 async def test_blob_upload_multipart_exact_boundary(
-    mocker: MockerFixture, set_test_environment_variables: Generator
+    mocker: MockerFixture,
+    set_test_environment_variables: Generator,
+    test_settings: Settings,
 ):
     """Test multipart upload when line count exactly equals batch_size."""
     test_batch_size = 10
     lines = [f'{{"key": "value{i}"}}\n'.encode() for i in range(test_batch_size)]
     mock_blob_upload = mocker.patch(
         "openalex_incremental_updater.ingest.blob_storage.blob_upload",
-        side_effect=lambda _, filename: filename,
+        side_effect=lambda _settings, _data, filename: filename,
     )
 
     async def async_gen():
@@ -278,7 +299,7 @@ async def test_blob_upload_multipart_exact_boundary(
             yield line
 
     result = await blob_upload_multipart(
-        async_gen(), "base_name", batch_size=test_batch_size
+        test_settings, async_gen(), "base_name", batch_size=test_batch_size
     )
     assert result == ["base_name_part_001.jsonl"]
     assert mock_blob_upload.call_count == 1

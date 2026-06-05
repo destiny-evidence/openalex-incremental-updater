@@ -73,10 +73,12 @@ def test_run_ingestion_metadata_blob_upload_job(mocker, test_settings):
     metadata = {"key": "value"}
 
     result = run_ingestion_metadata_blob_upload_job(
-        metadata, data_source, fetch_date, stop_date
+        test_settings, metadata, data_source, fetch_date, stop_date
     )
 
-    mock_blob_upload.assert_called_once_with(json.dumps(metadata), expected_blob_name)
+    mock_blob_upload.assert_called_once_with(
+        test_settings, json.dumps(metadata), expected_blob_name
+    )
     assert result == mock_blob_upload.return_value
 
 

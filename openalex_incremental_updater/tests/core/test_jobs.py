@@ -8,6 +8,7 @@ from fastapi import HTTPException, status
 from freezegun import freeze_time
 from pytest_mock import MockerFixture
 
+from openalex_incremental_updater.core.config import Settings
 from openalex_incremental_updater.core.job_state import JobManager
 from openalex_incremental_updater.core.jobs import (
     openalex_works_ingest_date_range,
@@ -29,6 +30,7 @@ async def test_run_background_openalex_ingest_job(
     mocker: MockerFixture,
     set_test_environment_variables: Generator,
     ingest_type: CreatedOrUpdated,
+    test_settings: Settings,
 ):
     """Test running the background OpenAlex ingest job."""
     expected_blob_name = "test_blob"
@@ -47,7 +49,14 @@ async def test_run_background_openalex_ingest_job(
 
     job_id = job_manager.create(meta={"test_meta": "test_value"})
     await run_background_openalex_ingest_job(
-        job_manager, job_id, test_report, start_date, end_date, ingest_type, limit=None
+        test_settings,
+        job_manager,
+        job_id,
+        test_report,
+        start_date,
+        end_date,
+        ingest_type,
+        limit=None,
     )
 
     job = job_manager.get(job_id)
@@ -65,6 +74,7 @@ async def test_run_background_openalex_ingest_job_fails_gracefully(
     mocker: MockerFixture,
     set_test_environment_variables: Generator,
     ingest_type: CreatedOrUpdated,
+    test_settings: Settings,
 ):
     async def fake_async_gen():
         if False:
@@ -86,6 +96,7 @@ async def test_run_background_openalex_ingest_job_fails_gracefully(
     job_id = job_manager.create(meta={"test_meta": "test_value"})
     with pytest.raises(HTTPException) as exc_info:
         await run_background_openalex_ingest_job(
+            test_settings,
             job_manager,
             job_id,
             test_report,
@@ -110,6 +121,7 @@ async def test_openalex_works_ingest_date_range_success(
     ingest_type: CreatedOrUpdated,
     single_destinyopenalex_work_response: dict,
     single_destiny_openalex_work_jsonl_string: str,
+    test_settings: Settings,
 ):
     """Test successful ingestion of OpenAlex works within a date range."""
     test_response = [
@@ -141,7 +153,7 @@ async def test_openalex_works_ingest_date_range_success(
     )
     test_report = None
     result_gen = openalex_works_ingest_date_range(
-        test_report, date.today(), date.today(), ingest_type
+        test_settings, test_report, date.today(), date.today(), ingest_type
     )
     results = [item async for item in result_gen]
     assert all(
@@ -159,6 +171,7 @@ async def test_openalex_works_ingest_date_range_fails_upstream(
     mocker: MockerFixture,
     set_test_environment_variables: Generator,
     ingest_type: CreatedOrUpdated,
+    test_settings: Settings,
 ):
     """Test successful ingestion of OpenAlex works within a date range."""
     mocker.patch(
@@ -177,7 +190,7 @@ async def test_openalex_works_ingest_date_range_fails_upstream(
     )
     test_report = None
     response = openalex_works_ingest_date_range(
-        test_report, date.today(), date.today(), ingest_type
+        test_settings, test_report, date.today(), date.today(), ingest_type
     )
     with pytest.raises(UpstreamOpenAlexError) as exc_info:
         _result = [item async for item in response]
@@ -186,7 +199,9 @@ async def test_openalex_works_ingest_date_range_fails_upstream(
 
 @pytest.mark.anyio
 @freeze_time("2025-08-18")
-async def test_run_openalex_refresh_blob_upload_job(mocker: MockerFixture):
+async def test_run_openalex_refresh_blob_upload_job(
+    mocker: MockerFixture, test_settings: Settings
+):
     """Test the OpenAlex refresh blob upload job."""
     test_data = "test_data"
     test_fetch_date = date.today()
@@ -198,6 +213,6 @@ async def test_run_openalex_refresh_blob_upload_job(mocker: MockerFixture):
         return_value=[f"{expected_base_name}_part_001.jsonl"],
     )
     result = await run_openalex_refresh_blob_upload_job(
-        test_data, test_fetch_date, test_stop_date, test_refresh_date
+        test_settings, test_data, test_fetch_date, test_stop_date, test_refresh_date
     )
     assert result == expected_base_name

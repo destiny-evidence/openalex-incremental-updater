@@ -46,12 +46,17 @@ def run_refresh_job(
 
 
 def run_ingestion_metadata_blob_upload_job(
-    metadata: dict, data_source: str, fetch_date: date, stop_date: date
+    settings: Settings,
+    metadata: dict,
+    data_source: str,
+    fetch_date: date,
+    stop_date: date,
 ) -> str:
     """
     Run the metadata blob upload job.
 
     Args:
+        settings (Settings): The settings object containing configuration for blob storage access.
         metadata (dict): The metadata to upload, including:
         data_source (str): The source of the metadata, e.g., "openalex", "solr"
         fetch_date (date): The from_created_date of the metadata
@@ -62,7 +67,7 @@ def run_ingestion_metadata_blob_upload_job(
 
     """
     blob_name = format_metadata_blob_name(data_source, fetch_date, stop_date)
-    uploaded_blob = blob_upload(json.dumps(metadata), blob_name)
+    uploaded_blob = blob_upload(settings, json.dumps(metadata), blob_name)
     logger.info(f"Uploaded destiny repository ingestion metadata: {uploaded_blob}")
     return uploaded_blob
 
@@ -161,7 +166,7 @@ def run_full_pipeline(settings: Settings) -> None:
     }
     logger.info("Uploading ingestion metadata to blob storage.")
     uploaded_path = run_ingestion_metadata_blob_upload_job(
-        metadata_output, data_source, fetch_date, stop_date
+        settings, metadata_output, data_source, fetch_date, stop_date
     )
 
     logger.success(
