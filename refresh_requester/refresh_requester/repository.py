@@ -26,6 +26,7 @@ class ImportSourceType(StrEnum):
 
     OPEN_ALEX = "openalex"
     SOLR = "solr"
+    BULK_IMPORTER = "bulk_importer"
 
 
 class DestinyRepositoryImportError(Exception):
@@ -106,6 +107,13 @@ class DestinyRepositoryContentUploader:
                 processor_version="initial_solr_import",
                 expected_reference_count=-1,
                 source_name="pik-solr",
+            )
+        if source_type == ImportSourceType.BULK_IMPORTER:
+            return self.construct_payload(
+                processor_name="Bulk Importer",
+                processor_version="scheduled_bulk_import",
+                expected_reference_count=-1,
+                source_name="bulk_importer",
             )
         return self.construct_payload(
             processor_name="Bulk OpenAlex Importer",
