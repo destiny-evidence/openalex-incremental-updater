@@ -513,6 +513,13 @@ def test_construct_payload(mocker, test_settings) -> None:
             -1,
             "pik-solr",
         ),
+        (
+            ImportSourceType.BULK_IMPORTER,
+            "Bulk Importer",
+            "scheduled_bulk_import",
+            -1,
+            "bulk_importer",
+        ),
     ],
 )
 def test_retrieve_payload_from_source_type(
