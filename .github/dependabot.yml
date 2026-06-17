@@ -19,7 +19,5 @@ updates:
         update-types: ["minor", "patch"]
       major-updates:
         update-types: ["major"]
-      uv-security-updates:
-        applies-to: security-updates
     ignore:
       - dependency-name: "setuptools"
