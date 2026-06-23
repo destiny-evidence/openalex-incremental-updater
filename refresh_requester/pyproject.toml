@@ -13,7 +13,7 @@ dependencies = [
   "azure-core>=1.32.0,<2",
   "azure-identity>=1.20.0,<2",
   "azure-storage-blob>=12.30.0,<13",
-  "fastapi>=0.136.3",
+  "fastapi>=0.137.2",
   "jsonlines>=4.0.0,<5",
   "loguru>=0.7.3,<0.8",
   "pydantic>=2.10.6,<3",
@@ -31,7 +31,7 @@ dev = [
 test = [
   "freezegun>=1.5.2",
   "pytest-asyncio>=1.4.0",
-  "pytest>=9.0.0",
+  "pytest>=9.1.0",
   "pytest-cov>=7.1.0,<8",
   "pytest-mock>=3.14.0,<4"
 ]
