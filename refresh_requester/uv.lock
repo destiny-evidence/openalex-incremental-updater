@@ -281,7 +281,7 @@ wheels = [
 
 [[package]]
 name = "destiny-sdk"
-version = "0.12.6"
+version = "0.13.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "authlib" },
@@ -292,9 +292,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "python-jose", extra = ["cryptography"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ee/36/bdac4c0fa3648773b1673459e0445afccfb425e2f83e7ee16c45adda71d5/destiny_sdk-0.12.6.tar.gz", hash = "sha256:424bc4906ba0908a468c524bc515e470238b1e9dc4aa1044bb96d00b3a724c7d", size = 122494, upload-time = "2026-06-11T05:22:34.521Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/cb/d7/4e58f6bb76f804dbd6b9d2b0e9dc2fa295a82aa130c6ba6660e9ab6c231b/destiny_sdk-0.13.0.tar.gz", hash = "sha256:d6bb2e4b2e8d17e6e0cf5f10e8941410bf95f44ec288bd746eda71c189163f6c", size = 125976, upload-time = "2026-06-23T06:02:31.972Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/77/d1/c38c4246b39b92717452a82d7fbaebfc78f3459241d5fc3c669f4f856d35/destiny_sdk-0.12.6-py3-none-any.whl", hash = "sha256:4c6f7cdab672dc20a064ed05e93f85380cea039e2907881445f37bfc02afcd35", size = 41548, upload-time = "2026-06-11T05:22:33.511Z" },
+    { url = "https://files.pythonhosted.org/packages/c9/67/33fb98f8e1776aec4baed294322f79c7aa1dcfbb5d7adc27b6baf92d725d/destiny_sdk-0.13.0-py3-none-any.whl", hash = "sha256:87c963c22e9c3b5335a8ad7ff03b6cf4e17ed4f956ab0172c98e68a17d6d98a8", size = 43188, upload-time = "2026-06-23T06:02:32.806Z" },
 ]
 
 [[package]]
@@ -308,7 +308,7 @@ wheels = [
 
 [[package]]
 name = "fastapi"
-version = "0.136.3"
+version = "0.138.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "annotated-doc" },
@@ -317,9 +317,9 @@ dependencies = [
     { name = "typing-extensions" },
     { name = "typing-inspection" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/81/2d/ff8d91d7b564d464629a0fd50a4489c97fcb836ac230bf3a7269232a9b1f/fastapi-0.136.3.tar.gz", hash = "sha256:e487fae93ad408e6f47641ee4dfe389864fd7bec92e547ea8498fc13f43e83ab", size = 396410, upload-time = "2026-05-23T18:53:15.192Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/5b/58/ff455d9fe47c60abadb34b9e05a304b1f05f5ab8000ac01565156b6f5e43/fastapi-0.138.0.tar.gz", hash = "sha256:d445a4877636ad191e7053e08c9bf98cb921a6756776848400bb773d1740c061", size = 419240, upload-time = "2026-06-20T01:18:05.259Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/e0/82/45359b62a067409bd929ae8a56b8ed13e5a8c8a61194b3c236920999ab83/fastapi-0.136.3-py3-none-any.whl", hash = "sha256:3d2a69bdf04b7e9f3afa292c3bc7a98816bbfafa10bc9b45f3f3700d2f761620", size = 117481, upload-time = "2026-05-23T18:53:16.924Z" },
+    { url = "https://files.pythonhosted.org/packages/6c/ff/8496d9847a5fedae775eb49460722d3efaa80487854273e9647ae876218c/fastapi-0.138.0-py3-none-any.whl", hash = "sha256:b6f54fd1bd72c80b0f899f172c61a600f6f7af9b43d4d772a018f35624048cb0", size = 126779, upload-time = "2026-06-20T01:18:03.483Z" },
 ]
 
 [[package]]
@@ -629,7 +629,7 @@ crypto = [
 
 [[package]]
 name = "pytest"
-version = "9.0.3"
+version = "9.1.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "colorama", marker = "sys_platform == 'win32'" },
@@ -638,9 +638,9 @@ dependencies = [
     { name = "pluggy" },
     { name = "pygments" },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/7d/0d/549bd94f1a0a402dc8cf64563a117c0f3765662e2e668477624baeec44d5/pytest-9.0.3.tar.gz", hash = "sha256:b86ada508af81d19edeb213c681b1d48246c1a91d304c6c81a427674c17eb91c", size = 1572165, upload-time = "2026-04-07T17:16:18.027Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/e4/47/b9efed96c114afcfa3c9d3fe98a76a1d14c74a9e266d397cf6eb64be5e01/pytest-9.1.1.tar.gz", hash = "sha256:1088fbde8f2b49d95a549a195707afa7a76a3ce9bcadc26b6d71f0ffda5fe313", size = 1636369, upload-time = "2026-06-19T10:58:32.857Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/d4/24/a372aaf5c9b7208e7112038812994107bc65a84cd00e0354a88c2c77a617/pytest-9.0.3-py3-none-any.whl", hash = "sha256:2c5efc453d45394fdd706ade797c0a81091eccd1d6e4bccfcd476e2b8e0ab5d9", size = 375249, upload-time = "2026-04-07T17:16:16.13Z" },
+    { url = "https://files.pythonhosted.org/packages/24/25/1de2678b631f5a49215c6c96fff41ba892b0a34df68d6d80292b1b48aa7f/pytest-9.1.1-py3-none-any.whl", hash = "sha256:37a86b45efb9a47a61a36449063e8e18d0cab3161329fc099eb21783169c4f0c", size = 386536, upload-time = "2026-06-19T10:58:31.347Z" },
 ]
 
 [[package]]
@@ -787,15 +787,15 @@ requires-dist = [
     { name = "azure-core", specifier = ">=1.32.0,<2" },
     { name = "azure-identity", specifier = ">=1.20.0,<2" },
     { name = "azure-storage-blob", specifier = ">=12.30.0,<13" },
-    { name = "destiny-sdk", specifier = ">=0.12.6" },
-    { name = "fastapi", specifier = ">=0.136.3" },
+    { name = "destiny-sdk", specifier = ">=0.13.0" },
+    { name = "fastapi", specifier = ">=0.138.0" },
     { name = "freezegun", marker = "extra == 'test'", specifier = ">=1.5.2" },
     { name = "jsonlines", specifier = ">=4.0.0,<5" },
     { name = "loguru", specifier = ">=0.7.3,<0.8" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.2.0,<5" },
     { name = "pydantic", specifier = ">=2.10.6,<3" },
     { name = "pydantic-settings", specifier = ">=2.14.2,<3" },
-    { name = "pytest", marker = "extra == 'test'", specifier = ">=9.0.0" },
+    { name = "pytest", marker = "extra == 'test'", specifier = ">=9.1.1" },
     { name = "pytest-asyncio", marker = "extra == 'test'", specifier = ">=1.4.0" },
     { name = "pytest-cov", marker = "extra == 'test'", specifier = ">=7.1.0,<8" },
     { name = "pytest-mock", marker = "extra == 'test'", specifier = ">=3.14.0,<4" },
