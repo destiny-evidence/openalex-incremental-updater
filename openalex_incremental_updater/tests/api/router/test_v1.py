@@ -68,10 +68,7 @@ async def test_v1_openalex_works_ingest_date_range_success(
         response.json() == expected_response_content
     ), "Expect the response content to match"
 
-    (
-        mock_create_task.assert_called_once(),
-        "Expect asyncio.create_task to be called once",
-    )
+    mock_create_task.assert_called_once()
 
 
 @pytest.mark.anyio
