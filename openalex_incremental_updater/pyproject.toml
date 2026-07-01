@@ -10,7 +10,7 @@ authors = [{name = "Harry Moss", email = "h.moss@ucl.ac.uk"}]
 requires-python = ">=3.13,<3.14"
 readme = "README.md"
 dependencies = [
-  "fastapi[standard]>=0.136.3",
+  "fastapi[standard]>=0.138.1",
   "httpx>=0.28.1,<0.29",
   "loguru>=0.7.3,<0.8",
   "pydantic>=2.10.5,<3",
@@ -131,10 +131,6 @@ overrides."project.classifiers".inline_arrays = false
 overrides."tool.coverage.paths.source".inline_arrays = false
 
 [tool.uv]
-default-groups = [
-  "dev",
-  "test"
-]
 exclude-dependencies = [
   "ecdsa" # Required until https://github.com/mpdavis/python-jose/issues/390 is resolved
 ]
