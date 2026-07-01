@@ -3,7 +3,7 @@ from datetime import date, timedelta
 
 import pytest
 from destiny_sdk.imports import ImportRecordRead
-from freezegun import freeze_time
+from time_machine import travel
 
 from refresh_requester.jobs import run_full_pipeline
 from refresh_requester.openalex_refresh import (
@@ -11,7 +11,7 @@ from refresh_requester.openalex_refresh import (
 )
 
 
-@freeze_time("2025-06-12")
+@travel("2025-06-12T12:00:00+00")
 def test_run_full_pipeline_success_no_fetch_date_set_no_stop_date_set(
     mocker, test_settings
 ) -> None:
@@ -112,7 +112,7 @@ def test_run_full_pipeline_success_no_fetch_date_set_no_stop_date_set(
     assert metadata_arg["import_batch_ids"] == [str(bid) for bid in test_batch_ids]
 
 
-@freeze_time("2025-06-12")
+@travel("2025-06-12T12:00:00+00")
 def test_run_full_pipeline_success_fetch_date_set_stop_date_unset(
     mocker, test_settings
 ) -> None:
@@ -204,7 +204,7 @@ def test_run_full_pipeline_success_fetch_date_set_stop_date_unset(
     ), "run_ingestion_metadata_blob_upload_job should be called once at the end of the job"
 
 
-@freeze_time("2025-06-12")
+@travel("2025-06-12T12:00:00+00")
 def test_run_full_pipeline_success_fetch_date_set_stop_date_set(
     mocker, test_settings
 ) -> None:
@@ -295,7 +295,7 @@ def test_run_full_pipeline_success_fetch_date_set_stop_date_set(
     ), "run_ingestion_metadata_blob_upload_job should be called once at the end of the job"
 
 
-@freeze_time("2026-05-20")
+@travel("2026-05-20T12:00:00+00")
 def test_run_full_pipeline_exits_cleanly_when_fetch_date_after_stop_date(
     mocker, caplog, test_settings
 ):
@@ -329,7 +329,7 @@ def test_run_full_pipeline_exits_cleanly_when_fetch_date_after_stop_date(
     run_refresh_job_mock.assert_not_called()
 
 
-@freeze_time("2026-05-20")
+@travel("2026-05-20T12:00:00+00")
 def test_run_full_pipeline_fails_openalex_refresh_error(mocker, caplog, test_settings):
     """
     Test the run_full_pipeline function of the refresh requester job.

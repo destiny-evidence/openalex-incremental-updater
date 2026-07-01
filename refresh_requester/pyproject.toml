@@ -29,11 +29,12 @@ dev = [
   "pre-commit>=4.2.0,<5"
 ]
 test = [
-  "freezegun>=1.5.2",
   "pytest-asyncio>=1.4.0",
   "pytest>=9.0.0",
   "pytest-cov>=7.1.0,<8",
-  "pytest-mock>=3.14.0,<4"
+  "pytest-mock>=3.14.0,<4",
+  "time-machine>=3.2.0",
+  "httpx2>=2.5.0"
 ]
 
 [tool.ruff]

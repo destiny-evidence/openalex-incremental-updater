@@ -1,7 +1,7 @@
 from datetime import date
 
 import pytest
-from freezegun import freeze_time
+from time_machine import travel
 
 from refresh_requester.utils import (
     get_fetch_date,
@@ -9,7 +9,7 @@ from refresh_requester.utils import (
 )
 
 
-@freeze_time("2025-06-18")
+@travel("2025-06-18T12:00:00+00")
 def test_get_fetch_date_no_date_set(mocker, test_settings) -> None:
     """
     Test the get_fetch_date function when no date is set in the settings.
@@ -33,7 +33,7 @@ def test_get_fetch_date_no_date_set(mocker, test_settings) -> None:
     ), "get_fetch_date should return the date from determine_next_fetch_date"
 
 
-@freeze_time("2025-06-18")
+@travel("2025-06-18T12:00:00+00")
 def test_get_fetch_date_date_set_in_settings(mocker, test_settings) -> None:
     """
     Test the get_fetch_date function when no date is set in the settings.
@@ -57,7 +57,7 @@ def test_get_fetch_date_date_set_in_settings(mocker, test_settings) -> None:
     ), "get_fetch_date should return the date set in settings"
 
 
-@freeze_time("2025-06-18")
+@travel("2025-06-18T12:00:00+00")
 @pytest.mark.parametrize(
     ("fetch_date", "expected_stop_date"),
     [
@@ -90,7 +90,7 @@ def test_get_stop_date_no_date_set(
     ), "get_stop_date should return yesterday's date when no stop_date is set in settings and fetch_date is in the past"
 
 
-@freeze_time("2025-06-18")
+@travel("2025-06-18T12:00:00+00")
 @pytest.mark.parametrize(
     ("fetch_date", "stop_date"),
     [
