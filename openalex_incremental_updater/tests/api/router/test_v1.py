@@ -21,6 +21,7 @@ from openalex_incremental_updater.ingest import CreatedOrUpdated
 from openalex_incremental_updater.models.auth import DestinyRepoToken
 
 
+@travel("2025-08-18T12:00:00+00")
 @pytest.mark.anyio
 @pytest.mark.parametrize(
     "ingest_type",
