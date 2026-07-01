@@ -824,7 +824,6 @@ dependencies = [
     { name = "destiny-sdk" },
     { name = "fastapi", extra = ["standard"] },
     { name = "httpx" },
-    { name = "httpx2" },
     { name = "loguru" },
     { name = "msal" },
     { name = "pydantic" },
@@ -839,6 +838,7 @@ dev = [
     { name = "types-requests" },
 ]
 test = [
+    { name = "httpx2" },
     { name = "pytest" },
     { name = "pytest-asyncio" },
     { name = "pytest-cov" },
@@ -855,7 +855,7 @@ requires-dist = [
     { name = "destiny-sdk", specifier = ">=0.13.0" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.138.1" },
     { name = "httpx", specifier = ">=0.28.1,<0.29" },
-    { name = "httpx2", specifier = ">=2.5.0" },
+    { name = "httpx2", marker = "extra == 'test'", specifier = ">=2.5.0" },
     { name = "loguru", specifier = ">=0.7.3,<0.8" },
     { name = "msal", specifier = ">=1.37.0,<2" },
     { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.0.1,<5" },
