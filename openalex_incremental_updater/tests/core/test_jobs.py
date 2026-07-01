@@ -5,8 +5,8 @@ from typing import Any
 import pytest
 from destiny_sdk.references import ReferenceFileInput
 from fastapi import HTTPException, status
-from freezegun import freeze_time
 from pytest_mock import MockerFixture
+from time_machine import travel
 
 from openalex_incremental_updater.core.config import Settings
 from openalex_incremental_updater.core.job_state import JobManager
@@ -25,7 +25,7 @@ from openalex_incremental_updater.ingest.openalex import (
 @pytest.mark.parametrize(
     "ingest_type", [CreatedOrUpdated("created"), CreatedOrUpdated("updated")]
 )
-@freeze_time("2025-08-18")
+@travel("2025-08-18T12:00:00+00")
 async def test_run_background_openalex_ingest_job(
     mocker: MockerFixture,
     set_test_environment_variables: Generator,
@@ -69,7 +69,7 @@ async def test_run_background_openalex_ingest_job(
 @pytest.mark.parametrize(
     "ingest_type", [CreatedOrUpdated("created"), CreatedOrUpdated("updated")]
 )
-@freeze_time("2025-08-18")
+@travel("2025-08-18T12:00:00+00")
 async def test_run_background_openalex_ingest_job_fails_gracefully(
     mocker: MockerFixture,
     set_test_environment_variables: Generator,
@@ -111,7 +111,7 @@ async def test_run_background_openalex_ingest_job_fails_gracefully(
 
 
 @pytest.mark.anyio
-@freeze_time("2025-08-18")
+@travel("2025-08-18T12:00:00+00")
 @pytest.mark.parametrize(
     "ingest_type", [CreatedOrUpdated("created"), CreatedOrUpdated("updated")]
 )
@@ -163,7 +163,7 @@ async def test_openalex_works_ingest_date_range_success(
 
 
 @pytest.mark.anyio
-@freeze_time("2025-08-18")
+@travel("2025-08-18T12:00:00+00")
 @pytest.mark.parametrize(
     "ingest_type", [CreatedOrUpdated("created"), CreatedOrUpdated("updated")]
 )
@@ -198,7 +198,7 @@ async def test_openalex_works_ingest_date_range_fails_upstream(
 
 
 @pytest.mark.anyio
-@freeze_time("2025-08-18")
+@travel("2025-08-18T12:00:00+00")
 async def test_run_openalex_refresh_blob_upload_job(
     mocker: MockerFixture, test_settings: Settings
 ):

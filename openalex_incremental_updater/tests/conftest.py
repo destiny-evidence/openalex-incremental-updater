@@ -9,9 +9,9 @@ from zoneinfo import ZoneInfo
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from freezegun import freeze_time
 from httpx import ASGITransport, AsyncClient
 from loguru import logger
+from time_machine import travel
 
 from openalex_incremental_updater.core.config import Settings, get_settings
 from openalex_incremental_updater.core.job_state import JobManager, report_status
@@ -114,7 +114,7 @@ def test_settings(set_test_environment_variables) -> Settings:
 
 
 @pytest.fixture
-@freeze_time("2025-08-18")
+@travel("2025-08-18T12:00:00+00")
 def job_report_dict() -> dict:
     """Fixture to create a job report function."""
     start_date = datetime.now(ZoneInfo("UTC")).date()
