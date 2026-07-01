@@ -852,7 +852,7 @@ requires-dist = [
     { name = "azure-core", extras = ["aio"], specifier = ">=1.41.0" },
     { name = "azure-identity", specifier = ">=1.24.0" },
     { name = "azure-storage-blob", specifier = ">=12.30.0" },
-    { name = "destiny-sdk", specifier = ">=0.12.6" },
+    { name = "destiny-sdk", specifier = ">=0.13.0" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.138.1" },
     { name = "httpx", specifier = ">=0.28.1,<0.29" },
     { name = "httpx2", specifier = ">=2.5.0" },

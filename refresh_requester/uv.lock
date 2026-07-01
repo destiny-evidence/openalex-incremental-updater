@@ -281,7 +281,7 @@ wheels = [
 
 [[package]]
 name = "destiny-sdk"
-version = "0.12.6"
+version = "0.13.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "authlib" },
@@ -292,9 +292,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "python-jose", extra = ["cryptography"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/ee/36/bdac4c0fa3648773b1673459e0445afccfb425e2f83e7ee16c45adda71d5/destiny_sdk-0.12.6.tar.gz", hash = "sha256:424bc4906ba0908a468c524bc515e470238b1e9dc4aa1044bb96d00b3a724c7d", size = 122494, upload-time = "2026-06-11T05:22:34.521Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/cb/d7/4e58f6bb76f804dbd6b9d2b0e9dc2fa295a82aa130c6ba6660e9ab6c231b/destiny_sdk-0.13.0.tar.gz", hash = "sha256:d6bb2e4b2e8d17e6e0cf5f10e8941410bf95f44ec288bd746eda71c189163f6c", size = 125976, upload-time = "2026-06-23T06:02:31.972Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/77/d1/c38c4246b39b92717452a82d7fbaebfc78f3459241d5fc3c669f4f856d35/destiny_sdk-0.12.6-py3-none-any.whl", hash = "sha256:4c6f7cdab672dc20a064ed05e93f85380cea039e2907881445f37bfc02afcd35", size = 41548, upload-time = "2026-06-11T05:22:33.511Z" },
+    { url = "https://files.pythonhosted.org/packages/c9/67/33fb98f8e1776aec4baed294322f79c7aa1dcfbb5d7adc27b6baf92d725d/destiny_sdk-0.13.0-py3-none-any.whl", hash = "sha256:87c963c22e9c3b5335a8ad7ff03b6cf4e17ed4f956ab0172c98e68a17d6d98a8", size = 43188, upload-time = "2026-06-23T06:02:32.806Z" },
 ]
 
 [[package]]
@@ -792,7 +792,7 @@ requires-dist = [
     { name = "azure-core", specifier = ">=1.32.0,<2" },
     { name = "azure-identity", specifier = ">=1.20.0,<2" },
     { name = "azure-storage-blob", specifier = ">=12.30.0,<13" },
-    { name = "destiny-sdk", specifier = ">=0.12.6" },
+    { name = "destiny-sdk", specifier = ">=0.13.0" },
     { name = "fastapi", specifier = ">=0.138.1" },
     { name = "httpx2", marker = "extra == 'test'", specifier = ">=2.5.0" },
     { name = "jsonlines", specifier = ">=4.0.0,<5" },
