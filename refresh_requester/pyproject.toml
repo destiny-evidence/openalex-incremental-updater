@@ -30,7 +30,7 @@ dev = [
 ]
 test = [
   "pytest-asyncio>=1.4.0",
-  "pytest>=9.0.0",
+  "pytest>=9.1.1",
   "pytest-cov>=7.1.0,<8",
   "pytest-mock>=3.14.0,<4",
   "time-machine>=3.2.0",
