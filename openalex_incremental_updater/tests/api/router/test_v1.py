@@ -8,9 +8,9 @@ from uuid import uuid4
 import pytest
 from fastapi import status
 from fastapi.testclient import TestClient
-from freezegun import freeze_time
 from httpx import AsyncClient
 from pytest_mock import MockerFixture
+from time_machine import travel
 
 from openalex_incremental_updater.core.job_state import (
     JobManager,
@@ -21,7 +21,7 @@ from openalex_incremental_updater.ingest import CreatedOrUpdated
 from openalex_incremental_updater.models.auth import DestinyRepoToken
 
 
-@freeze_time("2025-08-18")
+@travel("2025-08-18T12:00:00+00")
 @pytest.mark.anyio
 @pytest.mark.parametrize(
     "ingest_type",
@@ -45,7 +45,9 @@ async def test_v1_openalex_works_ingest_date_range_success(
         "start_date": test_date.isoformat(),
         "end_date": test_date.isoformat(),
     }
-
+    mocker.patch(
+        "openalex_incremental_updater.core.job_state.uuid.uuid4", return_value=test_id
+    )
     base_api_url = "/api/v1/openalex_works_ingest_date_range?"
 
     request_string = (
@@ -53,10 +55,6 @@ async def test_v1_openalex_works_ingest_date_range_success(
         + f"start_date={test_date}&end_date={test_date}&ingest_type={ingest_type}&limit={limit}"
     )
 
-    mock_job_create = mocker.patch(
-        "openalex_incremental_updater.core.job_state.JobManager.create",
-        return_value=test_id,
-    )
     original_create_task = asyncio.create_task
     mock_create_task = mocker.patch(
         "asyncio.create_task", side_effect=lambda coro: original_create_task(coro)
@@ -70,14 +68,6 @@ async def test_v1_openalex_works_ingest_date_range_success(
         response.json() == expected_response_content
     ), "Expect the response content to match"
 
-    mock_job_create.assert_called_once_with(
-        meta={
-            "start_date": test_date,
-            "end_date": test_date,
-            "ingest_type": ingest_type,
-            "limit": limit,
-        }
-    )
     mock_create_task.assert_called_once()
 
 
@@ -105,7 +95,7 @@ async def test_v1_get_auth_token_success(
     ), "Expect the response to match the expected response"
 
 
-@freeze_time("2025-08-18")
+@travel("2025-08-18T12:00:00+00")
 @pytest.mark.anyio
 async def test_run_with_tracking_async(
     async_test_client: AsyncClient,

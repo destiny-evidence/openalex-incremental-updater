@@ -6,7 +6,7 @@ from uuid import uuid4
 
 import pytest
 import requests
-from freezegun import freeze_time
+from time_machine import travel
 
 from refresh_requester.openalex_refresh import (
     OpenAlexRefreshError,
@@ -16,7 +16,7 @@ from refresh_requester.openalex_refresh import (
 )
 
 
-@freeze_time("2025-08-18")
+@travel("2025-08-18T12:00:00+00")
 def test_request_refresh_success(mocker, test_settings):
     """Test successful request refresh."""
     test_id = uuid4()

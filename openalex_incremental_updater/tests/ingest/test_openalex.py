@@ -6,7 +6,7 @@ import pytest
 import respx
 from destiny_sdk.identifiers import DOIIdentifier
 from fastapi import status
-from freezegun import freeze_time
+from time_machine import travel
 
 from openalex_incremental_updater.core.config import Settings
 from openalex_incremental_updater.ingest import CreatedOrUpdated
@@ -162,7 +162,7 @@ async def test_fetch_works_filter_incomplete_fetch_raises_error(
         assert "4 of 100" in str(exc_info.value)
 
 
-@freeze_time("2025-08-19")
+@travel("2025-08-19T12:00:00+00")
 @pytest.mark.parametrize(
     "ingest_type", [CreatedOrUpdated("created"), CreatedOrUpdated("updated")]
 )

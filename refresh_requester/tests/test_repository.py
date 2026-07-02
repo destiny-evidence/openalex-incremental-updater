@@ -2,7 +2,6 @@ from datetime import UTC, datetime
 from http import HTTPStatus
 from uuid import uuid4
 
-import freezegun
 import pytest
 from destiny_sdk.imports import (
     ImportBatchRead,
@@ -13,6 +12,7 @@ from destiny_sdk.imports import (
     ImportRecordStatus,
     ImportResultStatus,
 )
+from time_machine import travel
 
 from refresh_requester.repository import (
     DestinyRepositoryContentUploader,
@@ -21,7 +21,7 @@ from refresh_requester.repository import (
 )
 
 
-@freezegun.freeze_time("2025-06-12T02:00:00+00")
+@travel("2025-06-12T02:00:00+00", tick=False)
 def test_register_new_import_success(mocker, test_settings) -> None:
     """Test the register_new_import method."""
     mocker.patch(
@@ -112,7 +112,7 @@ def test_register_import_batch_for_single_blob(mocker, test_settings) -> None:
     ), "Response status should match the import record status"
 
 
-@freezegun.freeze_time("2025-06-12T02:00:00+00")
+@travel("2025-06-12T02:00:00+00")
 def test_finalise_import_record(mocker, test_settings) -> None:
     """Test the finalise_import_record method."""
     mocker.patch(
@@ -179,7 +179,7 @@ def test_check_if_import_batch_completed_status_correct(
     ), "Result should match the expected boolean value based on the import batch status"
 
 
-@freezegun.freeze_time("2025-06-12T02:00:00+00")
+@travel("2025-06-12T02:00:00+00")
 def test_get_import_batch_summary(mocker, test_settings) -> None:
     """Test the get_import_batch_summary method."""
     mocker.patch(
@@ -218,7 +218,7 @@ def test_get_import_batch_summary(mocker, test_settings) -> None:
     ), "Import batch status should be COMPLETED"
 
 
-@freezegun.freeze_time("2025-06-12T02:00:00+00")
+@travel("2025-06-12T02:00:00+00")
 def test_upload_blob_storage_contents_to_repository_success_single_blob(
     mocker, test_settings
 ):

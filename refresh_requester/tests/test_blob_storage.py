@@ -9,7 +9,7 @@ from azure.core.exceptions import (
     ResourceNotFoundError,
     ServiceRequestError,
 )
-from freezegun import freeze_time
+from time_machine import travel
 
 from refresh_requester.blob_storage import (
     BlobUploadError,
@@ -355,7 +355,7 @@ def test_destinyblobstorageclient_get_all_blob_url_pairs(mocker, test_settings) 
     ), "Check second blob SAS URL"
 
 
-@freeze_time("2026-05-20")
+@travel("2026-05-20T12:00:00+00")
 def test_determine_next_fetch_date_no_stop_date(mocker, test_settings):
     """Test determine_next_fetch_date returns fetch date if no stop date is set."""
     date_yesterday = date.today() - timedelta(days=1)
@@ -369,7 +369,7 @@ def test_determine_next_fetch_date_no_stop_date(mocker, test_settings):
     ), "Expected fetch date to be returned when no stop date is set"
 
 
-@freeze_time("2026-05-20")
+@travel("2026-05-20T12:00:00+00")
 def test_determine_next_fetch_date_previous_stop_date_found(mocker, test_settings):
     """Test determine_next_fetch_date returns the day after the latest stop date."""
     date_yesterday = date.today() - timedelta(days=1)

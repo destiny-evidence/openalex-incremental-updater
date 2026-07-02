@@ -5,7 +5,7 @@ from uuid import uuid4
 
 import pytest
 import requests
-from freezegun import freeze_time
+from time_machine import travel
 
 from refresh_requester.jobs import (
     check_stop_date_not_before_fetch_date,
@@ -15,7 +15,7 @@ from refresh_requester.jobs import (
 from refresh_requester.openalex_refresh import OpenAlexRefreshError
 
 
-@freeze_time("2025-08-18")
+@travel("2025-08-18T12:00:00+00")
 def test_run_refresh_job_success(mocker, test_settings):
     """Test a successful job run."""
     test_id = uuid4()

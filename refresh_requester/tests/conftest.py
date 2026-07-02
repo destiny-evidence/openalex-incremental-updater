@@ -18,7 +18,7 @@ def pytest_configure():
     Settings.model_config["env_file"] = ""
 
     # These models have circular forward references, so Pydantic defers schema building.
-    # Rebuilding here ensures schemas are cached before any @freeze_time block
+    # Rebuilding here ensures schemas are cached before any @travel block
     # replaces datetime.datetime:
 
     ImportRecordRead.model_rebuild()
