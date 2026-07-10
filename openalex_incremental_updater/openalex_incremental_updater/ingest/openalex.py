@@ -1,5 +1,6 @@
 """Retrieve data from OpenAlex API."""
 
+import asyncio
 import copy
 import uuid
 from asyncio import Lock
@@ -189,16 +190,39 @@ class OpenAlexDataFetcher:
                     logger.debug(
                         f"[Instance {instance_id}] Fetching URL: {filtered_works_url}"
                     )
-                    response = await session.get(filtered_works_url)
-
-                    try:
-                        response.raise_for_status()
-                    except httpx.HTTPStatusError as http_error:
-                        error_message = str(http_error)
-                        logger.error(f"OpenAlex API query failed: {error_message}")
-                        raise UpstreamOpenAlexError(error_message) from http_error
-
-                    retrieved_works = response.json()
+                    attempt = 0
+                    while True:
+                        try:
+                            response = await session.get(filtered_works_url)
+                            response.raise_for_status()
+                            retrieved_works = response.json()
+                        except httpx.ReadTimeout as timeout_error:
+                            logger.warning(
+                                "[Instance {}] Attempt {} of {}: ReadTimeout while fetching cursor {}",
+                                instance_id,
+                                attempt + 1,
+                                self.retries + 1,
+                                cursor,
+                            )
+                            if attempt == self.retries:
+                                error_message = (
+                                    "OpenAlex API read timeout while fetching works "
+                                    f"after {self.retries + 1} attempts "
+                                    f"at cursor {cursor}"
+                                )
+                                logger.error(error_message)
+                                raise UpstreamOpenAlexError(
+                                    error_message
+                                ) from timeout_error
+                            await asyncio.sleep(self.backoff_factor * 2**attempt)
+                            attempt += 1
+                            continue
+                        except httpx.HTTPStatusError as http_error:
+                            error_message = str(http_error)
+                            logger.error(f"OpenAlex API query failed: {error_message}")
+                            raise UpstreamOpenAlexError(error_message) from http_error
+                        else:
+                            break
 
                     results = retrieved_works["results"]
 

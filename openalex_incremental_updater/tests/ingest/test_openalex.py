@@ -163,6 +163,94 @@ async def test_fetch_works_filter_incomplete_fetch_raises_error(
 
 
 @travel("2025-08-19T12:00:00+00")
+@pytest.mark.anyio
+async def test_fetch_works_filter_retries_on_response_json_readtimeout(
+    double_openalex_work_response: list[dict],
+    test_settings: Settings,
+    mocker,
+) -> None:
+    """Test that timeouts while parsing a response body are retried."""
+    expected_response = {
+        "meta": {
+            "count": len(double_openalex_work_response),
+            "next_cursor": None,
+        },
+        "results": double_openalex_work_response,
+    }
+    read_timeout_error_message = "simulated timeout during body read"
+    openalex_filter = "from_created_date:2025-08-18,to_created_date:2025-08-18"
+    configured_retries = 1
+    expected_json_calls_per_response = 1
+    expected_get_calls = configured_retries + 1
+
+    first_response = mocker.Mock(spec=httpx.Response)
+    first_response.raise_for_status.return_value = None
+    first_response.json.side_effect = httpx.ReadTimeout(read_timeout_error_message)
+
+    second_response = mocker.Mock(spec=httpx.Response)
+    second_response.raise_for_status.return_value = None
+    second_response.json.return_value = expected_response
+
+    fetcher = OpenAlexDataFetcher(
+        settings=test_settings,
+        retries=configured_retries,
+        backoff_factor=0,
+    )
+    mocked_get = mocker.patch(
+        "openalex_incremental_updater.ingest.openalex.AsyncRetryClient.get",
+        side_effect=[first_response, second_response],
+    )
+
+    response = fetcher.fetch_works_filter(openalex_filter=openalex_filter)
+    results = [item async for item in response]
+    flat_results = [work for batch in results for work in batch]
+
+    assert first_response.json.call_count == expected_json_calls_per_response
+    assert second_response.json.call_count == expected_json_calls_per_response
+    assert mocked_get.call_count == expected_get_calls
+    assert flat_results == [
+        convert_openalex_to_destiny(work) for work in double_openalex_work_response
+    ]
+
+
+@pytest.mark.anyio
+async def test_fetch_works_filter_raises_on_response_json_readtimeout_after_retries(
+    test_settings: Settings,
+    mocker,
+) -> None:
+    """Test that persistent body-read timeouts fail with an actionable message."""
+    read_timeout_error_message = "simulated timeout during body read"
+    expected_error_fragment = "read timeout"
+    openalex_filter = "from_created_date:2025-08-18,to_created_date:2025-08-18"
+    configured_retries = 1
+    expected_timeout_json_calls = configured_retries + 1
+    expected_get_calls = configured_retries + 1
+
+    timeout_response = mocker.Mock(spec=httpx.Response)
+    timeout_response.raise_for_status.return_value = None
+    timeout_response.json.side_effect = httpx.ReadTimeout(read_timeout_error_message)
+
+    fetcher = OpenAlexDataFetcher(
+        settings=test_settings,
+        retries=configured_retries,
+        backoff_factor=0,
+    )
+    mocked_get = mocker.patch(
+        "openalex_incremental_updater.ingest.openalex.AsyncRetryClient.get",
+        return_value=timeout_response,
+    )
+
+    response = fetcher.fetch_works_filter(openalex_filter=openalex_filter)
+
+    with pytest.raises(UpstreamOpenAlexError) as exc_info:
+        _ = [item async for item in response]
+
+    assert expected_error_fragment in str(exc_info.value).lower()
+    assert timeout_response.json.call_count == expected_timeout_json_calls
+    assert mocked_get.call_count == expected_get_calls
+
+
+@travel("2025-08-19")
 @pytest.mark.parametrize(
     "ingest_type", [CreatedOrUpdated("created"), CreatedOrUpdated("updated")]
 )
