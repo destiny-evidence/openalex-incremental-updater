@@ -198,7 +198,7 @@ class OpenAlexDataFetcher:
                             retrieved_works = response.json()
                         except httpx.ReadTimeout as timeout_error:
                             warning_message = (
-                                f"Instance {instance_id} Attempt {attempt + 1} of {self.retries + 1}: "
+                                f"[Instance {instance_id}] Attempt {attempt + 1} of {self.retries + 1}: "
                                 f"ReadTimeout while fetching cursor {cursor}"
                             )
                             logger.warning(warning_message)
