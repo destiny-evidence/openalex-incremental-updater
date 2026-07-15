@@ -2,6 +2,7 @@
 
 import asyncio
 from enum import StrEnum
+from typing import Any
 
 import httpx
 from fastapi import status
@@ -103,6 +104,50 @@ class AsyncRetryClient(httpx.AsyncClient):
             backoff_factor (float, optional): Backoff factor for retrying. Defaults to 0.1.
 
         """
+        self.retries = retries
+        self.backoff_factor = backoff_factor
         super().__init__(
             transport=RetryTransport(retries=retries, backoff_factor=backoff_factor)
         )
+
+    async def get_json_with_retry(
+        self,
+        url: str,
+        *,
+        instance_id: str | None = None,
+        cursor: str | None = None,
+    ) -> dict[str, Any]:
+        """
+        Fetch a JSON payload and retry parse-time ReadTimeout failures.
+
+        Args:
+            url (str): The URL to fetch JSON data from.
+            instance_id (str | None, optional): The instance ID for logging purposes. Defaults to None.
+            cursor (str | None, optional): The cursor for pagination. Defaults to None.
+
+        Returns:
+            dict[str, Any]: The parsed JSON data or an error response.
+
+        """
+        attempt = 0
+        while True:
+            response = await self.get(url)
+            response.raise_for_status()
+            try:
+                return response.json()
+            except httpx.ReadTimeout:
+                instance_fragment = (
+                    f"[Instance {instance_id}] " if instance_id is not None else ""
+                )
+                cursor_fragment = (
+                    f" while fetching cursor {cursor}" if cursor is not None else ""
+                )
+                warning_message = (
+                    f"{instance_fragment}Attempt {attempt + 1} of {self.retries + 1}: "
+                    f"ReadTimeout during response parsing{cursor_fragment}"
+                )
+                logger.warning(warning_message)
+                if attempt == self.retries:
+                    raise
+                await asyncio.sleep(self.backoff_factor * 2**attempt)
+                attempt += 1

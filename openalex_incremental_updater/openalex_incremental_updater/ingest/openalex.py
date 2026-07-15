@@ -1,6 +1,5 @@
 """Retrieve data from OpenAlex API."""
 
-import asyncio
 import copy
 import uuid
 from asyncio import Lock
@@ -190,37 +189,24 @@ class OpenAlexDataFetcher:
                     logger.debug(
                         f"[Instance {instance_id}] Fetching URL: {filtered_works_url}"
                     )
-                    attempt = 0
-                    while True:
-                        try:
-                            response = await session.get(filtered_works_url)
-                            response.raise_for_status()
-                            retrieved_works = response.json()
-                        except httpx.ReadTimeout as timeout_error:
-                            warning_message = (
-                                f"[Instance {instance_id}] Attempt {attempt + 1} of {self.retries + 1}: "
-                                f"ReadTimeout while fetching cursor {cursor}"
-                            )
-                            logger.warning(warning_message)
-                            if attempt == self.retries:
-                                error_message = (
-                                    "OpenAlex API read timeout while fetching works "
-                                    f"after {self.retries + 1} attempts "
-                                    f"at cursor {cursor}"
-                                )
-                                logger.error(error_message)
-                                raise UpstreamOpenAlexError(
-                                    error_message
-                                ) from timeout_error
-                            await asyncio.sleep(self.backoff_factor * 2**attempt)
-                            attempt += 1
-                            continue
-                        except httpx.HTTPStatusError as http_error:
-                            error_message = str(http_error)
-                            logger.error(f"OpenAlex API query failed: {error_message}")
-                            raise UpstreamOpenAlexError(error_message) from http_error
-                        else:
-                            break
+                    try:
+                        retrieved_works = await session.get_json_with_retry(
+                            filtered_works_url,
+                            instance_id=instance_id,
+                            cursor=cursor,
+                        )
+                    except httpx.ReadTimeout as timeout_error:
+                        error_message = (
+                            "OpenAlex API read timeout while fetching works "
+                            f"after {self.retries + 1} attempts "
+                            f"at cursor {cursor}"
+                        )
+                        logger.error(error_message)
+                        raise UpstreamOpenAlexError(error_message) from timeout_error
+                    except httpx.HTTPStatusError as http_error:
+                        error_message = str(http_error)
+                        logger.error(f"OpenAlex API query failed: {error_message}")
+                        raise UpstreamOpenAlexError(error_message) from http_error
 
                     results = retrieved_works["results"]
 
