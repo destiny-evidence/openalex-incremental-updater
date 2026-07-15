@@ -250,7 +250,7 @@ async def test_fetch_works_filter_raises_on_response_json_readtimeout_after_retr
     assert mocked_get.call_count == expected_get_calls
 
 
-@travel("2025-08-19")
+@travel("2025-08-19T12:00:00+00")
 @pytest.mark.parametrize(
     "ingest_type", [CreatedOrUpdated("created"), CreatedOrUpdated("updated")]
 )
