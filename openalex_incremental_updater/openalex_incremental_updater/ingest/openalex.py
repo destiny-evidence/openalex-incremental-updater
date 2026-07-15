@@ -197,13 +197,11 @@ class OpenAlexDataFetcher:
                             response.raise_for_status()
                             retrieved_works = response.json()
                         except httpx.ReadTimeout as timeout_error:
-                            logger.warning(
-                                "[Instance {}] Attempt {} of {}: ReadTimeout while fetching cursor {}",
-                                instance_id,
-                                attempt + 1,
-                                self.retries + 1,
-                                cursor,
+                            warning_message = (
+                                f"Instance {instance_id} Attempt {attempt + 1} of {self.retries + 1}: "
+                                f"ReadTimeout while fetching cursor {cursor}"
                             )
+                            logger.warning(warning_message)
                             if attempt == self.retries:
                                 error_message = (
                                     "OpenAlex API read timeout while fetching works "
