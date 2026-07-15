@@ -136,15 +136,11 @@ class AsyncRetryClient(httpx.AsyncClient):
             try:
                 return response.json()
             except httpx.ReadTimeout:
-                instance_fragment = (
-                    f"[Instance {instance_id}] " if instance_id is not None else ""
-                )
-                cursor_fragment = (
-                    f" while fetching cursor {cursor}" if cursor is not None else ""
-                )
+                instance_id = instance_id if instance_id is not None else "<UNKNOWN>"
+                cursor = cursor if cursor is not None else "<UNKNOWN>"
                 warning_message = (
-                    f"{instance_fragment}Attempt {attempt + 1} of {self.retries + 1}: "
-                    f"ReadTimeout during response parsing{cursor_fragment}"
+                    f"[Instance {instance_id}] Attempt {attempt + 1} of {self.retries + 1}: "
+                    f"ReadTimeout during response parsing {cursor}"
                 )
                 logger.warning(warning_message)
                 if attempt == self.retries:
