@@ -121,3 +121,43 @@ async def test_http_status_error_with_response_is_handled(
         caplog.text
     ), "Expect HTTPStatusError to be logged."
     assert response.status_code == status.HTTP_200_OK, "Expect a successful response."
+
+
+@pytest.mark.anyio
+async def test_get_json_with_retry_retries_parse_time_readtimeout(
+    mocker: MockerFixture,
+) -> None:
+    expected_payload = {
+        "meta": {"count": 1, "next_cursor": None},
+        "results": [],
+    }
+    configured_retries = 1
+    expected_get_calls = configured_retries + 1
+
+    first_response = mocker.Mock(spec=httpx.Response)
+    first_response.raise_for_status.return_value = None
+    first_response.json.side_effect = httpx.ReadTimeout(
+        "ReadTimeout error simulated for testing."
+    )
+
+    second_response = mocker.Mock(spec=httpx.Response)
+    second_response.raise_for_status.return_value = None
+    second_response.json.return_value = expected_payload
+
+    async with AsyncRetryClient(
+        retries=configured_retries, backoff_factor=0
+    ) as session:
+        mocked_get = mocker.patch.object(
+            session,
+            "get",
+            new=mocker.AsyncMock(side_effect=[first_response, second_response]),
+        )
+
+        result = await session.get_json_with_retry(
+            "https://a-test-url",
+            instance_id="test1234",
+            cursor="*",
+        )
+
+    assert result == expected_payload
+    assert mocked_get.call_count == expected_get_calls
