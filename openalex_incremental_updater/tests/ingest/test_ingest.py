@@ -65,28 +65,65 @@ async def test_no_retry_on_404_not_found() -> None:
 
 
 @pytest.mark.anyio
-async def test_readtimeout_exception_is_handled(
+async def test_session_get_readtimeout_is_not_retried(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     url = "https://a-test-url"
+    expected_calls = 1
+    expected_warning_logs = 0
 
     async with respx.mock:
         with caplog.at_level("WARNING"):
-            respx.get(url).mock(
-                side_effect=[
-                    httpx.ReadTimeout("ReadTimeout error simulated for testing."),
-                    httpx.ReadTimeout("ReadTimeout error simulated for testing."),
-                    Response(status.HTTP_200_OK),
-                ]
+            route = respx.get(url).mock(
+                side_effect=httpx.ReadTimeout(
+                    "ReadTimeout error simulated for testing."
+                )
             )
 
             async with AsyncRetryClient(retries=3, backoff_factor=0) as session:
-                response = await session.get(url)
+                with pytest.raises(httpx.ReadTimeout):
+                    await session.get(url)
 
-    assert "ReadTimeout" in str(
-        caplog.text
-    ), "Expect ReadTimeout exception to be raised."
-    assert response.status_code == status.HTTP_200_OK, "Expect a successful response."
+            assert route.call_count == expected_calls
+            assert len(caplog.records) == expected_warning_logs
+
+
+@pytest.mark.anyio
+async def test_get_json_with_retry_retries_request_time_readtimeout(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    url = "https://a-test-url"
+    number_of_failures = 2
+    configured_retries = 3
+    test_cursor = "a-test-cursor"
+    expected_calls = number_of_failures + 1
+    expected_payload = {
+        "meta": {"count": 1, "next_cursor": None},
+        "results": [],
+    }
+
+    async with respx.mock:
+        with caplog.at_level("WARNING"):
+            route = respx.get(url).mock(
+                side_effect=[
+                    httpx.ReadTimeout("ReadTimeout error simulated for testing."),
+                    httpx.ReadTimeout("ReadTimeout error simulated for testing."),
+                    Response(status.HTTP_200_OK, json=expected_payload),
+                ]
+            )
+
+            async with AsyncRetryClient(
+                retries=configured_retries, backoff_factor=0
+            ) as session:
+                response_json = await session.get_json_with_retry(
+                    url,
+                    instance_id="test1234",
+                    cursor=test_cursor,
+                )
+
+    assert route.call_count == expected_calls
+    assert response_json == expected_payload
+    assert f"ReadTimeout while fetching cursor {test_cursor}" in str(caplog.text)
 
 
 @pytest.mark.anyio

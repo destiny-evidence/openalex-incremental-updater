@@ -124,7 +124,11 @@ async def openalex_works_ingest_date_range(
     openalex_query = OpenAlexDataFetcher.build_range_query(
         start_date, end_date, ingest_type
     )
-    fetcher = OpenAlexDataFetcher(settings=settings)
+    fetcher = OpenAlexDataFetcher(
+        settings=settings,
+        retries=10,
+        backoff_factor=5.0,
+    )
     logger.info("Fetching OpenAlex works from {} to {}", start_date, end_date)
     try:
         results = fetcher.fetch_works_filter(
