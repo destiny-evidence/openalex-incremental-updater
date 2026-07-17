@@ -68,6 +68,12 @@ async def test_no_retry_on_404_not_found() -> None:
 async def test_session_get_readtimeout_is_not_retried(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
+    """
+    Test that a ReadTimeout error raised by session.get is not retried and is logged.
+
+    These errors are now handled in a single place, by the get_json_with_retry method,
+    which will retry on ReadTimeout errors.
+    """
     url = "https://a-test-url"
     expected_calls = 1
     expected_warning_logs = 0
@@ -84,8 +90,12 @@ async def test_session_get_readtimeout_is_not_retried(
                 with pytest.raises(httpx.ReadTimeout):
                     await session.get(url)
 
-            assert route.call_count == expected_calls
-            assert len(caplog.records) == expected_warning_logs
+            assert (
+                route.call_count == expected_calls
+            ), "Expect 1 call to the URL, with no retries at the session.get level."
+            assert (
+                len(caplog.records) == expected_warning_logs
+            ), "Expect no warning logs for ReadTimeout at the session.get level."
 
 
 @pytest.mark.anyio
@@ -121,8 +131,12 @@ async def test_get_json_with_retry_retries_request_time_readtimeout(
                     cursor=test_cursor,
                 )
 
-    assert route.call_count == expected_calls
-    assert response_json == expected_payload
+    assert (
+        route.call_count == expected_calls
+    ), "Expect to see retries due to ReadTimeoutError with the final call succeeding."
+    assert (
+        response_json == expected_payload
+    ), "Expect the final response to be the expected payload."
     assert f"ReadTimeout while fetching cursor {test_cursor}" in str(caplog.text)
 
 
