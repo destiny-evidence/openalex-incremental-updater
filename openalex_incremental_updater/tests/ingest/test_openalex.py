@@ -238,7 +238,7 @@ async def test_fetch_works_filter_uses_client_get_json_with_retry(
     fetcher = OpenAlexDataFetcher(
         settings=test_settings,
         retries=configured_retries,
-        backoff_factor=0,
+        backoff_factor=0.0,
     )
     mocked_get_json_with_retry = mocker.patch(
         "openalex_incremental_updater.ingest.openalex.AsyncRetryClient.get_json_with_retry",
@@ -270,7 +270,7 @@ async def test_fetch_works_filter_raises_on_response_json_readtimeout_after_retr
     fetcher = OpenAlexDataFetcher(
         settings=test_settings,
         retries=configured_retries,
-        backoff_factor=0,
+        backoff_factor=0.0,
     )
     mocked_get_json_with_retry = mocker.patch(
         "openalex_incremental_updater.ingest.openalex.AsyncRetryClient.get_json_with_retry",

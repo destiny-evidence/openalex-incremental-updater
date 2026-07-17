@@ -69,10 +69,10 @@ async def test_session_get_readtimeout_is_not_retried(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     """
-    Test that a ReadTimeout error raised by session.get is not retried and is logged.
+    Test that a ReadTimeout error raised by session.get is not retried in the handle_async_request method.
 
-    These errors are now handled in a single place, by the get_json_with_retry method,
-    which will retry on ReadTimeout errors.
+    ReadTimeout handling, retry logic and logging is handled by the
+    `get_json_with_retry` method, which is tested separately.
     """
     url = "https://a-test-url"
     expected_calls = 1
