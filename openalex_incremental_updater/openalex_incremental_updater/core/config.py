@@ -50,6 +50,15 @@ class Settings(BaseSettings):
     allow_headers: list[str] = ["*"]
     log_level: str = "INFO"
     BLOB_BATCH_SIZE: int = 10_000
+    OPENALEX_FETCH_TOLERANCE_PERCENTAGE: float = Field(
+        0.1,
+        ge=0.0,
+        le=100.0,
+        description=(
+            "Maximum tolerated percentage deficit between retrieved works and OpenAlex meta count "
+            "before failing the job."
+        ),
+    )
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 

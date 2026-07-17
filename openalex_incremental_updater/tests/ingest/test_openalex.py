@@ -162,6 +162,60 @@ async def test_fetch_works_filter_incomplete_fetch_raises_error(
         assert "4 of 100" in str(exc_info.value)
 
 
+@pytest.mark.anyio
+async def test_fetch_works_filter_incomplete_fetch_within_tolerance_succeeds(
+    double_openalex_work_response: list[dict],
+    test_settings: Settings,
+) -> None:
+    """Test that small incomplete fetch deficits can be tolerated."""
+    fetcher = OpenAlexDataFetcher(settings=test_settings, retries=0)
+
+    first_page_response: dict = {
+        "meta": {
+            "count": 100,
+            "next_cursor": "cursor_page_2",
+        },
+        "results": double_openalex_work_response,
+    }
+    second_page_response: dict = {
+        "meta": {
+            "count": 100,
+            "next_cursor": None,
+        },
+        "results": double_openalex_work_response,
+    }
+    total_retrieved_works = len(first_page_response["results"]) + len(
+        second_page_response["results"]
+    )
+    total_expected_works = first_page_response.get("meta", {}).get("count")
+
+    tolerated_deficit = total_expected_works - total_retrieved_works
+    test_settings.OPENALEX_FETCH_TOLERANCE_PERCENTAGE = (
+        tolerated_deficit / total_expected_works
+    ) * 100
+
+    test_date = double_openalex_work_response[0]["publication_date"]
+    mock_url = "https://api.openalex.org/works"
+    openalex_query = OpenAlexDataFetcher.build_range_query(
+        test_date, test_date, CreatedOrUpdated("created")
+    )
+
+    with respx.mock:
+        respx.get(mock_url).mock(
+            side_effect=[
+                httpx.Response(status.HTTP_200_OK, json=first_page_response),
+                httpx.Response(status.HTTP_200_OK, json=second_page_response),
+            ]
+        )
+
+        response = fetcher.fetch_works_filter(openalex_filter=openalex_query)
+        results = [item async for item in response]
+
+    flat_results = [work for batch in results for work in batch]
+    expected_retrieved = total_retrieved_works
+    assert len(flat_results) == expected_retrieved
+
+
 @travel("2025-08-19T12:00:00+00")
 @pytest.mark.anyio
 async def test_fetch_works_filter_uses_client_get_json_with_retry(
