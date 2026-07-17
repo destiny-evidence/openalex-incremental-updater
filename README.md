@@ -120,8 +120,53 @@ Pass the `--cov` flag to generate a coverage report, e.g.:
 
 ## Deployment
 
-The OpenAlex Incremental Updater is deployed as an Azure Container App, which is scaled to zero replicas when not in use. The Refresh Requester is deployed as an Azure Container App Job, which runs on a schedule to trigger the OpenAlex Incremental Updater service. This is currently set to run once per day at 04:00 UTC, refreshing data for the previous day.
+### Infra
 
-The deployment is managed using GitHub Actions, which automatically builds and pushes the Docker images to the Azure Container Registry, and updates the Azure Container App with the latest image. Staging deployments are made automatically on successful pull request merges to the `main` branch, while production deployments are triggered manually via a GitHub Actions workflow, which promotes the latest staging deployment to production. Environment variables for the Azure Container App are set using GitHub Secrets, ensuring that sensitive information is not exposed in the repository. Separate secrets are used for staging and production deployments, managed by GitHub Environments, allowing for different configurations in each environment.
+Infrastructure is managed using [Terraform](https://www.terraform.io/). The [infra](https://github.com/destiny-evidence/openalex-incremental-updater/tree/main/infrastructure) directory contains the Terraform configuration files and documentation for deploying the OpenAlex Incremental Updater and Refresh Requester services to Azure and uses HCP Terraform to manage state. This is a crucial first step in deploying the services, and should be completed before attempting to deploy the services themselves.
 
-Images are tagged with the short SHA of the commit, and a unique tag is generated for production deployments by appending `-prod` to the short SHA. This allows for easy identification of the image version in use.
+### Deployment process
+
+The OpenAlex Incremental Updater is deployed as an Azure Container App, which is scaled to zero replicas when not in use. The Refresh Requester is deployed as an Azure Container App Job, which runs on a schedule to trigger the OpenAlex Incremental Updater service. This is currently set to run once per day at 12:00 UTC, refreshing data for the current day.
+
+Staging and production deployments are managed using GitHub Actions. On a sucessful pull request merge to `main`, staging deployments have Docker images automatically built and pushed to a defined Azure Container Registry. The Azure Container App is automatically updated with the pushed and tagged image. Production deployments are triggered manually via GitHub Actions workflow, which promotes the latest staging deployment to production. Environment variables for the Azure Container App are set using GitHub Secrets, ensuring that sensitive information is not exposed in the repository. Separate secrets are used for staging and production deployments, managed by GitHub Environments, allowing for different configurations in each environment.
+
+Staging deployment images are tagged with the short SHA of the commit, and a unique tag is generated for production deployments by appending `-prod` to the short SHA. This allows for easy identification of the image version in use.
+
+Check the environment secrets in the repository settings if you are having issues with deployments, as these are required for the services to function correctly. Cross-check with the github actions workflow files to ensure that the correct secrets are being used for each environment.
+
+### Common issues
+
+#### Deployment issues in CI
+
+If GitHub actions fail to deploy things, check that you are using the correct credentials. `AZURE_CREDENTIALS` relies on a Service Principal existing with the relevant permissions. Ensure that this variable is set with the following format. Do **not** include a trailing comma on the last item.
+
+```json
+{
+  "clientId": "<Client ID>",
+  "clientSecret": "<Client Secret>",
+  "subscriptionId": "<Subscription ID>",
+  "tenantId": "<Tenant ID>"
+}
+```
+
+You may need to generate a new client secret if you do not have access to the existing secret for the service principal, or if it has expired. If you update this secret, you may need to update the `REGISTRY_PASSWORD` variable too.
+
+You may also see issues if the service principal does not have the `Container Apps Contributor` role associated with it for the specific Azure Container App you wish to update. This should be set up in the terraform config, but is worth double checking when debugging. The service principal also requires the `AcrPush` role on the Azure Container Registry in order to tag and push images.
+
+#### Log Tables not showing in Container App Job Execution history
+
+When infrastructure is set up, the Log Analytics Workspace may not contain the correct tables, causing logs to not be visible in the Azure portal. A similar issue is discussed in [this GitHub issue](https://github.com/microsoft/azure-container-apps/issues/450#issuecomment-3382908373). The solution observed to work is to set `disableLocalAuth` to `false` on the log analytics workspace.
+
+Check the current value of this setting with:
+
+```bash
+az monitor log-analytics workspace show --resource-group <resource-group-name> --workspace-name <workspace-name>
+```
+
+if `true`, set it to `false` with:
+
+```bash
+az monitor log-analytics workspace update --resource-group <resource-group-name> --workspace-name <workspace-name> --set features.disableLocalAuth=false
+```
+
+Cancel any ongoing Container App Job runs, and then stop/start the Container App itself. On a retry, the log tables expected in the Container App Job Execution history logs should be visible.
