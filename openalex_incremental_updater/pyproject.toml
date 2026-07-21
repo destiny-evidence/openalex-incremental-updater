@@ -30,7 +30,7 @@ dev = [
   "types-requests>=2.32.0.20241016,<3"
 ]
 test = [
-  "httpx2>=2.5.0",
+  "httpx2>=2.7.0",
   "pytest>=9.0.0",
   "pytest-asyncio>=1.4.0,<2",
   "pytest-cov>=7.1.0,<8",
