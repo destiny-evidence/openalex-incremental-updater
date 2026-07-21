@@ -56,7 +56,13 @@ class Settings(BaseSettings):
         le=100.0,
         description=(
             "Maximum tolerated percentage deficit between retrieved works and OpenAlex meta count "
-            "before failing the job."
+            "before failing the job. Note that this difference is presented as a percentage and runs between "
+            "0.0 and 100.0, inclusive. "
+            "Differences between the retrieved and expected countsare usually transient and rarely observed "
+            "but can cause the failure of long-running jobs. This has been observed in one case where ~100"
+            "works were missing from a total of ~1.2M expected works. "
+            "This setting allows for a small percentage tolerance to avoid unnecessary failures. "
+            "Set to 0.0 to strictly enforce that the counts match."
         ),
     )
 
