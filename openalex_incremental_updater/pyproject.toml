@@ -27,7 +27,7 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
   "pre-commit>=4.0.1,<5",
-  "types-requests>=2.32.0.20241016,<3"
+  "types-requests>=2.33.0.20260712,<3"
 ]
 test = [
   "httpx2>=2.5.0",
