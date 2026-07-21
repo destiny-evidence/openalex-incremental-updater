@@ -39,21 +39,9 @@ class RetryTransport(httpx.AsyncHTTPTransport):
                 response = await super().handle_async_request(request, **kwargs)
                 response.request = request
                 response.raise_for_status()
-            except httpx.ReadTimeout as timeout_error:
-                logger.warning(
-                    f"Attempt {attempt + 1}: ReadTimeout error occurred: {timeout_error}"
-                )
-                if attempt == self.retries:
-                    logger.error(
-                        f"Failed to fetch data from OpenAlex API after {self.retries} attempts."
-                    )
-                    return httpx.Response(
-                        status_code=status.HTTP_408_REQUEST_TIMEOUT,
-                        content=str(timeout_error),
-                    )
-                await asyncio.sleep(self.backoff_factor * 2**attempt)
-                attempt += 1
             except (httpx.HTTPStatusError, httpx.RequestError) as error:
+                if isinstance(error, httpx.ReadTimeout):
+                    raise
                 logger.warning(
                     f"Attempt {attempt + 1}: Failed to fetch data from OpenAlex API: {error}"
                 )
@@ -95,13 +83,13 @@ class RetryTransport(httpx.AsyncHTTPTransport):
 class AsyncRetryClient(httpx.AsyncClient):
     """Async context manager for an httpx.AsyncClient with retry capabilities."""
 
-    def __init__(self, retries: int = 5, backoff_factor: float = 0.1) -> None:
+    def __init__(self, retries: int = 5, backoff_factor: float = 5.0) -> None:
         """
         Class constructor.
 
         Args:
             retries (int, optional): Number of retries. Defaults to 5.
-            backoff_factor (float, optional): Backoff factor for retrying. Defaults to 0.1.
+            backoff_factor (float, optional): Backoff factor for retrying. Defaults to 5.0.
 
         """
         self.retries = retries
@@ -131,16 +119,18 @@ class AsyncRetryClient(httpx.AsyncClient):
         """
         attempt = 0
         while True:
-            response = await self.get(url)
-            response.raise_for_status()
             try:
+                response = await self.get(url)
+                response.raise_for_status()
                 return response.json()
-            except httpx.ReadTimeout:
-                instance_id = instance_id if instance_id is not None else "<UNKNOWN>"
-                cursor = cursor if cursor is not None else "<UNKNOWN>"
+            except httpx.ReadTimeout as timeout_error:
+                resolved_instance_id = (
+                    instance_id if instance_id is not None else "<UNKNOWN>"
+                )
+                resolved_cursor = cursor if cursor is not None else "<UNKNOWN>"
                 warning_message = (
-                    f"[Instance {instance_id}] Attempt {attempt + 1} of {self.retries + 1}: "
-                    f"ReadTimeout during response parsing {cursor}"
+                    f"[Instance {resolved_instance_id}] Attempt {attempt + 1} of {self.retries + 1}: "
+                    f"ReadTimeout while fetching cursor {resolved_cursor}: {timeout_error}"
                 )
                 logger.warning(warning_message)
                 if attempt == self.retries:

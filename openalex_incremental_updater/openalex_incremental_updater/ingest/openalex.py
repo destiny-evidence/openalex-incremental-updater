@@ -106,7 +106,7 @@ class OpenAlexDataFetcher:
     """Class to control data fetching from the OpenAlex API."""
 
     def __init__(
-        self, settings: Settings, retries: int = 5, backoff_factor: int = 5
+        self, settings: Settings, retries: int = 5, backoff_factor: float = 5.0
     ) -> None:
         """Class constructor."""
         self.settings = settings
@@ -270,9 +270,25 @@ class OpenAlexDataFetcher:
                     not exited_due_to_limit
                     and counter_works_retrieved < count_works_total
                 ):
+                    deficit = count_works_total - counter_works_retrieved
+                    tolerance_works_float = (
+                        self.settings.OPENALEX_FETCH_TOLERANCE_PERCENTAGE / 100
+                    ) * count_works_total
+                    tolerance_works = int(tolerance_works_float)
+
+                    if deficit <= tolerance_works:
+                        warning_message = (
+                            f"Tolerating incomplete fetch: retrieved {counter_works_retrieved} "
+                            f"of {count_works_total} expected works "
+                            f"(deficit {deficit} <= tolerance {tolerance_works})"
+                        )
+                        logger.warning(warning_message)
+                        logger.info("Completed streaming results.")
+                        return
                     msg = (
                         f"Incomplete fetch: retrieved {counter_works_retrieved} of "
-                        f"{count_works_total} expected works"
+                        f"{count_works_total} expected works. "
+                        f"Deficit {deficit} exceeds tolerance {tolerance_works}."
                     )
                     raise UpstreamOpenAlexError(msg)
             logger.info("Completed streaming results.")
