@@ -120,13 +120,13 @@ Pass the `--cov` flag to generate a coverage report, e.g.:
 
 ## Deployment
 
+The OpenAlex Incremental Updater is deployed as an Azure Container App, which is scaled to zero replicas when not in use. The Refresh Requester is deployed as an Azure Container App Job, which runs on a schedule to trigger the OpenAlex Incremental Updater service. This is currently set to run once per day at 12:00 UTC, refreshing data for the previous complete day.
+
 ### Infra
 
 Infrastructure is managed using [Terraform](https://www.terraform.io/). The [infra](https://github.com/destiny-evidence/openalex-incremental-updater/tree/main/infrastructure) directory contains the Terraform configuration files and documentation for deploying the OpenAlex Incremental Updater and Refresh Requester services to Azure and uses HCP Terraform to manage state. This is a crucial first step in deploying the services, and should be completed before attempting to deploy the services themselves.
 
 ### Deployment process
-
-The OpenAlex Incremental Updater is deployed as an Azure Container App, which is scaled to zero replicas when not in use. The Refresh Requester is deployed as an Azure Container App Job, which runs on a schedule to trigger the OpenAlex Incremental Updater service. This is currently set to run once per day at 12:00 UTC, refreshing data for the current day.
 
 Staging and production deployments are managed using GitHub Actions. On a sucessful pull request merge to `main`, staging deployments have Docker images automatically built and pushed to a defined Azure Container Registry. The Azure Container App is automatically updated with the pushed and tagged image. Production deployments are triggered manually via GitHub Actions workflow, which promotes the latest staging deployment to production. Environment variables for the Azure Container App are set using GitHub Secrets, ensuring that sensitive information is not exposed in the repository. Separate secrets are used for staging and production deployments, managed by GitHub Environments, allowing for different configurations in each environment.
 
