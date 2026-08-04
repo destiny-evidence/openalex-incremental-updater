@@ -330,7 +330,7 @@ wheels = [
 
 [[package]]
 name = "destiny-sdk"
-version = "0.13.0"
+version = "0.14.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "authlib" },
@@ -341,9 +341,9 @@ dependencies = [
     { name = "pydantic" },
     { name = "python-jose", extra = ["cryptography"] },
 ]
-sdist = { url = "https://files.pythonhosted.org/packages/cb/d7/4e58f6bb76f804dbd6b9d2b0e9dc2fa295a82aa130c6ba6660e9ab6c231b/destiny_sdk-0.13.0.tar.gz", hash = "sha256:d6bb2e4b2e8d17e6e0cf5f10e8941410bf95f44ec288bd746eda71c189163f6c", size = 125976, upload-time = "2026-06-23T06:02:31.972Z" }
+sdist = { url = "https://files.pythonhosted.org/packages/90/ac/a9eb295ce433d7fe80afa6581e0d0f1fccc599b95471c87d6fbc8cc4ce70/destiny_sdk-0.14.0.tar.gz", hash = "sha256:2abcebf68a7b8843a0e0da692275a844e1348d3d7e4f85e8ea890c99f81ebf71", size = 127557, upload-time = "2026-07-30T02:58:12.887Z" }
 wheels = [
-    { url = "https://files.pythonhosted.org/packages/c9/67/33fb98f8e1776aec4baed294322f79c7aa1dcfbb5d7adc27b6baf92d725d/destiny_sdk-0.13.0-py3-none-any.whl", hash = "sha256:87c963c22e9c3b5335a8ad7ff03b6cf4e17ed4f956ab0172c98e68a17d6d98a8", size = 43188, upload-time = "2026-06-23T06:02:32.806Z" },
+    { url = "https://files.pythonhosted.org/packages/88/c3/aae20b64c2090e4fcfc446c2ed2d04ed983dc0e82d92385d6cf3e2d38bc2/destiny_sdk-0.14.0-py3-none-any.whl", hash = "sha256:b2571fc9cb3861f2d5a72f292dcd38777d02068be563b0f6af982174b81f7f64", size = 44609, upload-time = "2026-07-30T02:58:11.747Z" },
 ]
 
 [[package]]
@@ -852,7 +852,7 @@ requires-dist = [
     { name = "azure-core", extras = ["aio"], specifier = ">=1.41.0" },
     { name = "azure-identity", specifier = ">=1.24.0" },
     { name = "azure-storage-blob", specifier = ">=12.30.0" },
-    { name = "destiny-sdk", specifier = ">=0.13.0" },
+    { name = "destiny-sdk", specifier = ">=0.14.0" },
     { name = "fastapi", extras = ["standard"], specifier = ">=0.140.0" },
     { name = "httpx", specifier = ">=0.28.1,<0.29" },
     { name = "httpx2", marker = "extra == 'test'", specifier = ">=2.9.1" },
