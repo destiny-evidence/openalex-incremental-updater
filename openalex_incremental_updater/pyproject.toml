@@ -20,7 +20,7 @@ dependencies = [
   "azure-core[aio]>=1.41.0",
   "azure-identity>=1.24.0",
   "azure-storage-blob>=12.30.0",
-  "starlette>=1.4.0",
+  "starlette>=1.4.1",
   "destiny-sdk>=0.14.1"
 ]
 
