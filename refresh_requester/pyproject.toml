@@ -19,7 +19,7 @@ dependencies = [
   "pydantic-settings>=2.14.2,<3",
   "requests>=2.32.3,<3",
   "uvicorn>=0.52.1",
-  "starlette>=1.4.0",
+  "starlette>=1.4.1",
   "destiny-sdk>=0.14.1",
   "fastapi>=0.141.1"
 ]
