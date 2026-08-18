@@ -16,25 +16,25 @@ dependencies = [
   "jsonlines>=4.0.0,<5",
   "loguru>=0.7.3,<0.8",
   "pydantic>=2.10.6,<3",
-  "pydantic-settings>=2.14.2,<3",
+  "pydantic-settings>=2.15.0,<3",
   "requests>=2.32.3,<3",
-  "uvicorn>=0.52.1",
-  "starlette>=1.4.1",
+  "uvicorn>=0.52.3",
+  "starlette>=1.6.0",
   "destiny-sdk>=0.14.1",
   "fastapi>=0.141.1"
 ]
 
 [project.optional-dependencies]
 dev = [
-  "pre-commit>=4.6.1,<5"
+  "pre-commit>=4.6.2,<5"
 ]
 test = [
   "pytest-asyncio>=1.4.0",
   "pytest>=9.1.1",
   "pytest-cov>=7.1.0,<8",
   "pytest-mock>=3.14.0,<4",
-  "time-machine>=3.3.1",
-  "httpx2>=2.9.1"
+  "time-machine>=3.4.0",
+  "httpx2>=2.10.0"
 ]
 
 [tool.ruff]

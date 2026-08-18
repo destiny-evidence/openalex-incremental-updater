@@ -14,29 +14,29 @@ dependencies = [
   "httpx>=0.28.1,<0.29",
   "loguru>=0.7.3,<0.8",
   "pydantic>=2.10.5,<3",
-  "pydantic-settings>=2.14.2,<3",
+  "pydantic-settings>=2.15.0,<3",
   "requests>=2.32.3,<3",
   "msal>=1.37.0,<2",
   "azure-core[aio]>=1.41.0",
   "azure-identity>=1.24.0",
   "azure-storage-blob>=12.30.0",
-  "starlette>=1.4.1",
+  "starlette>=1.6.0",
   "destiny-sdk>=0.14.1"
 ]
 
 [project.optional-dependencies]
 dev = [
-  "pre-commit>=4.6.1,<5",
+  "pre-commit>=4.6.2,<5",
   "types-requests>=2.33.0.20260712,<3"
 ]
 test = [
-  "httpx2>=2.9.1",
+  "httpx2>=2.10.0",
   "pytest>=9.0.0",
   "pytest-asyncio>=1.4.0,<2",
   "pytest-cov>=7.1.0,<8",
   "pytest-mock>=3.14.0,<4",
   "respx>=0.23.1,<0.24",
-  "time-machine>=3.3.1"
+  "time-machine>=3.4.0"
 ]
 
 [tool.mypy]
